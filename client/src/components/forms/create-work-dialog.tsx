@@ -149,7 +149,7 @@ export function CreateWorkDialog({ groupId }: CreateWorkDialogProps) {
                           <SelectValue placeholder="Выберите ед. изм." />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-white">
                         <SelectItem value="шт">шт (pcs)</SelectItem>
                         <SelectItem value="м3">м³</SelectItem>
                         <SelectItem value="м2">м²</SelectItem>
