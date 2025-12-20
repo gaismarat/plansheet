@@ -1,12 +1,56 @@
 import { useWorkGroups } from "@/hooks/use-construction";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, Label } from "recharts";
 import { HardHat, ChevronLeft } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 
 const COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
+
+// Custom label renderer for outer ring (completed/total works)
+const renderOuterLabel = (group: any) => {
+  return (cx: number, cy: number, midAngle: number) => {
+    if (midAngle < -90 || midAngle > 90) return null;
+    const radius = 120;
+    const x = cx + radius * Math.cos((midAngle * Math.PI) / 180);
+    const y = cy + radius * Math.sin((midAngle * Math.PI) / 180);
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="#1f2937" 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        className="font-bold text-xs"
+      >
+        {group.value}/{group.total}
+      </text>
+    );
+  };
+};
+
+// Custom label renderer for inner ring (progress percentage)
+const renderInnerLabel = (group: any) => {
+  return (cx: number, cy: number, midAngle: number) => {
+    if (midAngle < -90 || midAngle > 90) return null;
+    const radius = 75;
+    const x = cx + radius * Math.cos((midAngle * Math.PI) / 180);
+    const y = cy + radius * Math.sin((midAngle * Math.PI) / 180);
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="#059669" 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        className="font-bold text-xs"
+      >
+        {group.avgProgress}%
+      </text>
+    );
+  };
+};
 
 export default function Analytics() {
   const { data: groups, isLoading, error } = useWorkGroups();
@@ -132,7 +176,7 @@ export default function Analytics() {
               {groupProgressData.map((group, index) => (
                 <Card key={group.name} className="p-6 flex flex-col items-center justify-center">
                   <h3 className="text-sm font-bold text-foreground mb-4 text-center line-clamp-2">{group.name}</h3>
-                  <ResponsiveContainer width="100%" height={240}>
+                  <ResponsiveContainer width="100%" height={280}>
                     <PieChart>
                       {/* Outer ring: Completed vs Pending works */}
                       <Pie
@@ -146,6 +190,23 @@ export default function Analytics() {
                         outerRadius={100}
                         paddingAngle={4}
                         dataKey="value"
+                        label={({ cx, cy, midAngle }) => {
+                          const radius = 120;
+                          const x = cx + radius * Math.cos((midAngle * Math.PI) / 180);
+                          const y = cy + radius * Math.sin((midAngle * Math.PI) / 180);
+                          return (
+                            <text 
+                              x={x} 
+                              y={y} 
+                              fill="#1f2937" 
+                              textAnchor={x > cx ? 'start' : 'end'} 
+                              dominantBaseline="central"
+                              className="font-bold text-xs"
+                            >
+                              {group.value}/{group.total}
+                            </text>
+                          );
+                        }}
                       >
                         <Cell fill="#3b82f6" />
                         <Cell fill="#dbeafe" />
@@ -162,6 +223,23 @@ export default function Analytics() {
                         outerRadius={60}
                         paddingAngle={4}
                         dataKey="value"
+                        label={({ cx, cy, midAngle }) => {
+                          const radius = 75;
+                          const x = cx + radius * Math.cos((midAngle * Math.PI) / 180);
+                          const y = cy + radius * Math.sin((midAngle * Math.PI) / 180);
+                          return (
+                            <text 
+                              x={x} 
+                              y={y} 
+                              fill="#059669" 
+                              textAnchor={x > cx ? 'start' : 'end'} 
+                              dominantBaseline="central"
+                              className="font-bold text-xs"
+                            >
+                              {group.avgProgress}%
+                            </text>
+                          );
+                        }}
                       >
                         <Cell fill="#10b981" />
                         <Cell fill="#f0fdf4" />
