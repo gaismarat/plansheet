@@ -67,6 +67,22 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    moveUp: {
+      method: 'POST' as const,
+      path: '/api/works/:id/move-up',
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+    moveDown: {
+      method: 'POST' as const,
+      path: '/api/works/:id/move-down',
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
     delete: {
       method: 'DELETE' as const,
       path: '/api/works/:id',

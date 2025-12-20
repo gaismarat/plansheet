@@ -78,6 +78,26 @@ export async function registerRoutes(
     }
   });
 
+  app.post(api.works.moveUp.path, async (req, res) => {
+    const id = Number(req.params.id);
+    const existing = await storage.getWork(id);
+    if (!existing) {
+      return res.status(404).json({ message: "Work not found" });
+    }
+    await storage.moveWorkUp(id);
+    res.status(204).send();
+  });
+
+  app.post(api.works.moveDown.path, async (req, res) => {
+    const id = Number(req.params.id);
+    const existing = await storage.getWork(id);
+    if (!existing) {
+      return res.status(404).json({ message: "Work not found" });
+    }
+    await storage.moveWorkDown(id);
+    res.status(204).send();
+  });
+
   app.delete(api.works.delete.path, async (req, res) => {
     const id = Number(req.params.id);
     const existing = await storage.getWork(id);

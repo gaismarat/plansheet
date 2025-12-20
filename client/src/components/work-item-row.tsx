@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { type Work } from "@shared/schema";
-import { useUpdateWork, useDeleteWork } from "@/hooks/use-construction";
+import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown } from "@/hooks/use-construction";
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Trash2, Edit2, Check } from "lucide-react";
+import { Trash2, Edit2, Check, ArrowUp, ArrowDown } from "lucide-react";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,8 @@ interface WorkItemRowProps {
 export function WorkItemRow({ work }: WorkItemRowProps) {
   const { mutate: updateWork } = useUpdateWork();
   const { mutate: deleteWork, isPending: isDeleting } = useDeleteWork();
+  const { mutate: moveUp } = useMoveWorkUp();
+  const { mutate: moveDown } = useMoveWorkDown();
   
   const [localProgress, setLocalProgress] = useState(work.progressPercentage);
   const [isEditingProgress, setIsEditingProgress] = useState(false);
@@ -131,6 +133,32 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
 
       {/* Actions */}
       <div className="col-span-2 md:col-span-1 flex items-center justify-end gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => moveUp(work.id)}
+            >
+              <ArrowUp className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Переместить вверх</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => moveDown(work.id)}
+            >
+              <ArrowDown className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Переместить вниз</TooltipContent>
+        </Tooltip>
         <EditWorkDialog work={work} />
         <Tooltip>
           <TooltipTrigger asChild>

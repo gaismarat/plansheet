@@ -136,3 +136,41 @@ export function useDeleteWork() {
     },
   });
 }
+
+export function useMoveWorkUp() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.works.moveUp.path, { id });
+      const res = await fetch(url, { method: api.works.moveUp.method });
+      if (!res.ok) throw new Error("Failed to move work up");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.workGroups.list.path] });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useMoveWorkDown() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.works.moveDown.path, { id });
+      const res = await fetch(url, { method: api.works.moveDown.method });
+      if (!res.ok) throw new Error("Failed to move work down");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.workGroups.list.path] });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}

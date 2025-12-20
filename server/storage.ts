@@ -8,7 +8,7 @@ import {
   type InsertWorkGroup,
   type UpdateWorkRequest
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
   // Work Groups
@@ -21,6 +21,10 @@ export interface IStorage {
   updateWork(id: number, updates: UpdateWorkRequest): Promise<Work>;
   deleteWork(id: number): Promise<void>;
   getWork(id: number): Promise<Work | undefined>;
+  
+  // Reordering
+  moveWorkUp(id: number): Promise<void>;
+  moveWorkDown(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -41,7 +45,7 @@ export class DatabaseStorage implements IStorage {
     return await db.query.workGroups.findMany({
       with: {
         works: {
-          orderBy: (works, { asc }) => [asc(works.id)],
+          orderBy: (works, { asc }) => [asc(works.order), asc(works.id)],
         },
       },
       orderBy: (workGroups, { asc }) => [asc(workGroups.id)],
@@ -80,6 +84,34 @@ export class DatabaseStorage implements IStorage {
   async getWork(id: number): Promise<Work | undefined> {
     const [work] = await db.select().from(works).where(eq(works.id, id));
     return work;
+  }
+
+  async moveWorkUp(id: number): Promise<void> {
+    const work = await this.getWork(id);
+    if (!work) return;
+    
+    const [prevWork] = await db.select().from(works)
+      .where(and(eq(works.groupId, work.groupId), eq(works.order, work.order - 1)))
+      .limit(1);
+    
+    if (prevWork) {
+      await this.updateWork(work.id, { order: work.order - 1 });
+      await this.updateWork(prevWork.id, { order: prevWork.order + 1 });
+    }
+  }
+
+  async moveWorkDown(id: number): Promise<void> {
+    const work = await this.getWork(id);
+    if (!work) return;
+    
+    const [nextWork] = await db.select().from(works)
+      .where(and(eq(works.groupId, work.groupId), eq(works.order, work.order + 1)))
+      .limit(1);
+    
+    if (nextWork) {
+      await this.updateWork(work.id, { order: work.order + 1 });
+      await this.updateWork(nextWork.id, { order: nextWork.order - 1 });
+    }
   }
 }
 

@@ -20,6 +20,7 @@ export const works = pgTable("works", {
   volumeUnit: text("volume_unit").notNull(), // Единица измерения (шт, м3, м2, п.м, компл)
   progressPercentage: integer("progress_percentage").default(0).notNull(), // Шкала выполнения 0-100%
   responsiblePerson: text("responsible_person").notNull(), // Ответственный
+  order: integer("order").default(0).notNull(), // Порядок в группе
   createdAt: timestamp("created_at").defaultNow(),
 });
 
