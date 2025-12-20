@@ -223,27 +223,22 @@ export default function Analytics() {
                         outerRadius={60}
                         paddingAngle={4}
                         dataKey="value"
-                        label={({ cx, cy, midAngle }) => {
-                          const radius = 75;
-                          const x = cx + radius * Math.cos((midAngle * Math.PI) / 180);
-                          const y = cy + radius * Math.sin((midAngle * Math.PI) / 180);
-                          return (
-                            <text 
-                              x={x} 
-                              y={y} 
-                              fill="#059669" 
-                              textAnchor={x > cx ? 'start' : 'end'} 
-                              dominantBaseline="central"
-                              className="font-bold text-xs"
-                            >
-                              {group.avgProgress}%
-                            </text>
-                          );
-                        }}
                       >
                         <Cell fill="#10b981" />
                         <Cell fill="#f0fdf4" />
                       </Pie>
+                      {/* Center text showing progress percentage */}
+                      <text 
+                        x="50%" 
+                        y="50%" 
+                        textAnchor="middle" 
+                        dominantBaseline="central"
+                        fontSize="24"
+                        fontWeight="bold"
+                        fill="#059669"
+                      >
+                        {group.avgProgress}%
+                      </text>
                       <Tooltip formatter={(value) => `${value}${typeof value === 'string' ? '' : '%'}`} />
                     </PieChart>
                   </ResponsiveContainer>
