@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { type Work } from "@shared/schema";
 import { useUpdateWork, useDeleteWork } from "@/hooks/use-construction";
+import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Trash2, Edit2, Check } from "lucide-react";
@@ -129,7 +130,8 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
       </div>
 
       {/* Actions */}
-      <div className="col-span-2 md:col-span-1 flex items-center justify-end">
+      <div className="col-span-2 md:col-span-1 flex items-center justify-end gap-1">
+        <EditWorkDialog work={work} />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
