@@ -30,10 +30,14 @@ export default function Analytics() {
   const groupProgressData = (groups || []).map(group => {
     const works = group.works || [];
     const completed = works.filter(w => w.progressPercentage === 100).length;
+    const avgProgress = works.length > 0 
+      ? Math.round(works.reduce((acc, w) => acc + w.progressPercentage, 0) / works.length)
+      : 0;
     return {
       name: group.name,
       value: completed,
-      total: works.length
+      total: works.length,
+      avgProgress: avgProgress
     };
   });
 
@@ -128,8 +132,9 @@ export default function Analytics() {
               {groupProgressData.map((group, index) => (
                 <Card key={group.name} className="p-6 flex flex-col items-center justify-center">
                   <h3 className="text-sm font-bold text-foreground mb-4 text-center line-clamp-2">{group.name}</h3>
-                  <ResponsiveContainer width="100%" height={200}>
+                  <ResponsiveContainer width="100%" height={240}>
                     <PieChart>
+                      {/* Outer ring: Completed vs Pending works */}
                       <Pie
                         data={[
                           { name: "Завершено", value: group.value },
@@ -137,20 +142,37 @@ export default function Analytics() {
                         ]}
                         cx="50%"
                         cy="50%"
-                        innerRadius={40}
-                        outerRadius={70}
+                        innerRadius={70}
+                        outerRadius={100}
                         paddingAngle={4}
                         dataKey="value"
                       >
                         <Cell fill="#3b82f6" />
                         <Cell fill="#dbeafe" />
                       </Pie>
-                      <Tooltip />
+                      {/* Inner ring: Progress percentage */}
+                      <Pie
+                        data={[
+                          { name: "Выполнено", value: group.avgProgress },
+                          { name: "Осталось", value: 100 - group.avgProgress }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={30}
+                        outerRadius={60}
+                        paddingAngle={4}
+                        dataKey="value"
+                      >
+                        <Cell fill="#10b981" />
+                        <Cell fill="#f0fdf4" />
+                      </Pie>
+                      <Tooltip formatter={(value) => `${value}${typeof value === 'string' ? '' : '%'}`} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="mt-4 text-center">
-                    <p className="text-2xl font-bold text-primary">{group.value}/{group.total}</p>
-                    <p className="text-xs text-muted-foreground">завершено/всего</p>
+                    <p className="text-sm text-muted-foreground mb-2">Завершено работ: {group.value}/{group.total}</p>
+                    <p className="text-2xl font-bold text-primary">{group.avgProgress}%</p>
+                    <p className="text-xs text-muted-foreground">средний прогресс</p>
                   </div>
                 </Card>
               ))}
