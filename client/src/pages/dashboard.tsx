@@ -3,7 +3,8 @@ import { CreateWorkGroupDialog } from "@/components/forms/create-work-group-dial
 import { CreateWorkDialog } from "@/components/forms/create-work-dialog";
 import { WorkItemRow } from "@/components/work-item-row";
 import { Button } from "@/components/ui/button";
-import { Trash2, FolderOpen, HardHat, TrendingUp } from "lucide-react";
+import { Trash2, FolderOpen, HardHat, TrendingUp, BarChart3 } from "lucide-react";
+import { Link } from "wouter";
 import {
   Accordion,
   AccordionContent,
@@ -45,7 +46,15 @@ export default function Dashboard() {
               СтройКонтроль <span className="text-primary/60 font-sans font-normal text-sm ml-2 hidden sm:inline-block">v1.0</span>
             </h1>
           </div>
-          <CreateWorkGroupDialog />
+          <div className="flex items-center gap-2">
+            <Link href="/analytics">
+              <Button variant="ghost" size="sm" className="gap-2" data-testid="button-analytics">
+                <BarChart3 className="w-4 h-4" />
+                <span className="hidden sm:inline">Аналитика</span>
+              </Button>
+            </Link>
+            <CreateWorkGroupDialog />
+          </div>
         </div>
       </header>
 
