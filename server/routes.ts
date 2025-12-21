@@ -116,6 +116,9 @@ export async function registerRoutes(
 
 async function seedDatabase() {
   const groups = await storage.getWorkGroupsWithWorks();
+  // Check if we need to reinitialize order values for existing data
+  const needsReorder = groups.some(g => g.works.some(w => w.order === 0) && g.works.length > 1);
+  
   if (groups.length === 0) {
     console.log("Seeding database...");
     
@@ -171,5 +174,13 @@ async function seedDatabase() {
     });
 
     console.log("Database seeded!");
+  } else if (needsReorder) {
+    console.log("Reinitializing order values...");
+    for (const group of groups) {
+      for (let i = 0; i < group.works.length; i++) {
+        await storage.updateWork(group.works[i].id, { order: i });
+      }
+    }
+    console.log("Order values reinitialized!");
   }
 }

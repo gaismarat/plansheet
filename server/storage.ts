@@ -64,7 +64,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWork(work: InsertWork): Promise<Work> {
-    const [newWork] = await db.insert(works).values(work).returning();
+    // Get the next order value for this group
+    const groupWorks = await db.select().from(works).where(eq(works.groupId, work.groupId));
+    const maxOrder = Math.max(...groupWorks.map(w => w.order), -1);
+    
+    const [newWork] = await db.insert(works).values({
+      ...work,
+      order: maxOrder + 1
+    }).returning();
     return newWork;
   }
 
