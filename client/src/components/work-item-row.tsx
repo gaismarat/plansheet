@@ -66,110 +66,123 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, height: 0 }}
-      className="group grid grid-cols-12 gap-4 items-center p-4 bg-card rounded-lg border border-border/50 hover:border-primary/20 hover:shadow-md transition-all duration-300 mb-3"
+      className="group flex flex-col p-4 bg-card rounded-lg border border-border/50 hover:border-primary/20 hover:shadow-md transition-all duration-300 mb-3"
     >
-      {/* Name & ID */}
-      <div className="col-span-12 md:col-span-3 flex flex-col justify-center">
-        <span className="font-semibold text-foreground truncate" title={work.name}>
-          {work.name}
-        </span>
-        <span className="text-xs text-muted-foreground font-mono mt-0.5">
-          ID: {work.id.toString().padStart(4, '0')}
-        </span>
+      {/* Header Row with Column Labels */}
+      <div className="grid grid-cols-12 gap-4 mb-3">
+        <div className="col-span-3" />
+        <div className="col-span-6 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
+        <div className="col-span-2 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
+        <div className="col-span-1 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
       </div>
 
-      {/* Plan: Volume & Days */}
-      <div className="col-span-6 md:col-span-2 flex flex-col justify-center text-sm">
-        <div className="text-xs text-muted-foreground font-medium mb-1">План</div>
-        <div className="flex items-center gap-1.5 text-foreground/90">
-          <span className="font-mono font-medium">{work.volumeAmount}</span>
-          <span className="text-muted-foreground text-xs">{work.volumeUnit}</span>
+      {/* Data Row */}
+      <div className="grid grid-cols-12 gap-4 items-center">
+        {/* Name & ID */}
+        <div className="col-span-3 flex flex-col justify-center">
+          <span className="font-semibold text-foreground truncate" title={work.name}>
+            {work.name}
+          </span>
+          <span className="text-xs text-muted-foreground font-mono mt-0.5">
+            ID: {work.id.toString().padStart(4, '0')}
+          </span>
         </div>
-        <div className="text-xs text-muted-foreground mt-0.5">
-          {work.daysEstimated} дн.
-        </div>
-      </div>
 
-      {/* Actual: Volume & Days */}
-      <div className="col-span-6 md:col-span-2 flex flex-col justify-center text-sm">
-        <div className="text-xs text-muted-foreground font-medium mb-1">Факт</div>
-        <div className="flex items-center gap-1.5 text-foreground/90">
-          <span className="font-mono font-medium">{work.volumeActual}</span>
-          <span className="text-muted-foreground text-xs">{work.volumeUnit}</span>
-        </div>
-        <div className="text-xs text-muted-foreground mt-0.5">
-          {work.daysActual} дн.
-        </div>
-      </div>
+        {/* Metrics: Plan | Actual | Overage */}
+        <div className="col-span-6 grid grid-cols-3 gap-2 text-sm">
+          {/* Plan: Volume & Days */}
+          <div className="flex flex-col justify-center">
+            <div className="text-xs text-muted-foreground font-medium mb-1">План</div>
+            <div className="flex items-center gap-1.5 text-foreground/90">
+              <span className="font-mono font-medium">{work.volumeAmount}</span>
+              <span className="text-muted-foreground text-xs">{work.volumeUnit}</span>
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {work.daysEstimated} дн.
+            </div>
+          </div>
 
-      {/* Overage: Volume & Days */}
-      <div className="col-span-6 md:col-span-2 flex flex-col justify-center text-sm">
-        <div className="text-xs text-muted-foreground font-medium mb-1">Превышение</div>
-        <div className="flex flex-col gap-1">
-          {(() => {
-            const volumePercent = work.volumeAmount > 0 ? ((work.volumeActual - work.volumeAmount) / work.volumeAmount) * 100 : 0;
-            const daysPercent = work.daysEstimated > 0 ? ((work.daysActual - work.daysEstimated) / work.daysEstimated) * 100 : 0;
-            const volumeColor = volumePercent > 0 ? 'text-red-500' : volumePercent < 0 ? 'text-green-500' : 'text-foreground/90';
-            const daysColor = daysPercent > 0 ? 'text-red-500' : daysPercent < 0 ? 'text-green-500' : 'text-foreground/90';
-            
-            return (
-              <>
-                <span className={`font-mono text-sm ${volumeColor}`}>
-                  {volumePercent > 0 ? '+' : ''}{volumePercent.toFixed(1)}%
-                </span>
-                <span className={`font-mono text-sm ${daysColor}`}>
-                  {daysPercent > 0 ? '+' : ''}{daysPercent.toFixed(1)}%
-                </span>
-              </>
-            );
-          })()}
-        </div>
-      </div>
+          {/* Actual: Volume & Days */}
+          <div className="flex flex-col justify-center">
+            <div className="text-xs text-muted-foreground font-medium mb-1">Факт</div>
+            <div className="flex items-center gap-1.5 text-foreground/90">
+              <span className="font-mono font-medium">{work.volumeActual}</span>
+              <span className="text-muted-foreground text-xs">{work.volumeUnit}</span>
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {work.daysActual} дн.
+            </div>
+          </div>
 
-      {/* Responsible */}
-      <div className="col-span-6 md:col-span-2 flex items-center">
-        <div className="flex items-center gap-2 bg-secondary/50 px-2 py-1 rounded text-xs text-secondary-foreground font-medium truncate max-w-full">
-          <div className="w-1.5 h-1.5 rounded-full bg-primary/40 shrink-0" />
-          <span className="truncate" title={work.responsiblePerson}>{work.responsiblePerson}</span>
-        </div>
-      </div>
-
-      {/* Progress Control */}
-      <div className="col-span-10 md:col-span-4 flex flex-col gap-2">
-        <div className="flex items-center justify-between text-xs mb-1">
-          <span className="text-muted-foreground font-medium">Прогресс</span>
-          <div className="flex items-center gap-1">
-            <input 
-               type="number"
-               min={0}
-               max={100}
-               value={localProgress}
-               onChange={handleProgressInputChange}
-               onBlur={handleProgressInputBlur}
-               className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono"
-            />
-            <span className="text-muted-foreground">%</span>
+          {/* Overage: Volume & Days */}
+          <div className="flex flex-col justify-center">
+            <div className="text-xs text-muted-foreground font-medium mb-1">Превышение</div>
+            <div className="flex flex-col gap-1">
+              {(() => {
+                const volumePercent = work.volumeAmount > 0 ? ((work.volumeActual - work.volumeAmount) / work.volumeAmount) * 100 : 0;
+                const daysPercent = work.daysEstimated > 0 ? ((work.daysActual - work.daysEstimated) / work.daysEstimated) * 100 : 0;
+                const volumeColor = volumePercent > 0 ? 'text-red-500' : volumePercent < 0 ? 'text-green-500' : 'text-foreground/90';
+                const daysColor = daysPercent > 0 ? 'text-red-500' : daysPercent < 0 ? 'text-green-500' : 'text-foreground/90';
+                
+                return (
+                  <>
+                    <span className={`font-mono text-sm ${volumeColor}`}>
+                      {volumePercent > 0 ? '+' : ''}{volumePercent.toFixed(1)}%
+                    </span>
+                    <span className={`font-mono text-sm ${daysColor}`}>
+                      {daysPercent > 0 ? '+' : ''}{daysPercent.toFixed(1)}%
+                    </span>
+                  </>
+                );
+              })()}
+            </div>
           </div>
         </div>
-        
-        <div className="relative group/slider pt-1 pb-1">
-           <Slider
-            defaultValue={[work.progressPercentage]}
-            value={[localProgress]}
+
+        {/* Responsible */}
+        <div className="col-span-2 flex items-center">
+          <div className="flex items-center gap-2 bg-secondary/50 px-2 py-1 rounded text-xs text-secondary-foreground font-medium truncate max-w-full">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary/40 shrink-0" />
+            <span className="truncate" title={work.responsiblePerson}>{work.responsiblePerson}</span>
+          </div>
+        </div>
+
+        {/* Progress Control - Inline */}
+        <div className="col-span-1 flex items-center gap-1">
+          <input 
+            type="number"
+            min={0}
             max={100}
-            step={1}
-            onValueChange={handleSliderChange}
-            className="cursor-pointer"
+            value={localProgress}
+            onChange={handleProgressInputChange}
+            onBlur={handleProgressInputBlur}
+            className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-sm"
           />
-          {/* Visual track underneath is handled by slider, but let's add the color logic to slider primitive or wrapper if needed, 
-              but Shadcn Slider is generic. Let's rely on standard styling for now or wrap in ProgressBar if read-only.
-              Actually, let's use the Slider for interaction and a color overlay if we want dynamic color.
-           */}
+          <span className="text-muted-foreground text-sm">%</span>
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="col-span-2 md:col-span-1 flex items-center justify-end gap-1">
+      {/* Progress Slider Row */}
+      <div className="mt-2 grid grid-cols-12 gap-4 items-center">
+        <div className="col-span-3" />
+        <div className="col-span-6" />
+        <div className="col-span-2" />
+        <div className="col-span-1">
+          <div className="relative group/slider">
+            <Slider
+              defaultValue={[work.progressPercentage]}
+              value={[localProgress]}
+              max={100}
+              step={1}
+              onValueChange={handleSliderChange}
+              className="cursor-pointer"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Actions Row */}
+      <div className="mt-2 flex justify-end gap-1">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
