@@ -69,18 +69,20 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
       className="group flex flex-col p-4 bg-card rounded-lg border border-border/50 hover:border-primary/20 hover:shadow-md transition-all duration-300 mb-3"
     >
       {/* Header Row with Column Labels */}
-      <div className="grid grid-cols-12 gap-4 mb-3">
-        <div className="col-span-3 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
-        <div className="col-span-5 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
-        <div className="col-span-2 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
+      <div className="grid grid-cols-12 gap-3 mb-3">
+        <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
+        <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
+        <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ПЛАН НАЧАЛО</div>
+        <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ПЛАН КОНЕЦ</div>
+        <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
         <div className="col-span-2 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
       </div>
 
       {/* Data Row */}
-      <div className="grid grid-cols-12 gap-4 items-center">
+      <div className="grid grid-cols-12 gap-3 items-center">
         {/* Name & ID */}
-        <div className="col-span-3 flex flex-col justify-center">
-          <span className="font-semibold text-foreground truncate" title={work.name}>
+        <div className="col-span-2 flex flex-col justify-center">
+          <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
             {work.name}
           </span>
           <span className="text-xs text-muted-foreground font-mono mt-0.5">
@@ -88,14 +90,14 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
           </span>
         </div>
 
-        {/* Metrics: Plan | Actual | Overage */}
-        <div className="col-span-5 grid grid-cols-3 gap-2 text-sm">
+        {/* Metrics: Plan | Actual | Overage - Tighter spacing */}
+        <div className="col-span-3 grid grid-cols-3 gap-1 text-sm">
           {/* Plan: Volume & Days */}
           <div className="flex flex-col justify-center">
             <div className="text-xs text-muted-foreground font-medium mb-1">План</div>
-            <div className="flex items-center gap-1.5 text-foreground/90">
+            <div className="flex items-center gap-1 text-foreground/90 text-xs">
               <span className="font-mono font-medium">{work.volumeAmount}</span>
-              <span className="text-muted-foreground text-xs">{work.volumeUnit}</span>
+              <span className="text-muted-foreground">{work.volumeUnit}</span>
             </div>
             <div className="text-xs text-muted-foreground mt-0.5">
               {work.daysEstimated} дн.
@@ -105,9 +107,9 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
           {/* Actual: Volume & Days */}
           <div className="flex flex-col justify-center">
             <div className="text-xs text-muted-foreground font-medium mb-1">Факт</div>
-            <div className="flex items-center gap-1.5 text-foreground/90">
+            <div className="flex items-center gap-1 text-foreground/90 text-xs">
               <span className="font-mono font-medium">{work.volumeActual}</span>
-              <span className="text-muted-foreground text-xs">{work.volumeUnit}</span>
+              <span className="text-muted-foreground">{work.volumeUnit}</span>
             </div>
             <div className="text-xs text-muted-foreground mt-0.5">
               {work.daysActual} дн.
@@ -116,8 +118,8 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
 
           {/* Overage: Volume & Days */}
           <div className="flex flex-col justify-center">
-            <div className="text-xs text-muted-foreground font-medium mb-1">Превышение</div>
-            <div className="flex flex-col gap-1">
+            <div className="text-xs text-muted-foreground font-medium mb-1">Превыш</div>
+            <div className="flex flex-col gap-0.5">
               {(() => {
                 const volumePercent = work.volumeAmount > 0 ? ((work.volumeActual - work.volumeAmount) / work.volumeAmount) * 100 : 0;
                 const daysPercent = work.daysEstimated > 0 ? ((work.daysActual - work.daysEstimated) / work.daysEstimated) * 100 : 0;
@@ -126,10 +128,10 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
                 
                 return (
                   <>
-                    <span className={`font-mono text-sm ${volumeColor}`}>
+                    <span className={`font-mono text-xs ${volumeColor}`}>
                       {volumePercent > 0 ? '+' : ''}{volumePercent.toFixed(1)}%
                     </span>
-                    <span className={`font-mono text-sm ${daysColor}`}>
+                    <span className={`font-mono text-xs ${daysColor}`}>
                       {daysPercent > 0 ? '+' : ''}{daysPercent.toFixed(1)}%
                     </span>
                   </>
@@ -139,11 +141,51 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
           </div>
         </div>
 
+        {/* Plan Start Date */}
+        <div className="col-span-2 flex flex-col gap-1 text-xs">
+          <div className="text-muted-foreground font-medium">План</div>
+          <input 
+            type="text"
+            value={work.planStartDate || ''}
+            readOnly
+            placeholder="-"
+            className="bg-transparent border-b border-border text-foreground/70 text-xs px-0 py-0.5"
+          />
+          <div className="text-muted-foreground font-medium mt-1">Факт</div>
+          <input 
+            type="text"
+            value={work.actualStartDate || ''}
+            readOnly
+            placeholder="-"
+            className="bg-transparent border-b border-border text-foreground/70 text-xs px-0 py-0.5"
+          />
+        </div>
+
+        {/* Plan End Date */}
+        <div className="col-span-2 flex flex-col gap-1 text-xs">
+          <div className="text-muted-foreground font-medium">План</div>
+          <input 
+            type="text"
+            value={work.planEndDate || ''}
+            readOnly
+            placeholder="-"
+            className="bg-transparent border-b border-border text-foreground/70 text-xs px-0 py-0.5"
+          />
+          <div className="text-muted-foreground font-medium mt-1">Факт</div>
+          <input 
+            type="text"
+            value={work.actualEndDate || ''}
+            readOnly
+            placeholder="-"
+            className="bg-transparent border-b border-border text-foreground/70 text-xs px-0 py-0.5"
+          />
+        </div>
+
         {/* Responsible */}
-        <div className="col-span-2 flex items-center">
-          <div className="flex items-center gap-2 bg-secondary/50 px-2 py-1 rounded text-xs text-secondary-foreground font-medium truncate max-w-full">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary/40 shrink-0" />
-            <span className="truncate" title={work.responsiblePerson}>{work.responsiblePerson}</span>
+        <div className="col-span-1 flex items-center">
+          <div className="flex items-center gap-1.5 bg-secondary/50 px-1.5 py-0.5 rounded text-xs text-secondary-foreground font-medium truncate max-w-full">
+            <div className="w-1 h-1 rounded-full bg-primary/40 shrink-0" />
+            <span className="truncate text-xs" title={work.responsiblePerson}>{work.responsiblePerson}</span>
           </div>
         </div>
 
@@ -163,10 +205,12 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
       </div>
 
       {/* Progress Slider Row */}
-      <div className="mt-2 grid grid-cols-12 gap-4 items-center">
-        <div className="col-span-3" />
-        <div className="col-span-5" />
+      <div className="mt-2 grid grid-cols-12 gap-3 items-center">
         <div className="col-span-2" />
+        <div className="col-span-3" />
+        <div className="col-span-2" />
+        <div className="col-span-2" />
+        <div className="col-span-1" />
         <div className="col-span-2">
           <div className="relative group/slider">
             <Slider
