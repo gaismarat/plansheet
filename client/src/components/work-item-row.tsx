@@ -342,8 +342,9 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
                 return <span className="text-red-500 font-medium">Отставание {diff} дн.</span>;
               } else if (diff < 0) {
                 return <span className="text-green-500 font-medium">Опережение {Math.abs(diff)} дн.</span>;
+              } else {
+                return <span className="text-green-500 font-medium">Плановый срок</span>;
               }
-              return null;
             })()}
           </div>
 
