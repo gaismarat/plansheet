@@ -301,35 +301,38 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           />
         </div>
 
-        {/* Days Difference Counter */}
+        {/* Days Duration Counter */}
         <div className="col-span-2 flex flex-col gap-1 text-xs">
-          <div className="text-muted-foreground font-medium">Разница дней</div>
-          <div className="flex flex-col gap-0.5">
-            {/* Plan vs Actual End Date Difference */}
+          <div className="text-muted-foreground font-medium">План дн.</div>
+          <div className="text-foreground/90 font-mono">
             {(() => {
-              const calculateDaysDiff = (planDate: string, actualDate: string): number | null => {
-                if (!planDate || !actualDate) return null;
-                const plan = new Date(planDate);
-                const actual = new Date(actualDate);
-                const diffTime = actual.getTime() - plan.getTime();
+              const calculateDaysDuration = (startDate: string, endDate: string): number | null => {
+                if (!startDate || !endDate) return null;
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                const diffTime = end.getTime() - start.getTime();
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 return diffDays;
               };
 
-              const daysDiff = calculateDaysDiff(localPlanEndDate, localActualEndDate);
-              const color = daysDiff !== null 
-                ? daysDiff > 0 
-                  ? 'text-red-500' 
-                  : daysDiff < 0 
-                  ? 'text-green-500' 
-                  : 'text-foreground/90'
-                : 'text-muted-foreground';
+              const planDays = calculateDaysDuration(localPlanStartDate, localPlanEndDate);
+              return planDays !== null ? planDays : '-';
+            })()}
+          </div>
+          <div className="text-muted-foreground font-medium">Факт дн.</div>
+          <div className="text-foreground/90 font-mono">
+            {(() => {
+              const calculateDaysDuration = (startDate: string, endDate: string): number | null => {
+                if (!startDate || !endDate) return null;
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                const diffTime = end.getTime() - start.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays;
+              };
 
-              return (
-                <span className={`font-mono text-xs ${color}`}>
-                  {daysDiff !== null ? (daysDiff > 0 ? '+' : '') + daysDiff : '-'}
-                </span>
-              );
+              const actualDays = calculateDaysDuration(localActualStartDate, localActualEndDate);
+              return actualDays !== null ? actualDays : '-';
             })()}
           </div>
         </div>
