@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useWorkGroups, useDeleteWorkGroup } from "@/hooks/use-construction";
 import { CreateWorkGroupDialog } from "@/components/forms/create-work-group-dialog";
 import { CreateWorkDialog } from "@/components/forms/create-work-dialog";
 import { WorkItemRow } from "@/components/work-item-row";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Trash2, FolderOpen, HardHat, TrendingUp, BarChart3 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -102,6 +104,7 @@ export default function Dashboard() {
 
 function GroupAccordionItem({ group }: { group: WorkGroupResponse }) {
   const { mutate: deleteGroup } = useDeleteWorkGroup();
+  const [showAllWorks, setShowAllWorks] = useState(true);
   const totalWorks = group.works?.length || 0;
   const completedWorks = group.works?.filter(w => w.progressPercentage === 100).length || 0;
   const avgProgress = totalWorks > 0 
@@ -127,6 +130,16 @@ function GroupAccordionItem({ group }: { group: WorkGroupResponse }) {
           </div>
           
           <div className="flex items-center gap-6">
+            {/* Show/Hide Works Toggle */}
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Показать/скрыть работы</span>
+              <Switch 
+                checked={showAllWorks} 
+                onCheckedChange={setShowAllWorks}
+                className={`${showAllWorks ? 'bg-green-500' : 'bg-red-500'}`}
+              />
+            </div>
+
             {/* Mini Progress Circle or Bar for Group */}
             <div className="hidden sm:flex items-center gap-2">
               <span className="text-xs font-bold text-muted-foreground">ВЫПОЛНЕНИЕ</span>
@@ -184,7 +197,7 @@ function GroupAccordionItem({ group }: { group: WorkGroupResponse }) {
         ) : (
           <div className="space-y-1">
              {group.works?.map((work) => (
-               <WorkItemRow key={work.id} work={work} />
+               <WorkItemRow key={work.id} work={work} expandAll={showAllWorks} />
              ))}
           </div>
         )}

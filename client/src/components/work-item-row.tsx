@@ -17,15 +17,21 @@ import {
 
 interface WorkItemRowProps {
   work: Work;
+  expandAll?: boolean;
 }
 
-export function WorkItemRow({ work }: WorkItemRowProps) {
+export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
   const { mutate: updateWork } = useUpdateWork();
   const { mutate: deleteWork, isPending: isDeleting } = useDeleteWork();
   const { mutate: moveUp } = useMoveWorkUp();
   const { mutate: moveDown } = useMoveWorkDown();
   
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(expandAll);
+
+  // Sync expandAll prop changes with local state
+  useEffect(() => {
+    setIsExpanded(expandAll);
+  }, [expandAll]);
   const [localProgress, setLocalProgress] = useState(work.progressPercentage);
   const [isEditingProgress, setIsEditingProgress] = useState(false);
   const [localPlanStartDate, setLocalPlanStartDate] = useState(work.planStartDate || '');
