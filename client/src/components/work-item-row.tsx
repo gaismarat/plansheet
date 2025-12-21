@@ -78,14 +78,51 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
         </span>
       </div>
 
-      {/* Metrics: Volume & Days */}
+      {/* Plan: Volume & Days */}
       <div className="col-span-6 md:col-span-2 flex flex-col justify-center text-sm">
+        <div className="text-xs text-muted-foreground font-medium mb-1">План</div>
         <div className="flex items-center gap-1.5 text-foreground/90">
           <span className="font-mono font-medium">{work.volumeAmount}</span>
           <span className="text-muted-foreground text-xs">{work.volumeUnit}</span>
         </div>
         <div className="text-xs text-muted-foreground mt-0.5">
           {work.daysEstimated} дн.
+        </div>
+      </div>
+
+      {/* Actual: Volume & Days */}
+      <div className="col-span-6 md:col-span-2 flex flex-col justify-center text-sm">
+        <div className="text-xs text-muted-foreground font-medium mb-1">Факт</div>
+        <div className="flex items-center gap-1.5 text-foreground/90">
+          <span className="font-mono font-medium">{work.volumeActual}</span>
+          <span className="text-muted-foreground text-xs">{work.volumeUnit}</span>
+        </div>
+        <div className="text-xs text-muted-foreground mt-0.5">
+          {work.daysActual} дн.
+        </div>
+      </div>
+
+      {/* Overage: Volume & Days */}
+      <div className="col-span-6 md:col-span-2 flex flex-col justify-center text-sm">
+        <div className="text-xs text-muted-foreground font-medium mb-1">Превышение</div>
+        <div className="flex flex-col gap-1">
+          {(() => {
+            const volumePercent = work.volumeAmount > 0 ? ((work.volumeActual - work.volumeAmount) / work.volumeAmount) * 100 : 0;
+            const daysPercent = work.daysEstimated > 0 ? ((work.daysActual - work.daysEstimated) / work.daysEstimated) * 100 : 0;
+            const volumeColor = volumePercent > 0 ? 'text-red-500' : volumePercent < 0 ? 'text-green-500' : 'text-foreground/90';
+            const daysColor = daysPercent > 0 ? 'text-red-500' : daysPercent < 0 ? 'text-green-500' : 'text-foreground/90';
+            
+            return (
+              <>
+                <span className={`font-mono text-sm ${volumeColor}`}>
+                  {volumePercent > 0 ? '+' : ''}{volumePercent.toFixed(1)}%
+                </span>
+                <span className={`font-mono text-sm ${daysColor}`}>
+                  {daysPercent > 0 ? '+' : ''}{daysPercent.toFixed(1)}%
+                </span>
+              </>
+            );
+          })()}
         </div>
       </div>
 

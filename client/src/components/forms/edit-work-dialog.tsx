@@ -46,6 +46,8 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
       daysEstimated: work.daysEstimated,
       volumeAmount: work.volumeAmount,
       volumeUnit: work.volumeUnit,
+      daysActual: work.daysActual,
+      volumeActual: work.volumeActual,
       progressPercentage: work.progressPercentage,
     },
   });
@@ -130,7 +132,7 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
                 name="volumeAmount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Объём</FormLabel>
+                    <FormLabel>Объём (план)</FormLabel>
                     <FormControl>
                       <Input type="number" step="0.1" min="0" {...field} />
                     </FormControl>
@@ -159,6 +161,36 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
                         <SelectItem value="компл">компл (set)</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="volumeActual"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Объём (факт)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.1" min="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="daysActual"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Дней (факт)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

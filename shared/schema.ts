@@ -15,9 +15,11 @@ export const works = pgTable("works", {
   id: serial("id").primaryKey(),
   groupId: integer("group_id").notNull().references(() => workGroups.id),
   name: text("name").notNull(), // Название работы
-  daysEstimated: integer("days_estimated").notNull(), // Количество дней
-  volumeAmount: real("volume_amount").notNull(), // Объём работ
+  daysEstimated: integer("days_estimated").notNull(), // Количество дней (план)
+  volumeAmount: real("volume_amount").notNull(), // Объём работ (план)
   volumeUnit: text("volume_unit").notNull(), // Единица измерения (шт, м3, м2, п.м, компл)
+  daysActual: integer("days_actual").default(0).notNull(), // Фактические дни
+  volumeActual: real("volume_actual").default(0).notNull(), // Фактический объём
   progressPercentage: integer("progress_percentage").default(0).notNull(), // Шкала выполнения 0-100%
   responsiblePerson: text("responsible_person").notNull(), // Ответственный
   order: integer("order").default(0).notNull(), // Порядок в группе
@@ -44,6 +46,8 @@ export const insertWorkSchema = createInsertSchema(works).omit({ id: true, creat
   progressPercentage: z.coerce.number().min(0).max(100).default(0),
   daysEstimated: z.coerce.number().min(0),
   volumeAmount: z.coerce.number().min(0),
+  daysActual: z.coerce.number().min(0).default(0),
+  volumeActual: z.coerce.number().min(0).default(0),
 });
 
 // === EXPLICIT API CONTRACT TYPES ===
