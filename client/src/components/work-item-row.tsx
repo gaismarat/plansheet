@@ -70,7 +70,7 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
     >
       {/* Header Row with Column Labels */}
       <div className="grid grid-cols-12 gap-4 mb-3">
-        <div className="col-span-3" />
+        <div className="col-span-3 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
         <div className="col-span-5 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
         <div className="col-span-2 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
         <div className="col-span-2 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
