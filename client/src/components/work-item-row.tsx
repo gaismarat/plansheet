@@ -29,6 +29,8 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
   const [isEditingProgress, setIsEditingProgress] = useState(false);
   const [localPlanStartDate, setLocalPlanStartDate] = useState(work.planStartDate || '');
   const [localPlanEndDate, setLocalPlanEndDate] = useState(work.planEndDate || '');
+  const [localActualStartDate, setLocalActualStartDate] = useState(work.actualStartDate || '');
+  const [localActualEndDate, setLocalActualEndDate] = useState(work.actualEndDate || '');
   const sliderTimeoutRef = useRef<NodeJS.Timeout>();
   const dateTimeoutRef = useRef<NodeJS.Timeout>();
 
@@ -42,7 +44,9 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
   useEffect(() => {
     setLocalPlanStartDate(work.planStartDate || '');
     setLocalPlanEndDate(work.planEndDate || '');
-  }, [work.planStartDate, work.planEndDate]);
+    setLocalActualStartDate(work.actualStartDate || '');
+    setLocalActualEndDate(work.actualEndDate || '');
+  }, [work.planStartDate, work.planEndDate, work.actualStartDate, work.actualEndDate]);
 
   const handleSliderChange = (value: number[]) => {
     const newVal = value[0];
@@ -86,6 +90,26 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
     if (dateTimeoutRef.current) clearTimeout(dateTimeoutRef.current);
     dateTimeoutRef.current = setTimeout(() => {
       updateWork({ id: work.id, planEndDate: newDate });
+    }, 300);
+  };
+
+  const handleActualStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value;
+    setLocalActualStartDate(newDate);
+    
+    if (dateTimeoutRef.current) clearTimeout(dateTimeoutRef.current);
+    dateTimeoutRef.current = setTimeout(() => {
+      updateWork({ id: work.id, actualStartDate: newDate });
+    }, 300);
+  };
+
+  const handleActualEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value;
+    setLocalActualEndDate(newDate);
+    
+    if (dateTimeoutRef.current) clearTimeout(dateTimeoutRef.current);
+    dateTimeoutRef.current = setTimeout(() => {
+      updateWork({ id: work.id, actualEndDate: newDate });
     }, 300);
   };
 
@@ -182,10 +206,10 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
           <div className="text-muted-foreground font-medium mt-1">Факт</div>
           <input 
             type="date"
-            value={work.actualStartDate || ''}
-            readOnly
+            value={localActualStartDate}
+            onChange={handleActualStartDateChange}
             placeholder="-"
-            className="bg-transparent border-b border-border text-foreground/70 text-xs px-0 py-0.5"
+            className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary"
           />
         </div>
 
@@ -202,10 +226,10 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
           <div className="text-muted-foreground font-medium mt-1">Факт</div>
           <input 
             type="date"
-            value={work.actualEndDate || ''}
-            readOnly
+            value={localActualEndDate}
+            onChange={handleActualEndDateChange}
             placeholder="-"
-            className="bg-transparent border-b border-border text-foreground/70 text-xs px-0 py-0.5"
+            className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary"
           />
         </div>
 

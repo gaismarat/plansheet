@@ -218,10 +218,40 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
 
               <FormField
                 control={form.control}
+                name="actualStartDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Факт начало</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
                 name="planEndDate"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>План конец</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="actualEndDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Факт конец</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
