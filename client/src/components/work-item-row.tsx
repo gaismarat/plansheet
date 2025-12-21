@@ -182,7 +182,7 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
       </div>
 
       {/* Actions Row */}
-      <div className="mt-6 flex justify-end gap-1">
+      <div className="mt-12 flex justify-end gap-1">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
