@@ -319,6 +319,34 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
               return planDays !== null ? planDays : '-';
             })()}
           </div>
+          
+          {/* Comparison between Plan and Actual */}
+          <div className="py-0.5">
+            {(() => {
+              const calculateDaysDuration = (startDate: string, endDate: string): number | null => {
+                if (!startDate || !endDate) return null;
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                const diffTime = end.getTime() - start.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays;
+              };
+
+              const planDays = calculateDaysDuration(localPlanStartDate, localPlanEndDate);
+              const actualDays = calculateDaysDuration(localActualStartDate, localActualEndDate);
+
+              if (planDays === null || actualDays === null) return null;
+
+              const diff = actualDays - planDays;
+              if (diff > 0) {
+                return <span className="text-red-500 font-medium">Отставание {diff} дн.</span>;
+              } else if (diff < 0) {
+                return <span className="text-green-500 font-medium">Опережение {Math.abs(diff)} дн.</span>;
+              }
+              return null;
+            })()}
+          </div>
+
           <div className="text-muted-foreground font-medium">Факт дн.</div>
           <div className="text-foreground/90 font-mono">
             {(() => {
