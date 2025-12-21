@@ -191,8 +191,9 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           <div className="grid grid-cols-12 gap-3 mb-3">
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">КОНЕЦ</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">КОНЕЦ</div>
+            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ДНЕЙ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
           </div>
@@ -261,7 +262,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Plan Start Date */}
-        <div className="col-span-2 flex flex-col gap-1 text-xs">
+        <div className="col-span-1 flex flex-col gap-1 text-xs">
           <div className="text-muted-foreground font-medium">План</div>
           <input 
             type="date"
@@ -281,7 +282,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Plan End Date */}
-        <div className="col-span-2 flex flex-col gap-1 text-xs">
+        <div className="col-span-1 flex flex-col gap-1 text-xs">
           <div className="text-muted-foreground font-medium">План</div>
           <input 
             type="date"
@@ -298,6 +299,39 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
             placeholder="-"
             className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary"
           />
+        </div>
+
+        {/* Days Difference Counter */}
+        <div className="col-span-2 flex flex-col gap-1 text-xs">
+          <div className="text-muted-foreground font-medium">Разница дней</div>
+          <div className="flex flex-col gap-0.5">
+            {/* Plan vs Actual End Date Difference */}
+            {(() => {
+              const calculateDaysDiff = (planDate: string, actualDate: string): number | null => {
+                if (!planDate || !actualDate) return null;
+                const plan = new Date(planDate);
+                const actual = new Date(actualDate);
+                const diffTime = actual.getTime() - plan.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays;
+              };
+
+              const daysDiff = calculateDaysDiff(localPlanEndDate, localActualEndDate);
+              const color = daysDiff !== null 
+                ? daysDiff > 0 
+                  ? 'text-red-500' 
+                  : daysDiff < 0 
+                  ? 'text-green-500' 
+                  : 'text-foreground/90'
+                : 'text-muted-foreground';
+
+              return (
+                <span className={`font-mono text-xs ${color}`}>
+                  {daysDiff !== null ? (daysDiff > 0 ? '+' : '') + daysDiff : '-'}
+                </span>
+              );
+            })()}
+          </div>
         </div>
 
         {/* Responsible */}
@@ -327,7 +361,8 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           <div className="mt-2 grid grid-cols-12 gap-3 items-center">
             <div className="col-span-2" />
             <div className="col-span-3" />
-            <div className="col-span-2" />
+            <div className="col-span-1" />
+            <div className="col-span-1" />
             <div className="col-span-2" />
             <div className="col-span-1" />
             <div className="col-span-2">
