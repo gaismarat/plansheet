@@ -183,15 +183,6 @@ function GroupAccordionItem({ group }: { group: WorkGroupResponse }) {
            </div>
         ) : (
           <div className="space-y-1">
-             {/* Header Row for List */}
-             <div className="grid grid-cols-12 gap-4 px-4 pb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-               <div className="col-span-3">Наименование</div>
-               <div className="col-span-2">Объём / Срок</div>
-               <div className="col-span-2">Ответственный</div>
-               <div className="col-span-4">Прогресс</div>
-               <div className="col-span-1"></div>
-             </div>
-             
              {group.works?.map((work) => (
                <WorkItemRow key={work.id} work={work} />
              ))}
