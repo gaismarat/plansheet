@@ -71,9 +71,9 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
       {/* Header Row with Column Labels */}
       <div className="grid grid-cols-12 gap-4 mb-3">
         <div className="col-span-3" />
-        <div className="col-span-6 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
+        <div className="col-span-5 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
         <div className="col-span-2 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
-        <div className="col-span-1 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
+        <div className="col-span-2 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
       </div>
 
       {/* Data Row */}
@@ -89,7 +89,7 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
         </div>
 
         {/* Metrics: Plan | Actual | Overage */}
-        <div className="col-span-6 grid grid-cols-3 gap-2 text-sm">
+        <div className="col-span-5 grid grid-cols-3 gap-2 text-sm">
           {/* Plan: Volume & Days */}
           <div className="flex flex-col justify-center">
             <div className="text-xs text-muted-foreground font-medium mb-1">План</div>
@@ -148,7 +148,7 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
         </div>
 
         {/* Progress Control - Inline */}
-        <div className="col-span-1 flex items-center gap-1">
+        <div className="col-span-2 flex items-center gap-1">
           <input 
             type="number"
             min={0}
@@ -165,9 +165,9 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
       {/* Progress Slider Row */}
       <div className="mt-2 grid grid-cols-12 gap-4 items-center">
         <div className="col-span-3" />
-        <div className="col-span-6" />
+        <div className="col-span-5" />
         <div className="col-span-2" />
-        <div className="col-span-1">
+        <div className="col-span-2">
           <div className="relative group/slider">
             <Slider
               defaultValue={[work.progressPercentage]}
