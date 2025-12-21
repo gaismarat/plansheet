@@ -27,7 +27,10 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
   
   const [localProgress, setLocalProgress] = useState(work.progressPercentage);
   const [isEditingProgress, setIsEditingProgress] = useState(false);
+  const [localPlanStartDate, setLocalPlanStartDate] = useState(work.planStartDate || '');
+  const [localPlanEndDate, setLocalPlanEndDate] = useState(work.planEndDate || '');
   const sliderTimeoutRef = useRef<NodeJS.Timeout>();
+  const dateTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Sync local state if external data changes (and we aren't dragging)
   useEffect(() => {
@@ -35,6 +38,11 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
       setLocalProgress(work.progressPercentage);
     }
   }, [work.progressPercentage, isEditingProgress]);
+
+  useEffect(() => {
+    setLocalPlanStartDate(work.planStartDate || '');
+    setLocalPlanEndDate(work.planEndDate || '');
+  }, [work.planStartDate, work.planEndDate]);
 
   const handleSliderChange = (value: number[]) => {
     const newVal = value[0];
@@ -59,6 +67,26 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
 
   const handleProgressInputBlur = () => {
     updateWork({ id: work.id, progressPercentage: localProgress });
+  };
+
+  const handlePlanStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value;
+    setLocalPlanStartDate(newDate);
+    
+    if (dateTimeoutRef.current) clearTimeout(dateTimeoutRef.current);
+    dateTimeoutRef.current = setTimeout(() => {
+      updateWork({ id: work.id, planStartDate: newDate });
+    }, 300);
+  };
+
+  const handlePlanEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value;
+    setLocalPlanEndDate(newDate);
+    
+    if (dateTimeoutRef.current) clearTimeout(dateTimeoutRef.current);
+    dateTimeoutRef.current = setTimeout(() => {
+      updateWork({ id: work.id, planEndDate: newDate });
+    }, 300);
   };
 
   return (
@@ -145,15 +173,15 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
         <div className="col-span-2 flex flex-col gap-1 text-xs">
           <div className="text-muted-foreground font-medium">План</div>
           <input 
-            type="text"
-            value={work.planStartDate || ''}
-            readOnly
+            type="date"
+            value={localPlanStartDate}
+            onChange={handlePlanStartDateChange}
             placeholder="-"
-            className="bg-transparent border-b border-border text-foreground/70 text-xs px-0 py-0.5"
+            className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary"
           />
           <div className="text-muted-foreground font-medium mt-1">Факт</div>
           <input 
-            type="text"
+            type="date"
             value={work.actualStartDate || ''}
             readOnly
             placeholder="-"
@@ -165,15 +193,15 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
         <div className="col-span-2 flex flex-col gap-1 text-xs">
           <div className="text-muted-foreground font-medium">План</div>
           <input 
-            type="text"
-            value={work.planEndDate || ''}
-            readOnly
+            type="date"
+            value={localPlanEndDate}
+            onChange={handlePlanEndDateChange}
             placeholder="-"
-            className="bg-transparent border-b border-border text-foreground/70 text-xs px-0 py-0.5"
+            className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary"
           />
           <div className="text-muted-foreground font-medium mt-1">Факт</div>
           <input 
-            type="text"
+            type="date"
             value={work.actualEndDate || ''}
             readOnly
             placeholder="-"

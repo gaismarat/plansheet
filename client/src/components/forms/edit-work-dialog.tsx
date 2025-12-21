@@ -49,6 +49,10 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
       daysActual: work.daysActual,
       volumeActual: work.volumeActual,
       progressPercentage: work.progressPercentage,
+      planStartDate: work.planStartDate || '',
+      planEndDate: work.planEndDate || '',
+      actualStartDate: work.actualStartDate || '',
+      actualEndDate: work.actualEndDate || '',
     },
   });
 
@@ -190,6 +194,36 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
                     <FormLabel>Дней (факт)</FormLabel>
                     <FormControl>
                       <Input type="number" min="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="planStartDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>План начало</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="planEndDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>План конец</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
