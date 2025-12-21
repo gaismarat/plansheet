@@ -4,7 +4,7 @@ import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown } from "@/
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Trash2, Edit2, Check, ArrowUp, ArrowDown } from "lucide-react";
+import { Trash2, Edit2, Check, ArrowUp, ArrowDown, ChevronDown } from "lucide-react";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
   const { mutate: moveUp } = useMoveWorkUp();
   const { mutate: moveDown } = useMoveWorkDown();
   
+  const [isExpanded, setIsExpanded] = useState(true);
   const [localProgress, setLocalProgress] = useState(work.progressPercentage);
   const [isEditingProgress, setIsEditingProgress] = useState(false);
   const [localPlanStartDate, setLocalPlanStartDate] = useState(work.planStartDate || '');
@@ -118,20 +119,80 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, height: 0 }}
-      className="group flex flex-col p-4 bg-card rounded-lg border border-border/50 hover:border-primary/20 hover:shadow-md transition-all duration-300 mb-3"
+      className="group flex flex-col p-4 bg-card rounded-lg border border-border/50 hover:border-primary/20 hover:shadow-md transition-all duration-300 mb-3 cursor-pointer"
+      onClick={() => setIsExpanded(!isExpanded)}
     >
-      {/* Header Row with Column Labels */}
-      <div className="grid grid-cols-12 gap-3 mb-3">
-        <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
-        <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
-        <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
-        <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">КОНЕЦ</div>
-        <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
-        <div className="col-span-2 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
-      </div>
+      {/* Collapsed View */}
+      {!isExpanded && (
+        <>
+          {/* Compact Header Row */}
+          <div className="grid grid-cols-12 gap-3 mb-3">
+            <div className="col-span-1 text-xs text-muted-foreground font-semibold flex items-center">
+              <ChevronDown className="w-3 h-3 mr-1" />
+            </div>
+            <div className="col-span-5 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
+            <div className="col-span-3 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
+            <div className="col-span-3 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
+          </div>
 
-      {/* Data Row */}
-      <div className="grid grid-cols-12 gap-3 items-center">
+          {/* Compact Data Row */}
+          <div className="grid grid-cols-12 gap-3 items-center">
+            {/* Expand Icon */}
+            <div className="col-span-1 flex items-center">
+              <ChevronDown className="w-4 h-4 text-muted-foreground rotate-0 group-hover:text-primary transition-colors" />
+            </div>
+
+            {/* Name & ID */}
+            <div className="col-span-5 flex flex-col justify-center">
+              <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
+                {work.name}
+              </span>
+              <span className="text-xs text-muted-foreground font-mono mt-0.5">
+                ID: {work.id.toString().padStart(4, '0')}
+              </span>
+            </div>
+
+            {/* Responsible */}
+            <div className="col-span-3 flex items-center">
+              <div className="flex items-center gap-1.5 bg-secondary/50 px-1.5 py-0.5 rounded text-xs text-secondary-foreground font-medium truncate max-w-full">
+                <div className="w-1 h-1 rounded-full bg-primary/40 shrink-0" />
+                <span className="truncate text-xs" title={work.responsiblePerson}>{work.responsiblePerson}</span>
+              </div>
+            </div>
+
+            {/* Progress Control */}
+            <div className="col-span-3 flex items-center gap-1">
+              <input 
+                type="number"
+                min={0}
+                max={100}
+                value={localProgress}
+                onChange={handleProgressInputChange}
+                onBlur={handleProgressInputBlur}
+                className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-sm"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="text-muted-foreground text-sm">%</span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Expanded View */}
+      {isExpanded && (
+        <>
+          {/* Header Row with Column Labels */}
+          <div className="grid grid-cols-12 gap-3 mb-3">
+            <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
+            <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
+            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
+            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">КОНЕЦ</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
+            <div className="col-span-2 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
+          </div>
+
+          {/* Data Row */}
+          <div className="grid grid-cols-12 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
         {/* Name & ID */}
         <div className="col-span-2 flex flex-col justify-center">
           <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
@@ -256,71 +317,75 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
         </div>
       </div>
 
-      {/* Progress Slider Row */}
-      <div className="mt-2 grid grid-cols-12 gap-3 items-center">
-        <div className="col-span-2" />
-        <div className="col-span-3" />
-        <div className="col-span-2" />
-        <div className="col-span-2" />
-        <div className="col-span-1" />
-        <div className="col-span-2">
-          <div className="relative group/slider">
-            <Slider
-              defaultValue={[work.progressPercentage]}
-              value={[localProgress]}
-              max={100}
-              step={1}
-              onValueChange={handleSliderChange}
-              className="cursor-pointer"
-            />
+          {/* Progress Slider Row */}
+          <div className="mt-2 grid grid-cols-12 gap-3 items-center">
+            <div className="col-span-2" />
+            <div className="col-span-3" />
+            <div className="col-span-2" />
+            <div className="col-span-2" />
+            <div className="col-span-1" />
+            <div className="col-span-2">
+              <div className="relative group/slider">
+                <Slider
+                  defaultValue={[work.progressPercentage]}
+                  value={[localProgress]}
+                  max={100}
+                  step={1}
+                  onValueChange={handleSliderChange}
+                  className="cursor-pointer"
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Actions Row */}
-      <div className="mt-12 flex justify-end gap-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={() => moveUp(work.id)}
-            >
-              <ArrowUp className="w-4 h-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Переместить вверх</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={() => moveDown(work.id)}
-            >
-              <ArrowDown className="w-4 h-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Переместить вниз</TooltipContent>
-        </Tooltip>
-        <EditWorkDialog work={work} />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={() => deleteWork(work.id)}
-              disabled={isDeleting}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Удалить работу</TooltipContent>
-        </Tooltip>
-      </div>
+              {/* Actions Row */}
+          <div className="mt-12 flex justify-end gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); moveUp(work.id); }}
+                >
+                  <ArrowUp className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Переместить вверх</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); moveDown(work.id); }}
+                >
+                  <ArrowDown className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Переместить вниз</TooltipContent>
+            </Tooltip>
+            <div onClick={(e) => e.stopPropagation()}>
+              <EditWorkDialog work={work} />
+            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); deleteWork(work.id); }}
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Удалить работу</TooltipContent>
+            </Tooltip>
+          </div>
+        </>
+      )}
     </motion.div>
   );
 }
