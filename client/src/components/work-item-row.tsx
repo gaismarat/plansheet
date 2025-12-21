@@ -124,8 +124,8 @@ export function WorkItemRow({ work }: WorkItemRowProps) {
       <div className="grid grid-cols-12 gap-3 mb-3">
         <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
         <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
-        <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ПЛАН НАЧАЛО</div>
-        <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ПЛАН КОНЕЦ</div>
+        <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
+        <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">КОНЕЦ</div>
         <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
         <div className="col-span-2 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
       </div>
