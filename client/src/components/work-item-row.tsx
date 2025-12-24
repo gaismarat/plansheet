@@ -271,7 +271,28 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
             placeholder="-"
             className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary"
           />
-          <div className="text-muted-foreground font-medium mt-1">Факт</div>
+          
+          {/* Comparison between Plan and Actual Start Dates */}
+          <div className="py-0.5">
+            {(() => {
+              if (!localPlanStartDate || !localActualStartDate) return null;
+
+              const planDate = new Date(localPlanStartDate);
+              const actualDate = new Date(localActualStartDate);
+              const diffTime = planDate.getTime() - actualDate.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+              if (diffDays > 0) {
+                return <span className="text-green-500 font-medium">Опережение {diffDays} дн.</span>;
+              } else if (diffDays < 0) {
+                return <span className="text-red-500 font-medium">Отставание {Math.abs(diffDays)} дн.</span>;
+              } else {
+                return <span className="text-green-500 font-medium">Плановый срок</span>;
+              }
+            })()}
+          </div>
+
+          <div className="text-muted-foreground font-medium">Факт</div>
           <input 
             type="date"
             value={localActualStartDate}
@@ -291,7 +312,28 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
             placeholder="-"
             className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary"
           />
-          <div className="text-muted-foreground font-medium mt-1">Факт</div>
+          
+          {/* Comparison between Plan and Actual End Dates */}
+          <div className="py-0.5">
+            {(() => {
+              if (!localPlanEndDate || !localActualEndDate) return null;
+
+              const planDate = new Date(localPlanEndDate);
+              const actualDate = new Date(localActualEndDate);
+              const diffTime = planDate.getTime() - actualDate.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+              if (diffDays > 0) {
+                return <span className="text-green-500 font-medium">Опережение {diffDays} дн.</span>;
+              } else if (diffDays < 0) {
+                return <span className="text-red-500 font-medium">Отставание {Math.abs(diffDays)} дн.</span>;
+              } else {
+                return <span className="text-green-500 font-medium">Плановый срок</span>;
+              }
+            })()}
+          </div>
+
+          <div className="text-muted-foreground font-medium">Факт</div>
           <input 
             type="date"
             value={localActualEndDate}
