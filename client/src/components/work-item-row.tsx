@@ -222,9 +222,9 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
       {isExpanded && (
         <>
           {/* Header Row with Column Labels */}
-          <div className="grid grid-cols-13 gap-3 mb-3">
+          <div className="grid grid-cols-12 gap-3 mb-3">
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
-            <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
+            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">КОНЕЦ</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ТРУДОЁМКОСТЬ</div>
@@ -233,9 +233,9 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
 
           {/* Sub-header for ТРУДОЁМКОСТЬ */}
-          <div className="grid grid-cols-13 gap-3 mb-2">
+          <div className="grid grid-cols-12 gap-3 mb-2">
             <div className="col-span-2" />
-            <div className="col-span-3" />
+            <div className="col-span-2" />
             <div className="col-span-1" />
             <div className="col-span-1" />
             <div className="col-span-1 text-xs text-muted-foreground font-medium text-center">Дни календарь</div>
@@ -246,7 +246,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
 
           {/* Data Row */}
-          <div className="grid grid-cols-13 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
+          <div className="grid grid-cols-12 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
         {/* Name & ID */}
         <div className="col-span-2 flex flex-col justify-center">
           <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
@@ -258,7 +258,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Metrics: Plan | Actual | Overage - Tighter spacing */}
-        <div className="col-span-3 grid grid-cols-3 gap-1 text-sm">
+        <div className="col-span-2 grid grid-cols-3 gap-0 text-sm">
           {/* Plan: Volume & Days */}
           <div className="flex flex-col justify-center">
             <div className="text-xs text-muted-foreground font-medium mb-1">План</div>
@@ -511,9 +511,9 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
       </div>
 
           {/* Progress Slider Row */}
-          <div className="mt-2 grid grid-cols-13 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
+          <div className="mt-2 grid grid-cols-12 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
             <div className="col-span-2" />
-            <div className="col-span-3" />
+            <div className="col-span-2" />
             <div className="col-span-1" />
             <div className="col-span-1" />
             <div className="col-span-3" />
