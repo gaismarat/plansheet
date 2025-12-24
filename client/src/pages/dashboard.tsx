@@ -5,7 +5,8 @@ import { CreateWorkDialog } from "@/components/forms/create-work-dialog";
 import { WorkItemRow } from "@/components/work-item-row";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, FolderOpen, HardHat, TrendingUp, BarChart3 } from "lucide-react";
+import { Trash2, FolderOpen, HardHat, TrendingUp, BarChart3, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import { Link } from "wouter";
 import {
   Accordion,
@@ -32,6 +33,55 @@ import {
 export default function Dashboard() {
   const { data: groups, isLoading, error } = useWorkGroups();
 
+  const exportToExcel = () => {
+    if (!groups) return;
+    
+    const data: any[] = [];
+    
+    groups.forEach((group) => {
+      data.push({
+        "Группа": group.name,
+        "Наименование работы": "",
+        "ID": "",
+        "Объём (план)": "",
+        "Объём (факт)": "",
+        "Ед. изм.": "",
+        "Стоимость (план)": "",
+        "Стоимость (факт)": "",
+        "Дата начала (план)": "",
+        "Дата начала (факт)": "",
+        "Дата окончания (план)": "",
+        "Дата окончания (факт)": "",
+        "Ответственный": "",
+        "Прогресс %": "",
+      });
+      
+      group.works?.forEach((work) => {
+        data.push({
+          "Группа": "",
+          "Наименование работы": work.name,
+          "ID": work.id,
+          "Объём (план)": work.volumeAmount,
+          "Объём (факт)": work.volumeActual,
+          "Ед. изм.": work.volumeUnit,
+          "Стоимость (план)": work.costPlan,
+          "Стоимость (факт)": work.costActual,
+          "Дата начала (план)": work.planStartDate || "",
+          "Дата начала (факт)": work.actualStartDate || "",
+          "Дата окончания (план)": work.planEndDate || "",
+          "Дата окончания (факт)": work.actualEndDate || "",
+          "Ответственный": work.responsiblePerson || "",
+          "Прогресс %": work.progressPercentage,
+        });
+      });
+    });
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Работы");
+    XLSX.writeFile(wb, "construction_works.xls");
+  };
+
   if (isLoading) return <DashboardSkeleton />;
   if (error) return <div className="p-8 text-destructive">Error loading dashboard: {error.message}</div>;
 
@@ -49,6 +99,10 @@ export default function Dashboard() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="gap-2" onClick={exportToExcel} data-testid="button-export">
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Выгрузка</span>
+            </Button>
             <Link href="/analytics">
               <Button variant="ghost" size="sm" className="gap-2" data-testid="button-analytics">
                 <BarChart3 className="w-4 h-4" />
