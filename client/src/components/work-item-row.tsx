@@ -431,7 +431,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
           
           {/* Comparison between Plan and Actual Start Dates */}
-          <div className="py-0.5">
+          <div className="py-0.5 whitespace-nowrap">
             {(() => {
               if (!localPlanStartDate || !localActualStartDate) return null;
 
