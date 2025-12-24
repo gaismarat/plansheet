@@ -20,6 +20,29 @@ interface WorkItemRowProps {
   expandAll?: boolean;
 }
 
+// Main column definitions
+type MainColumnKey = 'name' | 'volume' | 'start' | 'end' | 'labor' | 'responsible' | 'progress';
+const mainColumnLabels: Record<MainColumnKey, string> = {
+  name: 'НАИМЕНОВАНИЕ',
+  volume: 'ОБЪЁМ/СРОК',
+  start: 'НАЧАЛО',
+  end: 'КОНЕЦ',
+  labor: 'ТРУДОЁМКОСТЬ',
+  responsible: 'ОТВЕТСТВЕННЫЙ',
+  progress: 'ПРОГРЕСС'
+};
+const mainColumnSpans: Record<MainColumnKey, string> = {
+  name: 'col-span-2', volume: 'col-span-2', start: 'col-span-1', end: 'col-span-1', labor: 'col-span-3', responsible: 'col-span-1', progress: 'col-span-2'
+};
+
+// Labor intensity sub-column definitions
+type LaborColumnKey = 'calendar' | 'working' | 'weekend';
+const laborColumnLabels: Record<LaborColumnKey, [string, string]> = {
+  calendar: ['Дни', 'календарь'],
+  working: ['Дни', 'рабочие'],
+  weekend: ['Дни', 'выходные']
+};
+
 export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
   const { mutate: updateWork } = useUpdateWork();
   const { mutate: deleteWork, isPending: isDeleting } = useDeleteWork();
@@ -27,6 +50,51 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
   const { mutate: moveDown } = useMoveWorkDown();
   
   const [isExpanded, setIsExpanded] = useState(expandAll);
+  
+  // Column order state
+  const [mainColumnOrder, setMainColumnOrder] = useState<MainColumnKey[]>(['name', 'volume', 'start', 'end', 'labor', 'responsible', 'progress']);
+  const [laborColumnOrder, setLaborColumnOrder] = useState<LaborColumnKey[]>(['calendar', 'working', 'weekend']);
+  
+  // Move column functions
+  const moveMainColumnLeft = (key: MainColumnKey) => {
+    setMainColumnOrder(prev => {
+      const idx = prev.indexOf(key);
+      if (idx <= 0) return prev;
+      const newOrder = [...prev];
+      [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
+      return newOrder;
+    });
+  };
+  
+  const moveMainColumnRight = (key: MainColumnKey) => {
+    setMainColumnOrder(prev => {
+      const idx = prev.indexOf(key);
+      if (idx === -1 || idx >= prev.length - 1) return prev;
+      const newOrder = [...prev];
+      [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
+      return newOrder;
+    });
+  };
+  
+  const moveLaborColumnLeft = (key: LaborColumnKey) => {
+    setLaborColumnOrder(prev => {
+      const idx = prev.indexOf(key);
+      if (idx <= 0) return prev;
+      const newOrder = [...prev];
+      [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
+      return newOrder;
+    });
+  };
+  
+  const moveLaborColumnRight = (key: LaborColumnKey) => {
+    setLaborColumnOrder(prev => {
+      const idx = prev.indexOf(key);
+      if (idx === -1 || idx >= prev.length - 1) return prev;
+      const newOrder = [...prev];
+      [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
+      return newOrder;
+    });
+  };
 
   // Sync expandAll prop changes with local state
   useEffect(() => {
@@ -221,97 +289,96 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
       {/* Expanded View */}
       {isExpanded && (
         <>
-          {/* Arrow Controls Row */}
+          {/* Arrow Controls Row for Main Columns */}
           <div className="grid grid-cols-12 gap-3 mb-1">
-            <div className="col-span-2 flex justify-center gap-1">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="col-span-2 flex justify-center gap-1">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="col-span-1 flex justify-center gap-1">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="col-span-1 flex justify-center gap-1 pl-4">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="col-span-3 flex justify-center gap-1">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="col-span-1 flex justify-center gap-1">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="col-span-2 flex justify-center gap-1">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
+            {mainColumnOrder.map((key) => (
+              <div key={key} className={`${mainColumnSpans[key]} flex justify-center gap-1 ${key === 'end' ? 'pl-4' : ''}`}>
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  className="h-5 w-5" 
+                  onClick={(e) => { e.stopPropagation(); moveMainColumnLeft(key); }}
+                  disabled={mainColumnOrder.indexOf(key) === 0}
+                >
+                  <ChevronLeft className="w-3 h-3" />
+                </Button>
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  className="h-5 w-5" 
+                  onClick={(e) => { e.stopPropagation(); moveMainColumnRight(key); }}
+                  disabled={mainColumnOrder.indexOf(key) === mainColumnOrder.length - 1}
+                >
+                  <ChevronRight className="w-3 h-3" />
+                </Button>
+              </div>
+            ))}
           </div>
 
           {/* Header Row with Column Labels */}
           <div className="grid grid-cols-12 gap-3 mb-3">
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center pl-4">КОНЕЦ</div>
-            <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ТРУДОЁМКОСТЬ</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
+            {mainColumnOrder.map((key) => (
+              <div 
+                key={key} 
+                className={`${mainColumnSpans[key]} text-xs text-muted-foreground font-semibold ${key === 'name' ? '' : key === 'end' ? 'text-center pl-4' : 'text-center'}`}
+              >
+                {mainColumnLabels[key]}
+              </div>
+            ))}
+          </div>
+
+          {/* Arrow Controls Row for Labor Intensity Sub-Columns */}
+          <div className="grid grid-cols-12 gap-[5px] mb-1">
+            {mainColumnOrder.map((key) => {
+              if (key === 'labor') {
+                return (
+                  <div key={key} className="col-span-3 grid grid-cols-3 gap-[5px]">
+                    {laborColumnOrder.map((laborKey) => (
+                      <div key={laborKey} className="flex justify-center gap-0.5">
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="h-4 w-4" 
+                          onClick={(e) => { e.stopPropagation(); moveLaborColumnLeft(laborKey); }}
+                          disabled={laborColumnOrder.indexOf(laborKey) === 0}
+                        >
+                          <ChevronLeft className="w-2 h-2" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="ghost" 
+                          className="h-4 w-4" 
+                          onClick={(e) => { e.stopPropagation(); moveLaborColumnRight(laborKey); }}
+                          disabled={laborColumnOrder.indexOf(laborKey) === laborColumnOrder.length - 1}
+                        >
+                          <ChevronRight className="w-2 h-2" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+              return <div key={key} className={`${mainColumnSpans[key]} ${key === 'end' ? 'pl-4' : ''}`} />;
+            })}
           </div>
 
           {/* Sub-header for ТРУДОЁМКОСТЬ */}
           <div className="grid grid-cols-12 gap-[5px] mb-2">
-            <div className="col-span-2" />
-            <div className="col-span-2" />
-            <div className="col-span-1" />
-            <div className="col-span-1 pl-4" />
-            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
-              <div>Дни</div>
-              <div>календарь</div>
-            </div>
-            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
-              <div>Дни</div>
-              <div>рабочие</div>
-            </div>
-            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
-              <div>Дни</div>
-              <div>выходные</div>
-            </div>
-            <div className="col-span-1" />
-            <div className="col-span-2" />
+            {mainColumnOrder.map((key) => {
+              if (key === 'labor') {
+                return (
+                  <div key={key} className="col-span-3 grid grid-cols-3 gap-[5px]">
+                    {laborColumnOrder.map((laborKey) => (
+                      <div key={laborKey} className="text-xs text-muted-foreground font-medium text-center leading-tight">
+                        <div>{laborColumnLabels[laborKey][0]}</div>
+                        <div>{laborColumnLabels[laborKey][1]}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+              return <div key={key} className={`${mainColumnSpans[key]} ${key === 'end' ? 'pl-4' : ''}`} />;
+            })}
           </div>
 
           {/* Data Row */}
