@@ -233,14 +233,23 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
 
           {/* Sub-header for ТРУДОЁМКОСТЬ */}
-          <div className="grid grid-cols-12 gap-3 mb-2">
+          <div className="grid grid-cols-12 gap-1 mb-2">
             <div className="col-span-2" />
             <div className="col-span-2" />
             <div className="col-span-1" />
             <div className="col-span-1" />
-            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center">Дни календарь</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center">Дни рабочие</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center">Дни выходные</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
+              <div>Дни</div>
+              <div>календарь</div>
+            </div>
+            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
+              <div>Дни</div>
+              <div>рабочие</div>
+            </div>
+            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
+              <div>Дни</div>
+              <div>выходные</div>
+            </div>
             <div className="col-span-1" />
             <div className="col-span-2" />
           </div>
