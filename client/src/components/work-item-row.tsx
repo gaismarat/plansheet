@@ -4,7 +4,7 @@ import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown } from "@/
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Trash2, Edit2, Check, ArrowUp, ArrowDown, ChevronDown } from "lucide-react";
+import { Trash2, Edit2, Check, ArrowUp, ArrowDown, ChevronDown, X } from "lucide-react";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -263,13 +263,28 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         {/* Plan Start Date */}
         <div className="col-span-1 flex flex-col gap-1 text-xs">
           <div className="text-muted-foreground font-medium">План</div>
-          <input 
-            type="date"
-            value={localPlanStartDate}
-            onChange={handlePlanStartDateChange}
-            placeholder="-"
-            className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary"
-          />
+          <div className="flex items-center gap-1">
+            <input 
+              type="date"
+              value={localPlanStartDate}
+              onChange={handlePlanStartDateChange}
+              className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary flex-1"
+              style={{color: localPlanStartDate ? 'inherit' : 'transparent'}}
+            />
+            {!localPlanStartDate && <span className="text-muted-foreground text-xs absolute ml-1">дд.мм.гггг</span>}
+            {localPlanStartDate && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLocalPlanStartDate('');
+                  updateWork({ id: work.id, planStartDate: '' });
+                }}
+                className="p-0.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
           
           {/* Comparison between Plan and Actual Start Dates */}
           <div className="py-0.5">
@@ -292,25 +307,55 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
 
           <div className="text-muted-foreground font-medium">Факт</div>
-          <input 
-            type="date"
-            value={localActualStartDate}
-            onChange={handleActualStartDateChange}
-            placeholder="-"
-            className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary"
-          />
+          <div className="flex items-center gap-1">
+            <input 
+              type="date"
+              value={localActualStartDate}
+              onChange={handleActualStartDateChange}
+              className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary flex-1"
+              style={{color: localActualStartDate ? 'inherit' : 'transparent'}}
+            />
+            {!localActualStartDate && <span className="text-muted-foreground text-xs absolute ml-1">дд.мм.гггг</span>}
+            {localActualStartDate && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLocalActualStartDate('');
+                  updateWork({ id: work.id, actualStartDate: '' });
+                }}
+                className="p-0.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Plan End Date */}
         <div className="col-span-1 flex flex-col gap-1 text-xs">
           <div className="text-muted-foreground font-medium">План</div>
-          <input 
-            type="date"
-            value={localPlanEndDate}
-            onChange={handlePlanEndDateChange}
-            placeholder="-"
-            className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary"
-          />
+          <div className="flex items-center gap-1">
+            <input 
+              type="date"
+              value={localPlanEndDate}
+              onChange={handlePlanEndDateChange}
+              className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary flex-1"
+              style={{color: localPlanEndDate ? 'inherit' : 'transparent'}}
+            />
+            {!localPlanEndDate && <span className="text-muted-foreground text-xs absolute ml-1">дд.мм.гггг</span>}
+            {localPlanEndDate && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLocalPlanEndDate('');
+                  updateWork({ id: work.id, planEndDate: '' });
+                }}
+                className="p-0.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
           
           {/* Comparison between Plan and Actual End Dates */}
           <div className="py-0.5">
@@ -333,13 +378,28 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
 
           <div className="text-muted-foreground font-medium">Факт</div>
-          <input 
-            type="date"
-            value={localActualEndDate}
-            onChange={handleActualEndDateChange}
-            placeholder="-"
-            className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary"
-          />
+          <div className="flex items-center gap-1">
+            <input 
+              type="date"
+              value={localActualEndDate}
+              onChange={handleActualEndDateChange}
+              className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary flex-1"
+              style={{color: localActualEndDate ? 'inherit' : 'transparent'}}
+            />
+            {!localActualEndDate && <span className="text-muted-foreground text-xs absolute ml-1">дд.мм.гггг</span>}
+            {localActualEndDate && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLocalActualEndDate('');
+                  updateWork({ id: work.id, actualEndDate: '' });
+                }}
+                className="p-0.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Responsible */}
