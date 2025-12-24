@@ -4,7 +4,7 @@ import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown } from "@/
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Trash2, Edit2, Check, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Trash2, Edit2, Check, ArrowUp, ArrowDown, ChevronDown, X } from "lucide-react";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -40,34 +40,6 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
   const [localActualEndDate, setLocalActualEndDate] = useState(work.actualEndDate || '');
   const sliderTimeoutRef = useRef<NodeJS.Timeout>();
   const dateTimeoutRef = useRef<NodeJS.Timeout>();
-
-  // Column offset state (stored in localStorage for persistence)
-  const [columnOffsets, setColumnOffsets] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem('columnOffsets');
-    return saved ? JSON.parse(saved) : {
-      name: 0,
-      volume: 0,
-      start: 0,
-      end: 16,
-      labor: 0,
-      responsible: 0,
-      progress: 0,
-      daysCalendar: 0,
-      daysWorking: 0,
-      daysWeekend: 0,
-    };
-  });
-
-  const adjustOffset = (column: string, delta: number) => {
-    setColumnOffsets(prev => {
-      const newOffsets = {
-        ...prev,
-        [column]: Math.max(0, Math.min(48, (prev[column] || 0) + delta))
-      };
-      localStorage.setItem('columnOffsets', JSON.stringify(newOffsets));
-      return newOffsets;
-    });
-  };
 
   // Sync local state if external data changes (and we aren't dragging)
   useEffect(() => {
@@ -249,109 +221,15 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
       {/* Expanded View */}
       {isExpanded && (
         <>
-          {/* Arrow Controls Row */}
-          <div className="grid grid-cols-12 gap-3 mb-1">
-            <div className="col-span-2 flex justify-center gap-1">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('name', -4); }}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('name', 4); }}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="col-span-2 flex justify-center gap-1">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('volume', -4); }}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('volume', 4); }}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="col-span-1 flex justify-center gap-1">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('start', -4); }}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('start', 4); }}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="col-span-1 flex justify-center gap-1" style={{ paddingLeft: columnOffsets.end }}>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('end', -4); }}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('end', 4); }}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="col-span-3 flex justify-center gap-1">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('labor', -4); }}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('labor', 4); }}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="col-span-1 flex justify-center gap-1">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('responsible', -4); }}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('responsible', 4); }}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
-            <div className="col-span-2 flex justify-center gap-1">
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('progress', -4); }}>
-                <ChevronLeft className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); adjustOffset('progress', 4); }}>
-                <ChevronRight className="w-3 h-3" />
-              </Button>
-            </div>
-          </div>
-
           {/* Header Row with Column Labels */}
           <div className="grid grid-cols-12 gap-3 mb-3">
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold" style={{ paddingLeft: columnOffsets.name }}>НАИМЕНОВАНИЕ</div>
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center" style={{ paddingLeft: columnOffsets.volume }}>ОБЪЁМ/СРОК</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center" style={{ paddingLeft: columnOffsets.start }}>НАЧАЛО</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center" style={{ paddingLeft: columnOffsets.end }}>КОНЕЦ</div>
-            <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center" style={{ paddingLeft: columnOffsets.labor }}>ТРУДОЁМКОСТЬ</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold" style={{ paddingLeft: columnOffsets.responsible }}>ОТВЕТСТВЕННЫЙ</div>
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold" style={{ paddingLeft: columnOffsets.progress }}>ПРОГРЕСС</div>
-          </div>
-
-          {/* Sub-header arrows for ТРУДОЁМКОСТЬ */}
-          <div className="grid grid-cols-12 gap-[5px] mb-1">
-            <div className="col-span-2" />
-            <div className="col-span-2" />
-            <div className="col-span-1" />
-            <div className="col-span-1" style={{ paddingLeft: columnOffsets.end }} />
-            <div className="col-span-1 flex justify-center gap-0.5">
-              <Button size="icon" variant="ghost" className="h-4 w-4" onClick={(e) => { e.stopPropagation(); adjustOffset('daysCalendar', -4); }}>
-                <ChevronLeft className="w-2 h-2" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-4 w-4" onClick={(e) => { e.stopPropagation(); adjustOffset('daysCalendar', 4); }}>
-                <ChevronRight className="w-2 h-2" />
-              </Button>
-            </div>
-            <div className="col-span-1 flex justify-center gap-0.5">
-              <Button size="icon" variant="ghost" className="h-4 w-4" onClick={(e) => { e.stopPropagation(); adjustOffset('daysWorking', -4); }}>
-                <ChevronLeft className="w-2 h-2" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-4 w-4" onClick={(e) => { e.stopPropagation(); adjustOffset('daysWorking', 4); }}>
-                <ChevronRight className="w-2 h-2" />
-              </Button>
-            </div>
-            <div className="col-span-1 flex justify-center gap-0.5">
-              <Button size="icon" variant="ghost" className="h-4 w-4" onClick={(e) => { e.stopPropagation(); adjustOffset('daysWeekend', -4); }}>
-                <ChevronLeft className="w-2 h-2" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-4 w-4" onClick={(e) => { e.stopPropagation(); adjustOffset('daysWeekend', 4); }}>
-                <ChevronRight className="w-2 h-2" />
-              </Button>
-            </div>
-            <div className="col-span-1" />
-            <div className="col-span-2" />
+            <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
+            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center pl-4">КОНЕЦ</div>
+            <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ТРУДОЁМКОСТЬ</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
+            <div className="col-span-2 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
           </div>
 
           {/* Sub-header for ТРУДОЁМКОСТЬ */}
@@ -359,16 +237,16 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
             <div className="col-span-2" />
             <div className="col-span-2" />
             <div className="col-span-1" />
-            <div className="col-span-1" style={{ paddingLeft: columnOffsets.end }} />
-            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight" style={{ paddingLeft: columnOffsets.daysCalendar }}>
+            <div className="col-span-1 pl-4" />
+            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
               <div>Дни</div>
               <div>календарь</div>
             </div>
-            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight" style={{ paddingLeft: columnOffsets.daysWorking }}>
+            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
               <div>Дни</div>
               <div>рабочие</div>
             </div>
-            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight" style={{ paddingLeft: columnOffsets.daysWeekend }}>
+            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
               <div>Дни</div>
               <div>выходные</div>
             </div>
@@ -379,7 +257,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           {/* Data Row */}
           <div className="grid grid-cols-12 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
         {/* Name & ID */}
-        <div className="col-span-2 flex flex-col justify-center" style={{ paddingLeft: columnOffsets.name }}>
+        <div className="col-span-2 flex flex-col justify-center">
           <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
             {work.name}
           </span>
@@ -389,7 +267,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Metrics: Plan | Actual | Overage - Tighter spacing */}
-        <div className="col-span-2 grid grid-cols-3 gap-0 text-sm" style={{ paddingLeft: columnOffsets.volume }}>
+        <div className="col-span-2 grid grid-cols-3 gap-0 text-sm">
           {/* Plan: Volume & Days */}
           <div className="flex flex-col justify-center">
             <div className="text-xs text-muted-foreground font-medium mb-1">План</div>
@@ -440,7 +318,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Plan Start Date */}
-        <div className="col-span-1 flex flex-col gap-1 text-xs" style={{ paddingLeft: columnOffsets.start }}>
+        <div className="col-span-1 flex flex-col gap-1 text-xs">
           <div className="text-muted-foreground font-medium">План</div>
           <div className="flex items-center gap-1">
             <input 
@@ -511,7 +389,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Plan End Date */}
-        <div className="col-span-1 flex flex-col gap-1 text-xs" style={{ paddingLeft: columnOffsets.end }}>
+        <div className="col-span-1 flex flex-col gap-1 text-xs pl-4">
           <div className="text-muted-foreground font-medium">План</div>
           <div className="flex items-center gap-1">
             <input 
@@ -582,9 +460,9 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Labor Intensity (ТРУДОЁМКОСТЬ) - Three columns */}
-        <div className="col-span-3 grid grid-cols-3 gap-[5px] text-xs" style={{ paddingLeft: columnOffsets.labor }}>
+        <div className="col-span-3 grid grid-cols-3 gap-[5px] text-xs">
           {/* Calendar Days */}
-          <div className="flex flex-col justify-center items-center" style={{ paddingLeft: columnOffsets.daysCalendar }}>
+          <div className="flex flex-col justify-center items-center">
             <span className="font-mono text-foreground font-medium">
               {(() => {
                 const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
@@ -594,7 +472,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
           
           {/* Working Days */}
-          <div className="flex flex-col justify-center items-center" style={{ paddingLeft: columnOffsets.daysWorking }}>
+          <div className="flex flex-col justify-center items-center">
             <span className="font-mono text-foreground font-medium">
               {(() => {
                 const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
@@ -604,7 +482,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
           
           {/* Weekend Days */}
-          <div className="flex flex-col justify-center items-center" style={{ paddingLeft: columnOffsets.daysWeekend }}>
+          <div className="flex flex-col justify-center items-center">
             <span className="font-mono text-foreground font-medium">
               {(() => {
                 const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
@@ -615,7 +493,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Responsible */}
-        <div className="col-span-1 flex items-center" style={{ paddingLeft: columnOffsets.responsible }}>
+        <div className="col-span-1 flex items-center">
           <div className="flex items-center gap-1.5 bg-secondary/50 px-1.5 py-0.5 rounded text-xs text-secondary-foreground font-medium truncate max-w-full">
             <div className="w-1 h-1 rounded-full bg-primary/40 shrink-0" />
             <span className="truncate text-xs" title={work.responsiblePerson}>{work.responsiblePerson}</span>
@@ -623,7 +501,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Progress Control - Percentage Input and Slider */}
-        <div className="col-span-2 flex items-center gap-2" style={{ paddingLeft: columnOffsets.progress }} onClick={(e) => e.stopPropagation()}>
+        <div className="col-span-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-1 shrink-0">
             <input 
               type="number"
