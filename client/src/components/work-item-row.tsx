@@ -276,7 +276,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Volume column */}
-        <div className="col-span-2 flex flex-col gap-1 text-xs ml-[50px] mr-[50px]">
+        <div className="col-span-2 flex flex-col gap-1 text-xs -ml-[50px] mr-[50px]">
           {/* Plan Volume */}
           <div className="text-muted-foreground font-medium">План</div>
           <div className="flex items-center gap-1">
