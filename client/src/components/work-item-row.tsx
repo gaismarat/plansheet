@@ -444,10 +444,18 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
               <div>Дни</div>
               <div>календарь</div>
             </div>
+            <div className="text-muted-foreground text-[10px] mb-0.5">План</div>
             <span className="font-mono text-foreground font-medium">
               {(() => {
                 const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
                 return planDays.calendar;
+              })()}
+            </span>
+            <div className="text-muted-foreground text-[10px] mt-1 mb-0.5">Факт</div>
+            <span className="font-mono text-foreground font-medium">
+              {(() => {
+                const actualDays = calculateDays(localActualStartDate, localActualEndDate);
+                return actualDays.calendar;
               })()}
             </span>
           </div>
@@ -458,10 +466,18 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
               <div>Дни</div>
               <div>рабочие</div>
             </div>
+            <div className="text-muted-foreground text-[10px] mb-0.5">План</div>
             <span className="font-mono text-foreground font-medium">
               {(() => {
                 const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
                 return planDays.working;
+              })()}
+            </span>
+            <div className="text-muted-foreground text-[10px] mt-1 mb-0.5">Факт</div>
+            <span className="font-mono text-foreground font-medium">
+              {(() => {
+                const actualDays = calculateDays(localActualStartDate, localActualEndDate);
+                return actualDays.working;
               })()}
             </span>
           </div>
@@ -472,10 +488,18 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
               <div>Дни</div>
               <div>выходные</div>
             </div>
+            <div className="text-muted-foreground text-[10px] mb-0.5">План</div>
             <span className="font-mono text-foreground font-medium">
               {(() => {
                 const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
                 return planDays.weekend;
+              })()}
+            </span>
+            <div className="text-muted-foreground text-[10px] mt-1 mb-0.5">Факт</div>
+            <span className="font-mono text-foreground font-medium">
+              {(() => {
+                const actualDays = calculateDays(localActualStartDate, localActualEndDate);
+                return actualDays.weekend;
               })()}
             </span>
           </div>
