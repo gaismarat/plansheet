@@ -226,7 +226,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
             <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">КОНЕЦ</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center pl-4">КОНЕЦ</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ТРУДОЁМКОСТЬ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
@@ -237,7 +237,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
             <div className="col-span-2" />
             <div className="col-span-2" />
             <div className="col-span-1" />
-            <div className="col-span-1" />
+            <div className="col-span-1 pl-4" />
             <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
               <div>Дни</div>
               <div>календарь</div>
@@ -389,7 +389,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Plan End Date */}
-        <div className="col-span-1 flex flex-col gap-1 text-xs">
+        <div className="col-span-1 flex flex-col gap-1 text-xs pl-4">
           <div className="text-muted-foreground font-medium">План</div>
           <div className="flex items-center gap-1">
             <input 
