@@ -2,10 +2,13 @@ import { db } from "./db";
 import {
   works,
   workGroups,
+  holidays,
   type Work,
   type WorkGroup,
+  type Holiday,
   type InsertWork,
   type InsertWorkGroup,
+  type InsertHoliday,
   type UpdateWorkRequest
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
@@ -25,6 +28,13 @@ export interface IStorage {
   // Reordering
   moveWorkUp(id: number): Promise<void>;
   moveWorkDown(id: number): Promise<void>;
+  
+  // Holidays
+  getHolidays(): Promise<Holiday[]>;
+  createHoliday(holiday: InsertHoliday): Promise<Holiday>;
+  deleteHoliday(id: number): Promise<void>;
+  deleteHolidayByDate(date: string): Promise<void>;
+  getHolidayByDate(date: string): Promise<Holiday | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -119,6 +129,28 @@ export class DatabaseStorage implements IStorage {
       await this.updateWork(work.id, { order: work.order + 1 });
       await this.updateWork(nextWork.id, { order: nextWork.order - 1 });
     }
+  }
+
+  async getHolidays(): Promise<Holiday[]> {
+    return await db.select().from(holidays).orderBy(holidays.date);
+  }
+
+  async createHoliday(holiday: InsertHoliday): Promise<Holiday> {
+    const [newHoliday] = await db.insert(holidays).values(holiday).returning();
+    return newHoliday;
+  }
+
+  async deleteHoliday(id: number): Promise<void> {
+    await db.delete(holidays).where(eq(holidays.id, id));
+  }
+
+  async deleteHolidayByDate(date: string): Promise<void> {
+    await db.delete(holidays).where(eq(holidays.date, date));
+  }
+
+  async getHolidayByDate(date: string): Promise<Holiday | undefined> {
+    const [holiday] = await db.select().from(holidays).where(eq(holidays.date, date));
+    return holiday;
   }
 }
 

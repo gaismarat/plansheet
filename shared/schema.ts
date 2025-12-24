@@ -32,6 +32,12 @@ export const works = pgTable("works", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const holidays = pgTable("holidays", {
+  id: serial("id").primaryKey(),
+  date: varchar("date").notNull().unique(), // Дата праздника в формате YYYY-MM-DD (уникальная)
+  name: text("name"), // Название праздника (опционально)
+});
+
 // === RELATIONS ===
 
 export const workGroupsRelations = relations(workGroups, ({ many }) => ({
@@ -78,3 +84,8 @@ export type UpdateWorkRequest = Partial<InsertWork>;
 // Response types
 export type WorkResponse = Work;
 export type WorkGroupResponse = WorkGroup & { works?: WorkResponse[] }; // Optional nested works for list view
+
+// === HOLIDAYS ===
+export const insertHolidaySchema = createInsertSchema(holidays).omit({ id: true });
+export type Holiday = typeof holidays.$inferSelect;
+export type InsertHoliday = z.infer<typeof insertHolidaySchema>;

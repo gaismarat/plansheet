@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertWorkGroupSchema, insertWorkSchema, works, workGroups } from './schema';
+import { insertWorkGroupSchema, insertWorkSchema, insertHolidaySchema, works, workGroups, holidays } from './schema';
 
 // ============================================
 // SHARED ERROR SCHEMAS
@@ -86,6 +86,41 @@ export const api = {
     delete: {
       method: 'DELETE' as const,
       path: '/api/works/:id',
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  holidays: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/holidays',
+      responses: {
+        200: z.array(z.custom<typeof holidays.$inferSelect>()),
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/holidays',
+      input: insertHolidaySchema,
+      responses: {
+        201: z.custom<typeof holidays.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    toggle: {
+      method: 'POST' as const,
+      path: '/api/holidays/toggle',
+      input: z.object({ date: z.string() }),
+      responses: {
+        200: z.object({ isHoliday: z.boolean() }),
+        400: errorSchemas.validation,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/holidays/:id',
       responses: {
         204: z.void(),
         404: errorSchemas.notFound,

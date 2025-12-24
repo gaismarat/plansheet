@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useWorkGroups, useDeleteWorkGroup } from "@/hooks/use-construction";
+import { useWorkGroups, useDeleteWorkGroup, useHolidays } from "@/hooks/use-construction";
 import { CreateWorkGroupDialog } from "@/components/forms/create-work-group-dialog";
 import { CreateWorkDialog } from "@/components/forms/create-work-dialog";
 import { WorkItemRow } from "@/components/work-item-row";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Trash2, FolderOpen, HardHat, TrendingUp, BarChart3, Download } from "lucide-react";
 import * as XLSX from "xlsx";
+import { CalendarDialog } from "@/components/calendar-dialog";
 import { Link } from "wouter";
 import {
   Accordion,
@@ -32,6 +33,8 @@ import {
 
 export default function Dashboard() {
   const { data: groups, isLoading, error } = useWorkGroups();
+  const { data: holidays = [] } = useHolidays();
+  const holidayDates = new Set(holidays.map(h => h.date));
 
   const exportToExcel = () => {
     if (!groups) return;
@@ -103,6 +106,7 @@ export default function Dashboard() {
               <Download className="w-4 h-4" />
               <span className="hidden sm:inline">Выгрузка</span>
             </Button>
+            <CalendarDialog />
             <Link href="/analytics">
               <Button variant="ghost" size="sm" className="gap-2" data-testid="button-analytics">
                 <BarChart3 className="w-4 h-4" />
@@ -146,7 +150,7 @@ export default function Dashboard() {
           ) : (
             <Accordion type="multiple" defaultValue={groups?.map(g => `group-${g.id}`)} className="space-y-4">
               {groups?.map((group) => (
-                <GroupAccordionItem key={group.id} group={group} />
+                <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} />
               ))}
             </Accordion>
           )}
@@ -156,7 +160,7 @@ export default function Dashboard() {
   );
 }
 
-function GroupAccordionItem({ group }: { group: WorkGroupResponse }) {
+function GroupAccordionItem({ group, holidayDates }: { group: WorkGroupResponse; holidayDates: Set<string> }) {
   const { mutate: deleteGroup } = useDeleteWorkGroup();
   const [showAllWorks, setShowAllWorks] = useState(true);
   const totalWorks = group.works?.length || 0;
@@ -251,7 +255,7 @@ function GroupAccordionItem({ group }: { group: WorkGroupResponse }) {
         ) : (
           <div className="space-y-1">
              {group.works?.map((work) => (
-               <WorkItemRow key={work.id} work={work} expandAll={showAllWorks} />
+               <WorkItemRow key={work.id} work={work} expandAll={showAllWorks} holidayDates={holidayDates} />
              ))}
           </div>
         )}

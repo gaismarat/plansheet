@@ -18,9 +18,10 @@ import {
 interface WorkItemRowProps {
   work: Work;
   expandAll?: boolean;
+  holidayDates?: Set<string>;
 }
 
-export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
+export function WorkItemRow({ work, expandAll = true, holidayDates = new Set() }: WorkItemRowProps) {
   const { mutate: updateWork } = useUpdateWork();
   const { mutate: deleteWork, isPending: isDeleting } = useDeleteWork();
   const { mutate: moveUp } = useMoveWorkUp();
@@ -205,8 +206,12 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
       const dayOfWeek = current.getDay();
       calendar++;
       
-      // 0 = Sunday, 6 = Saturday
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
+      // Format current date as YYYY-MM-DD to check against holidays
+      const dateStr = current.toISOString().split('T')[0];
+      const isHoliday = holidayDates.has(dateStr);
+      
+      // 0 = Sunday, 6 = Saturday, or is a holiday
+      if (dayOfWeek === 0 || dayOfWeek === 6 || isHoliday) {
         weekend++;
       } else {
         working++;

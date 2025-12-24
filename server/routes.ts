@@ -108,6 +108,57 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // === Holidays ===
+
+  app.get(api.holidays.list.path, async (_req, res) => {
+    const holidaysList = await storage.getHolidays();
+    res.json(holidaysList);
+  });
+
+  app.post(api.holidays.create.path, async (req, res) => {
+    try {
+      const input = api.holidays.create.input.parse(req.body);
+      const holiday = await storage.createHoliday(input);
+      res.status(201).json(holiday);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  app.post(api.holidays.toggle.path, async (req, res) => {
+    try {
+      const { date } = api.holidays.toggle.input.parse(req.body);
+      const existing = await storage.getHolidayByDate(date);
+      
+      if (existing) {
+        await storage.deleteHolidayByDate(date);
+        res.json({ isHoliday: false });
+      } else {
+        await storage.createHoliday({ date });
+        res.json({ isHoliday: true });
+      }
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  app.delete(api.holidays.delete.path, async (req, res) => {
+    await storage.deleteHoliday(Number(req.params.id));
+    res.status(204).send();
+  });
+
   // Seed Data
   await seedDatabase();
 

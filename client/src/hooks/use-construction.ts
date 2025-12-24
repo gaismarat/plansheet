@@ -174,3 +174,37 @@ export function useMoveWorkDown() {
     },
   });
 }
+
+// ============================================
+// HOLIDAYS HOOKS
+// ============================================
+
+export function useHolidays() {
+  return useQuery({
+    queryKey: [api.holidays.list.path],
+    queryFn: async () => {
+      const res = await fetch(api.holidays.list.path);
+      if (!res.ok) throw new Error("Failed to fetch holidays");
+      return api.holidays.list.responses[200].parse(await res.json());
+    },
+  });
+}
+
+export function useToggleHoliday() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (date: string) => {
+      const res = await fetch(api.holidays.toggle.path, {
+        method: api.holidays.toggle.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date }),
+      });
+      if (!res.ok) throw new Error("Failed to toggle holiday");
+      return api.holidays.toggle.responses[200].parse(await res.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.holidays.list.path] });
+    },
+  });
+}
