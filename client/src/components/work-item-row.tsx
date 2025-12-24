@@ -484,29 +484,15 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Responsible */}
-        <div className="col-span-1 flex flex-col gap-1">
-          <div className="text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
+        <div className="col-span-1 flex items-center">
           <div className="flex items-center gap-1.5 bg-secondary/50 px-1.5 py-0.5 rounded text-xs text-secondary-foreground font-medium truncate max-w-full">
             <div className="w-1 h-1 rounded-full bg-primary/40 shrink-0" />
             <span className="truncate text-xs" title={work.responsiblePerson}>{work.responsiblePerson}</span>
           </div>
         </div>
 
-        {/* Progress Control - Vertical Layout */}
-        <div className="col-span-2 flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
-          <div className="text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
-          <div className="flex items-center gap-1">
-            <input 
-              type="number"
-              min={0}
-              max={100}
-              value={localProgress}
-              onChange={handleProgressInputChange}
-              onBlur={handleProgressInputBlur}
-              className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-sm"
-            />
-            <span className="text-muted-foreground text-sm">%</span>
-          </div>
+        {/* Progress Control - Placeholder for alignment */}
+        <div className="col-span-2" onClick={(e) => e.stopPropagation()}>
         </div>
       </div>
 
@@ -518,8 +504,20 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
             <div className="col-span-1" />
             <div className="col-span-3" />
             <div className="col-span-1" />
-            <div className="col-span-2">
-              <div className="relative group/slider">
+            <div className="col-span-2 flex items-center gap-2">
+              <div className="flex items-center gap-1 shrink-0">
+                <input 
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={localProgress}
+                  onChange={handleProgressInputChange}
+                  onBlur={handleProgressInputBlur}
+                  className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-sm"
+                />
+                <span className="text-muted-foreground text-sm">%</span>
+              </div>
+              <div className="relative group/slider flex-1">
                 <Slider
                   defaultValue={[work.progressPercentage]}
                   value={[localProgress]}
