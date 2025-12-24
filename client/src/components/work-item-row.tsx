@@ -233,7 +233,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
 
           {/* Sub-header for ТРУДОЁМКОСТЬ */}
-          <div className="grid grid-cols-12 gap-1 mb-2">
+          <div className="grid grid-cols-12 gap-0 mb-2">
             <div className="col-span-2" />
             <div className="col-span-2" />
             <div className="col-span-1" />
@@ -460,7 +460,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Labor Intensity (ТРУДОЁМКОСТЬ) - Three columns */}
-        <div className="col-span-3 grid grid-cols-3 gap-1 text-xs">
+        <div className="col-span-3 grid grid-cols-3 gap-0 text-xs">
           {/* Calendar Days */}
           <div className="flex flex-col justify-center items-center">
             <span className="font-mono text-foreground font-medium">
