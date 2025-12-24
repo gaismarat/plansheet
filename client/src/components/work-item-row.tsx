@@ -188,18 +188,17 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
       {isExpanded && (
         <>
           {/* Header Row with Column Labels */}
-          <div className="grid grid-cols-12 gap-3 mb-3">
+          <div className="grid grid-cols-10 gap-3 mb-3">
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">КОНЕЦ</div>
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ДНЕЙ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
           </div>
 
           {/* Data Row */}
-          <div className="grid grid-cols-12 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
+          <div className="grid grid-cols-10 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
         {/* Name & ID */}
         <div className="col-span-2 flex flex-col justify-center">
           <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
@@ -344,35 +343,38 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Responsible */}
-        <div className="col-span-1 flex items-center">
+        <div className="col-span-1 flex flex-col gap-1">
+          <div className="text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
           <div className="flex items-center gap-1.5 bg-secondary/50 px-1.5 py-0.5 rounded text-xs text-secondary-foreground font-medium truncate max-w-full">
             <div className="w-1 h-1 rounded-full bg-primary/40 shrink-0" />
             <span className="truncate text-xs" title={work.responsiblePerson}>{work.responsiblePerson}</span>
           </div>
         </div>
 
-        {/* Progress Control - Inline */}
-        <div className="col-span-2 flex items-center gap-1">
-          <input 
-            type="number"
-            min={0}
-            max={100}
-            value={localProgress}
-            onChange={handleProgressInputChange}
-            onBlur={handleProgressInputBlur}
-            className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-sm"
-          />
-          <span className="text-muted-foreground text-sm">%</span>
+        {/* Progress Control - Vertical Layout */}
+        <div className="col-span-2 flex flex-col gap-1">
+          <div className="text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
+          <div className="flex items-center gap-1">
+            <input 
+              type="number"
+              min={0}
+              max={100}
+              value={localProgress}
+              onChange={handleProgressInputChange}
+              onBlur={handleProgressInputBlur}
+              className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-sm"
+            />
+            <span className="text-muted-foreground text-sm">%</span>
+          </div>
         </div>
       </div>
 
           {/* Progress Slider Row */}
-          <div className="mt-2 grid grid-cols-12 gap-3 items-center">
+          <div className="mt-2 grid grid-cols-10 gap-3 items-center">
             <div className="col-span-2" />
             <div className="col-span-3" />
             <div className="col-span-1" />
             <div className="col-span-1" />
-            <div className="col-span-2" />
             <div className="col-span-1" />
             <div className="col-span-2">
               <div className="relative group/slider">
