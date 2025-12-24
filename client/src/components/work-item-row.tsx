@@ -314,12 +314,14 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           <div className="text-muted-foreground font-medium">План</div>
           <div className="flex items-center gap-1">
             <input 
-              type="number"
-              step="0.01"
-              value={localVolumeAmount}
-              onChange={handleVolumeAmountChange}
+              type="text"
+              value={localVolumeAmount.toLocaleString('ru-RU')}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
+                handleVolumeAmountChange({ target: { value: val.toString() } } as any);
+              }}
               onBlur={handleVolumeAmountBlur}
-              className="w-16 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
+              className="w-20 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
             />
             <span className="text-muted-foreground">{work.volumeUnit}</span>
           </div>
@@ -345,12 +347,14 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           <div className="text-muted-foreground font-medium">Факт</div>
           <div className="flex items-center gap-1">
             <input 
-              type="number"
-              step="0.01"
-              value={localVolumeActual}
-              onChange={handleVolumeActualChange}
+              type="text"
+              value={localVolumeActual.toLocaleString('ru-RU')}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
+                handleVolumeActualChange({ target: { value: val.toString() } } as any);
+              }}
               onBlur={handleVolumeActualBlur}
-              className="w-16 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
+              className="w-20 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
             />
             <span className="text-muted-foreground">{work.volumeUnit}</span>
           </div>
@@ -362,12 +366,14 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           <div className="text-muted-foreground font-medium">План</div>
           <div className="flex items-center gap-1">
             <input 
-              type="number"
-              step="0.01"
-              value={localCostPlan}
-              onChange={handleCostPlanChange}
+              type="text"
+              value={localCostPlan.toLocaleString('ru-RU')}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
+                handleCostPlanChange({ target: { value: val.toString() } } as any);
+              }}
               onBlur={handleCostPlanBlur}
-              className="w-20 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
+              className="w-24 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
             />
             <span className="text-muted-foreground">руб.</span>
           </div>
@@ -393,12 +399,14 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           <div className="text-muted-foreground font-medium">Факт</div>
           <div className="flex items-center gap-1">
             <input 
-              type="number"
-              step="0.01"
-              value={localCostActual}
-              onChange={handleCostActualChange}
+              type="text"
+              value={localCostActual.toLocaleString('ru-RU')}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
+                handleCostActualChange({ target: { value: val.toString() } } as any);
+              }}
               onBlur={handleCostActualBlur}
-              className="w-20 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
+              className="w-24 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
             />
             <span className="text-muted-foreground">руб.</span>
           </div>
