@@ -289,7 +289,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[30px] mr-[30px]">ОБЪЁМ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[60px] mr-[30px]">СТОИМОСТЬ</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[80px]">НАЧАЛО</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[60px]">НАЧАЛО</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[110px]">КОНЕЦ</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center ml-[160px] mr-[90px]">ТРУДОЁМКОСТЬ, дни</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
@@ -405,7 +405,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Plan Start Date */}
-        <div className="col-span-1 flex flex-col gap-1 text-xs ml-[80px]">
+        <div className="col-span-1 flex flex-col gap-1 text-xs ml-[60px]">
           <div className="text-muted-foreground font-medium">План</div>
           <div className="flex items-center gap-1">
             <input 
