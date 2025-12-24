@@ -255,7 +255,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           {/* Header Row with Column Labels */}
           <div className="grid grid-cols-12 gap-3 mb-3">
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ</div>
+            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center ml-[80px] mr-[80px]">ОБЪЁМ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center pl-4">КОНЕЦ</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center ml-[40px] mr-[60px]">ТРУДОЁМКОСТЬ</div>
