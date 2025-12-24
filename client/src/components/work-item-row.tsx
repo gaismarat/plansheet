@@ -217,7 +217,6 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
         </>
       )}
-
       {/* Expanded View */}
       {isExpanded && (
         <>
@@ -243,7 +242,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
               <div>календарь</div>
             </div>
             <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
-              <div>Дни</div>
+              <div className="ml-[100px] mr-[100px]">Дни</div>
               <div>рабочие</div>
             </div>
             <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
