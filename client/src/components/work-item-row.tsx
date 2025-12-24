@@ -4,7 +4,7 @@ import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown } from "@/
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Trash2, Edit2, Check, ArrowUp, ArrowDown, ChevronDown, X } from "lucide-react";
+import { Trash2, Edit2, Check, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,23 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
   const [localPlanEndDate, setLocalPlanEndDate] = useState(work.planEndDate || '');
   const [localActualStartDate, setLocalActualStartDate] = useState(work.actualStartDate || '');
   const [localActualEndDate, setLocalActualEndDate] = useState(work.actualEndDate || '');
+  const [laborColumnOrder, setLaborColumnOrder] = useState<[0 | 1 | 2, 0 | 1 | 2, 0 | 1 | 2]>([0, 1, 2]);
   const sliderTimeoutRef = useRef<NodeJS.Timeout>();
+
+  const laborColumns = [
+    { key: 'calendar', label: ['Дни', 'календарь'] },
+    { key: 'working', label: ['Дни', 'рабочие'] },
+    { key: 'weekend', label: ['Дни', 'выходные'] },
+  ];
+
+  const swapLaborColumns = (index: number, direction: 'left' | 'right') => {
+    const newOrder = [...laborColumnOrder] as [0 | 1 | 2, 0 | 1 | 2, 0 | 1 | 2];
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex >= 0 && targetIndex < 3) {
+      [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
+      setLaborColumnOrder(newOrder);
+    }
+  };
   const dateTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Sync local state if external data changes (and we aren't dragging)
@@ -238,18 +254,34 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
             <div className="col-span-2" />
             <div className="col-span-1" />
             <div className="col-span-1 pl-4" />
-            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
-              <div>Дни</div>
-              <div>календарь</div>
-            </div>
-            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
-              <div>Дни</div>
-              <div>рабочие</div>
-            </div>
-            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
-              <div>Дни</div>
-              <div>выходные</div>
-            </div>
+            {laborColumnOrder.map((colIndex, posIndex) => (
+              <div key={laborColumns[colIndex].key} className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
+                <div className="flex items-center justify-center gap-0.5 mb-0.5">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); swapLaborColumns(posIndex, 'left'); }}
+                    className={cn(
+                      "p-0.5 rounded transition-colors",
+                      posIndex === 0 ? "opacity-30 cursor-not-allowed" : "hover:bg-muted"
+                    )}
+                    disabled={posIndex === 0}
+                  >
+                    <ChevronLeft className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); swapLaborColumns(posIndex, 'right'); }}
+                    className={cn(
+                      "p-0.5 rounded transition-colors",
+                      posIndex === 2 ? "opacity-30 cursor-not-allowed" : "hover:bg-muted"
+                    )}
+                    disabled={posIndex === 2}
+                  >
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                </div>
+                <div>{laborColumns[colIndex].label[0]}</div>
+                <div>{laborColumns[colIndex].label[1]}</div>
+              </div>
+            ))}
             <div className="col-span-1" />
             <div className="col-span-2" />
           </div>
@@ -461,35 +493,17 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
 
         {/* Labor Intensity (ТРУДОЁМКОСТЬ) - Three columns */}
         <div className="col-span-3 grid grid-cols-3 gap-[5px] text-xs">
-          {/* Calendar Days */}
-          <div className="flex flex-col justify-center items-center">
-            <span className="font-mono text-foreground font-medium">
-              {(() => {
-                const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
-                return planDays.calendar;
-              })()}
-            </span>
-          </div>
-          
-          {/* Working Days */}
-          <div className="flex flex-col justify-center items-center">
-            <span className="font-mono text-foreground font-medium">
-              {(() => {
-                const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
-                return planDays.working;
-              })()}
-            </span>
-          </div>
-          
-          {/* Weekend Days */}
-          <div className="flex flex-col justify-center items-center">
-            <span className="font-mono text-foreground font-medium">
-              {(() => {
-                const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
-                return planDays.weekend;
-              })()}
-            </span>
-          </div>
+          {laborColumnOrder.map((colIndex) => {
+            const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
+            const values = [planDays.calendar, planDays.working, planDays.weekend];
+            return (
+              <div key={laborColumns[colIndex].key} className="flex flex-col justify-center items-center">
+                <span className="font-mono text-foreground font-medium">
+                  {values[colIndex]}
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Responsible */}
