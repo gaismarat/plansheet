@@ -1,0 +1,66 @@
+# Construction Work Tracker
+
+## Overview
+
+A construction project management application for tracking work groups, individual tasks, progress, costs, and scheduling. Built as a full-stack TypeScript application with React frontend and Express backend, using PostgreSQL for data persistence. The application is designed for Russian-speaking users managing construction projects with features for work tracking, holiday calendar management, and analytics.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **Routing**: Wouter for lightweight client-side routing
+- **State Management**: TanStack Query (React Query) for server state management with optimistic updates
+- **UI Components**: shadcn/ui component library built on Radix UI primitives
+- **Styling**: Tailwind CSS with custom theme configuration (construction/industrial theme)
+- **Animations**: Framer Motion for smooth transitions and progress animations
+- **Charts**: Recharts for analytics visualization
+- **Forms**: React Hook Form with Zod validation
+
+### Backend Architecture
+- **Framework**: Express.js with TypeScript
+- **API Design**: RESTful API with shared route definitions between client and server
+- **Database ORM**: Drizzle ORM with PostgreSQL dialect
+- **Validation**: Zod schemas shared between frontend and backend via drizzle-zod integration
+- **Session Management**: connect-pg-simple for PostgreSQL-backed sessions
+
+### Data Layer
+- **Database**: PostgreSQL
+- **Schema Location**: `shared/schema.ts` - contains all table definitions and relations
+- **Tables**:
+  - `work_groups`: Categories of construction work (e.g., "Earthworks", "Foundation")
+  - `works`: Individual work items with planned/actual metrics (days, volume, cost, dates, progress)
+  - `holidays`: Calendar of non-working days for scheduling
+
+### Shared Code Structure
+- **`shared/schema.ts`**: Database schema definitions, Zod validation schemas, and TypeScript types
+- **`shared/routes.ts`**: API contract definitions with input/output schemas for type-safe client-server communication
+
+### Build System
+- **Development**: Vite dev server with HMR, proxying API requests to Express backend
+- **Production**: Custom build script using esbuild for server bundling and Vite for client bundling
+- **Output**: Combined dist folder with server (`dist/index.cjs`) and static files (`dist/public/`)
+
+### Key Design Patterns
+1. **Type-Safe API Contract**: Routes defined once in `shared/routes.ts` with Zod schemas, consumed by both client hooks and server handlers
+2. **Optimistic Updates**: React Query mutations invalidate queries on success for immediate UI feedback
+3. **Progressive Enhancement**: Forms use React Hook Form with Zod resolver for client-side validation before server submission
+4. **Component Composition**: UI built from small, reusable shadcn/ui components with consistent styling
+
+## External Dependencies
+
+### Database
+- **PostgreSQL**: Primary data store, connection via `DATABASE_URL` environment variable
+- **Drizzle Kit**: Database migrations stored in `/migrations` folder, pushed via `npm run db:push`
+
+### UI Libraries
+- **Radix UI**: Headless component primitives for accessibility
+- **Lucide React**: Icon library
+- **XLSX**: Excel export functionality for work data
+
+### Development Tools
+- **Replit Plugins**: Vite plugins for development banner and cartographer (Replit-specific features)
+- **Runtime Error Overlay**: `@replit/vite-plugin-runtime-error-modal` for development debugging
