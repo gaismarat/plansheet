@@ -120,6 +120,40 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
     }, 300);
   };
 
+  // Helper function to calculate days between two dates
+  const calculateDays = (startDate: string, endDate: string) => {
+    if (!startDate || !endDate) return { calendar: 0, working: 0, weekend: 0 };
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Ensure start is before end
+    if (start > end) {
+      return { calendar: 0, working: 0, weekend: 0 };
+    }
+
+    let calendar = 0;
+    let working = 0;
+    let weekend = 0;
+
+    const current = new Date(start);
+    while (current <= end) {
+      const dayOfWeek = current.getDay();
+      calendar++;
+      
+      // 0 = Sunday, 6 = Saturday
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        weekend++;
+      } else {
+        working++;
+      }
+      
+      current.setDate(current.getDate() + 1);
+    }
+
+    return { calendar, working, weekend };
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -188,17 +222,31 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
       {isExpanded && (
         <>
           {/* Header Row with Column Labels */}
-          <div className="grid grid-cols-10 gap-3 mb-3">
+          <div className="grid grid-cols-13 gap-3 mb-3">
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">КОНЕЦ</div>
+            <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ТРУДОЁМКОСТЬ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
           </div>
 
+          {/* Sub-header for ТРУДОЁМКОСТЬ */}
+          <div className="grid grid-cols-13 gap-3 mb-2">
+            <div className="col-span-2" />
+            <div className="col-span-3" />
+            <div className="col-span-1" />
+            <div className="col-span-1" />
+            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center">Дни календарь</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center">Дни рабочие</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center">Дни выходные</div>
+            <div className="col-span-1" />
+            <div className="col-span-2" />
+          </div>
+
           {/* Data Row */}
-          <div className="grid grid-cols-10 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
+          <div className="grid grid-cols-13 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
         {/* Name & ID */}
         <div className="col-span-2 flex flex-col justify-center">
           <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
@@ -402,6 +450,39 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
         </div>
 
+        {/* Labor Intensity (ТРУДОЁМКОСТЬ) - Three columns */}
+        <div className="col-span-3 grid grid-cols-3 gap-1 text-xs">
+          {/* Calendar Days */}
+          <div className="flex flex-col justify-center items-center">
+            <span className="font-mono text-foreground font-medium">
+              {(() => {
+                const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
+                return planDays.calendar;
+              })()}
+            </span>
+          </div>
+          
+          {/* Working Days */}
+          <div className="flex flex-col justify-center items-center">
+            <span className="font-mono text-foreground font-medium">
+              {(() => {
+                const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
+                return planDays.working;
+              })()}
+            </span>
+          </div>
+          
+          {/* Weekend Days */}
+          <div className="flex flex-col justify-center items-center">
+            <span className="font-mono text-foreground font-medium">
+              {(() => {
+                const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
+                return planDays.weekend;
+              })()}
+            </span>
+          </div>
+        </div>
+
         {/* Responsible */}
         <div className="col-span-1 flex flex-col gap-1">
           <div className="text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
@@ -430,11 +511,12 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
       </div>
 
           {/* Progress Slider Row */}
-          <div className="mt-2 grid grid-cols-10 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
+          <div className="mt-2 grid grid-cols-13 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
             <div className="col-span-2" />
             <div className="col-span-3" />
             <div className="col-span-1" />
             <div className="col-span-1" />
+            <div className="col-span-3" />
             <div className="col-span-1" />
             <div className="col-span-2">
               <div className="relative group/slider">
