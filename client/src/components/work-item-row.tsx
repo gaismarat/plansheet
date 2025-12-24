@@ -38,8 +38,11 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
   const [localPlanEndDate, setLocalPlanEndDate] = useState(work.planEndDate || '');
   const [localActualStartDate, setLocalActualStartDate] = useState(work.actualStartDate || '');
   const [localActualEndDate, setLocalActualEndDate] = useState(work.actualEndDate || '');
+  const [localVolumeAmount, setLocalVolumeAmount] = useState(work.volumeAmount);
+  const [localVolumeActual, setLocalVolumeActual] = useState(work.volumeActual);
   const sliderTimeoutRef = useRef<NodeJS.Timeout>();
   const dateTimeoutRef = useRef<NodeJS.Timeout>();
+  const volumeTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Sync local state if external data changes (and we aren't dragging)
   useEffect(() => {
@@ -54,6 +57,11 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
     setLocalActualStartDate(work.actualStartDate || '');
     setLocalActualEndDate(work.actualEndDate || '');
   }, [work.planStartDate, work.planEndDate, work.actualStartDate, work.actualEndDate]);
+
+  useEffect(() => {
+    setLocalVolumeAmount(work.volumeAmount);
+    setLocalVolumeActual(work.volumeActual);
+  }, [work.volumeAmount, work.volumeActual]);
 
   const handleSliderChange = (value: number[]) => {
     const newVal = value[0];
@@ -118,6 +126,30 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
     dateTimeoutRef.current = setTimeout(() => {
       updateWork({ id: work.id, actualEndDate: newDate });
     }, 300);
+  };
+
+  const handleVolumeAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    if (!isNaN(val)) {
+      setLocalVolumeAmount(val);
+    }
+  };
+
+  const handleVolumeAmountBlur = () => {
+    if (volumeTimeoutRef.current) clearTimeout(volumeTimeoutRef.current);
+    updateWork({ id: work.id, volumeAmount: localVolumeAmount });
+  };
+
+  const handleVolumeActualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    if (!isNaN(val)) {
+      setLocalVolumeActual(val);
+    }
+  };
+
+  const handleVolumeActualBlur = () => {
+    if (volumeTimeoutRef.current) clearTimeout(volumeTimeoutRef.current);
+    updateWork({ id: work.id, volumeActual: localVolumeActual });
   };
 
   // Helper function to calculate days between two dates
@@ -223,7 +255,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           {/* Header Row with Column Labels */}
           <div className="grid grid-cols-12 gap-3 mb-3">
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ/СРОК</div>
+            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ОБЪЁМ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center pl-4">КОНЕЦ</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center ml-[40px] mr-[60px]">ТРУДОЁМКОСТЬ</div>
@@ -243,54 +275,51 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </span>
         </div>
 
-        {/* Metrics: Plan | Actual | Overage - Tighter spacing */}
-        <div className="col-span-2 grid grid-cols-3 gap-0 text-sm">
-          {/* Plan: Volume & Days */}
-          <div className="flex flex-col justify-center">
-            <div className="text-xs text-muted-foreground font-medium mb-1">План</div>
-            <div className="flex items-center gap-1 text-foreground/90 text-xs">
-              <span className="font-mono font-medium">{work.volumeAmount}</span>
-              <span className="text-muted-foreground">{work.volumeUnit}</span>
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              {work.daysEstimated} дн.
-            </div>
+        {/* Volume column */}
+        <div className="col-span-2 flex flex-col gap-1 text-xs">
+          {/* Plan Volume */}
+          <div className="text-muted-foreground font-medium">План</div>
+          <div className="flex items-center gap-1">
+            <input 
+              type="number"
+              step="0.01"
+              value={localVolumeAmount}
+              onChange={handleVolumeAmountChange}
+              onBlur={handleVolumeAmountBlur}
+              className="w-16 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
+            />
+            <span className="text-muted-foreground">{work.volumeUnit}</span>
           </div>
 
-          {/* Actual: Volume & Days */}
-          <div className="flex flex-col justify-center">
-            <div className="text-xs text-muted-foreground font-medium mb-1">Факт</div>
-            <div className="flex items-center gap-1 text-foreground/90 text-xs">
-              <span className="font-mono font-medium">{work.volumeActual}</span>
-              <span className="text-muted-foreground">{work.volumeUnit}</span>
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              {work.daysActual} дн.
-            </div>
+          {/* Comparison */}
+          <div className="py-0.5">
+            {(() => {
+              if (localVolumeAmount === 0) return null;
+              const diff = localVolumeActual - localVolumeAmount;
+              const percent = (Math.abs(diff) / localVolumeAmount) * 100;
+              
+              if (diff > 0) {
+                return <span className="text-red-500 font-medium">Превышение {percent.toFixed(1)}%</span>;
+              } else if (diff < 0) {
+                return <span className="text-green-500 font-medium">Экономия {percent.toFixed(1)}%</span>;
+              } else {
+                return <span className="text-green-500 font-medium">Плановый объём</span>;
+              }
+            })()}
           </div>
 
-          {/* Overage: Volume & Days */}
-          <div className="flex flex-col justify-center">
-            <div className="text-xs text-muted-foreground font-medium mb-1">Превыш</div>
-            <div className="flex flex-col gap-0.5">
-              {(() => {
-                const volumePercent = work.volumeAmount > 0 ? ((work.volumeActual - work.volumeAmount) / work.volumeAmount) * 100 : 0;
-                const daysPercent = work.daysEstimated > 0 ? ((work.daysActual - work.daysEstimated) / work.daysEstimated) * 100 : 0;
-                const volumeColor = volumePercent > 0 ? 'text-red-500' : volumePercent < 0 ? 'text-green-500' : 'text-foreground/90';
-                const daysColor = daysPercent > 0 ? 'text-red-500' : daysPercent < 0 ? 'text-green-500' : 'text-foreground/90';
-                
-                return (
-                  <>
-                    <span className={`font-mono text-xs ${volumeColor}`}>
-                      {volumePercent > 0 ? '+' : ''}{volumePercent.toFixed(1)}%
-                    </span>
-                    <span className={`font-mono text-xs ${daysColor}`}>
-                      {daysPercent > 0 ? '+' : ''}{daysPercent.toFixed(1)}%
-                    </span>
-                  </>
-                );
-              })()}
-            </div>
+          {/* Actual Volume */}
+          <div className="text-muted-foreground font-medium">Факт</div>
+          <div className="flex items-center gap-1">
+            <input 
+              type="number"
+              step="0.01"
+              value={localVolumeActual}
+              onChange={handleVolumeActualChange}
+              onBlur={handleVolumeActualBlur}
+              className="w-16 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
+            />
+            <span className="text-muted-foreground">{work.volumeUnit}</span>
           </div>
         </div>
 
