@@ -228,7 +228,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center pl-4">КОНЕЦ</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ТРУДОЁМКОСТЬ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
+            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ПРОГРЕСС</div>
           </div>
 
           {/* Sub-header for ТРУДОЁМКОСТЬ */}
