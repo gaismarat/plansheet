@@ -352,7 +352,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Progress Control - Vertical Layout */}
-        <div className="col-span-2 flex flex-col gap-1">
+        <div className="col-span-2 flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
           <div className="text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
           <div className="flex items-center gap-1">
             <input 
@@ -370,7 +370,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
       </div>
 
           {/* Progress Slider Row */}
-          <div className="mt-2 grid grid-cols-10 gap-3 items-center">
+          <div className="mt-2 grid grid-cols-10 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
             <div className="col-span-2" />
             <div className="col-span-3" />
             <div className="col-span-1" />
