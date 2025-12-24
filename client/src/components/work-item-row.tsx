@@ -291,7 +291,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[60px] mr-[30px]">СТОИМОСТЬ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[60px]">НАЧАЛО</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[110px]">КОНЕЦ</div>
-            <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center ml-[210px] mr-[90px]">ТРУДОЁМКОСТЬ, дни</div>
+            <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center ml-[90px] mr-[90px]">ТРУДОЁМКОСТЬ, дни</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
             <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ПРОГРЕСС</div>
           </div>
