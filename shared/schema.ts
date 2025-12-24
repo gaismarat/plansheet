@@ -20,6 +20,8 @@ export const works = pgTable("works", {
   volumeUnit: text("volume_unit").notNull(), // Единица измерения (шт, м3, м2, п.м, компл)
   daysActual: integer("days_actual").default(0).notNull(), // Фактические дни
   volumeActual: real("volume_actual").default(0).notNull(), // Фактический объём
+  costPlan: real("cost_plan").default(0).notNull(), // Плановая стоимость (руб.)
+  costActual: real("cost_actual").default(0).notNull(), // Фактическая стоимость (руб.)
   planStartDate: varchar("plan_start_date"), // Плановая дата начала
   actualStartDate: varchar("actual_start_date"), // Фактическая дата начала
   planEndDate: varchar("plan_end_date"), // Плановая дата окончания
@@ -52,6 +54,8 @@ export const insertWorkSchema = createInsertSchema(works).omit({ id: true, creat
   volumeAmount: z.coerce.number().min(0),
   daysActual: z.coerce.number().min(0).default(0),
   volumeActual: z.coerce.number().min(0).default(0),
+  costPlan: z.coerce.number().min(0).default(0),
+  costActual: z.coerce.number().min(0).default(0),
   planStartDate: z.string().optional(),
   actualStartDate: z.string().optional(),
   planEndDate: z.string().optional(),

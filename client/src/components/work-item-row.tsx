@@ -40,9 +40,12 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
   const [localActualEndDate, setLocalActualEndDate] = useState(work.actualEndDate || '');
   const [localVolumeAmount, setLocalVolumeAmount] = useState(work.volumeAmount);
   const [localVolumeActual, setLocalVolumeActual] = useState(work.volumeActual);
+  const [localCostPlan, setLocalCostPlan] = useState(work.costPlan);
+  const [localCostActual, setLocalCostActual] = useState(work.costActual);
   const sliderTimeoutRef = useRef<NodeJS.Timeout>();
   const dateTimeoutRef = useRef<NodeJS.Timeout>();
   const volumeTimeoutRef = useRef<NodeJS.Timeout>();
+  const costTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Sync local state if external data changes (and we aren't dragging)
   useEffect(() => {
@@ -62,6 +65,11 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
     setLocalVolumeAmount(work.volumeAmount);
     setLocalVolumeActual(work.volumeActual);
   }, [work.volumeAmount, work.volumeActual]);
+
+  useEffect(() => {
+    setLocalCostPlan(work.costPlan);
+    setLocalCostActual(work.costActual);
+  }, [work.costPlan, work.costActual]);
 
   const handleSliderChange = (value: number[]) => {
     const newVal = value[0];
@@ -150,6 +158,30 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
   const handleVolumeActualBlur = () => {
     if (volumeTimeoutRef.current) clearTimeout(volumeTimeoutRef.current);
     updateWork({ id: work.id, volumeActual: localVolumeActual });
+  };
+
+  const handleCostPlanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    if (!isNaN(val)) {
+      setLocalCostPlan(val);
+    }
+  };
+
+  const handleCostPlanBlur = () => {
+    if (costTimeoutRef.current) clearTimeout(costTimeoutRef.current);
+    updateWork({ id: work.id, costPlan: localCostPlan });
+  };
+
+  const handleCostActualChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    if (!isNaN(val)) {
+      setLocalCostActual(val);
+    }
+  };
+
+  const handleCostActualBlur = () => {
+    if (costTimeoutRef.current) clearTimeout(costTimeoutRef.current);
+    updateWork({ id: work.id, costActual: localCostActual });
   };
 
   // Helper function to calculate days between two dates
@@ -255,7 +287,8 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           {/* Header Row with Column Labels */}
           <div className="grid grid-cols-12 gap-3 mb-3">
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center ml-[80px] mr-[80px]">ОБЪЁМ</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center -ml-[70px] mr-[30px]">ОБЪЁМ</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center -ml-[40px] mr-[30px]">СТОИМОСТЬ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center pl-4">КОНЕЦ</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center ml-[40px] mr-[60px]">ТРУДОЁМКОСТЬ</div>
@@ -276,7 +309,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Volume column */}
-        <div className="col-span-2 flex flex-col gap-1 text-xs ml-[50px] mr-[50px]">
+        <div className="col-span-1 flex flex-col gap-1 text-xs -ml-[100px] mr-[30px]">
           {/* Plan Volume */}
           <div className="text-muted-foreground font-medium">План</div>
           <div className="flex items-center gap-1">
@@ -292,7 +325,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
 
           {/* Comparison */}
-          <div className="py-0.5">
+          <div className="py-0.5 whitespace-nowrap">
             {(() => {
               if (localVolumeAmount === 0) return null;
               const diff = localVolumeActual - localVolumeAmount;
@@ -320,6 +353,54 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
               className="w-16 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
             />
             <span className="text-muted-foreground">{work.volumeUnit}</span>
+          </div>
+        </div>
+
+        {/* Cost column */}
+        <div className="col-span-1 flex flex-col gap-1 text-xs -ml-[70px] mr-[30px]">
+          {/* Plan Cost */}
+          <div className="text-muted-foreground font-medium">План</div>
+          <div className="flex items-center gap-1">
+            <input 
+              type="number"
+              step="0.01"
+              value={localCostPlan}
+              onChange={handleCostPlanChange}
+              onBlur={handleCostPlanBlur}
+              className="w-20 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
+            />
+            <span className="text-muted-foreground">руб.</span>
+          </div>
+
+          {/* Comparison */}
+          <div className="py-0.5 whitespace-nowrap">
+            {(() => {
+              if (localCostPlan === 0) return null;
+              const diff = localCostActual - localCostPlan;
+              const percent = (Math.abs(diff) / localCostPlan) * 100;
+              
+              if (diff > 0) {
+                return <span className="text-red-500 font-medium">Превышение {percent.toFixed(1)}%</span>;
+              } else if (diff < 0) {
+                return <span className="text-green-500 font-medium">Экономия {percent.toFixed(1)}%</span>;
+              } else {
+                return <span className="text-green-500 font-medium">Плановая стоимость</span>;
+              }
+            })()}
+          </div>
+
+          {/* Actual Cost */}
+          <div className="text-muted-foreground font-medium">Факт</div>
+          <div className="flex items-center gap-1">
+            <input 
+              type="number"
+              step="0.01"
+              value={localCostActual}
+              onChange={handleCostActualChange}
+              onBlur={handleCostActualBlur}
+              className="w-20 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
+            />
+            <span className="text-muted-foreground">руб.</span>
           </div>
         </div>
 
