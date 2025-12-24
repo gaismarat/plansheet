@@ -471,7 +471,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
           
           {/* Working Days */}
-          <div className="flex flex-col justify-center items-center">
+          <div className="flex flex-col justify-center items-center -ml-[40px]">
             <span className="font-mono text-foreground font-medium">
               {(() => {
                 const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
