@@ -547,7 +547,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Labor Intensity (ТРУДОЁМКОСТЬ) - Three columns */}
-        <div className="col-span-3 grid grid-cols-3 gap-0 text-xs ml-[70px]">
+        <div className="col-span-3 grid grid-cols-3 gap-0 text-xs ml-[20px] mr-[20px]">
           {/* Calendar Days */}
           <div className="flex flex-col justify-center items-center ml-[70px] mr-[50px]">
             <div className="text-muted-foreground font-medium text-center leading-tight mb-1">
