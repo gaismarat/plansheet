@@ -242,7 +242,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
               <div>календарь</div>
             </div>
             <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
-              <div className="ml-[0px] mr-[0px]">Дни</div>
+              <div className="ml-[40px] mr-[40px]">Дни</div>
               <div>рабочие</div>
             </div>
             <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
