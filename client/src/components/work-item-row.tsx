@@ -237,7 +237,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
             <div className="col-span-2" />
             <div className="col-span-1" />
             <div className="col-span-1 pl-4" />
-            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight">
+            <div className="col-span-1 text-xs text-muted-foreground font-medium text-center leading-tight ml-[20px]">
               <div className="ml-[40px] mr-[40px]">Дни</div>
               <div className="ml-[20px] mr-[20px]">календарь</div>
             </div>
@@ -461,7 +461,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         {/* Labor Intensity (ТРУДОЁМКОСТЬ) - Three columns */}
         <div className="col-span-3 grid grid-cols-3 gap-0 text-xs">
           {/* Calendar Days */}
-          <div className="flex flex-col justify-center items-center">
+          <div className="flex flex-col justify-center items-center ml-[50px] mr-[50px]">
             <span className="font-mono text-foreground font-medium">
               {(() => {
                 const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
