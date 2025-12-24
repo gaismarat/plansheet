@@ -291,7 +291,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center -ml-[40px] mr-[30px]">СТОИМОСТЬ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center">НАЧАЛО</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center pl-4">КОНЕЦ</div>
-            <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center ml-[110px] mr-[110px]">ТРУДОЁМКОСТЬ</div>
+            <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center ml-[210px] mr-[110px]">ТРУДОЁМКОСТЬ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
             <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ПРОГРЕСС</div>
           </div>
@@ -547,7 +547,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Labor Intensity (ТРУДОЁМКОСТЬ) - Three columns */}
-        <div className="col-span-3 grid grid-cols-3 gap-0 text-xs ml-[20px] mr-[20px]">
+        <div className="col-span-3 grid grid-cols-3 gap-0 text-xs ml-[120px] mr-[20px]">
           {/* Calendar Days */}
           <div className="flex flex-col justify-center items-center ml-[70px] mr-[50px]">
             <div className="text-muted-foreground font-medium text-center leading-tight mb-1">
