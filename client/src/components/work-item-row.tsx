@@ -4,7 +4,7 @@ import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown } from "@/
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Trash2, Edit2, Check, ArrowUp, ArrowDown, ChevronDown, X } from "lucide-react";
+import { Trash2, Edit2, Check, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -221,6 +221,66 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
       {/* Expanded View */}
       {isExpanded && (
         <>
+          {/* Arrow Controls Row */}
+          <div className="grid grid-cols-12 gap-3 mb-1">
+            <div className="col-span-2 flex justify-center gap-1">
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronLeft className="w-3 h-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronRight className="w-3 h-3" />
+              </Button>
+            </div>
+            <div className="col-span-2 flex justify-center gap-1">
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronLeft className="w-3 h-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronRight className="w-3 h-3" />
+              </Button>
+            </div>
+            <div className="col-span-1 flex justify-center gap-1">
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronLeft className="w-3 h-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronRight className="w-3 h-3" />
+              </Button>
+            </div>
+            <div className="col-span-1 flex justify-center gap-1 pl-4">
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronLeft className="w-3 h-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronRight className="w-3 h-3" />
+              </Button>
+            </div>
+            <div className="col-span-3 flex justify-center gap-1">
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronLeft className="w-3 h-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronRight className="w-3 h-3" />
+              </Button>
+            </div>
+            <div className="col-span-1 flex justify-center gap-1">
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronLeft className="w-3 h-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronRight className="w-3 h-3" />
+              </Button>
+            </div>
+            <div className="col-span-2 flex justify-center gap-1">
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronLeft className="w-3 h-3" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => e.stopPropagation()}>
+                <ChevronRight className="w-3 h-3" />
+              </Button>
+            </div>
+          </div>
+
           {/* Header Row with Column Labels */}
           <div className="grid grid-cols-12 gap-3 mb-3">
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
