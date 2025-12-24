@@ -287,8 +287,8 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           {/* Header Row with Column Labels */}
           <div className="grid grid-cols-12 gap-3 mb-3">
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center -ml-[70px] mr-[30px]">ОБЪЁМ</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center -ml-[40px] mr-[30px]">СТОИМОСТЬ</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[30px] mr-[30px]">ОБЪЁМ</div>
+            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[60px] mr-[30px]">СТОИМОСТЬ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[80px]">НАЧАЛО</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[80px]">КОНЕЦ</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center ml-[110px] mr-[90px]">ТРУДОЁМКОСТЬ, дни</div>
@@ -309,7 +309,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Volume column */}
-        <div className="col-span-1 flex flex-col gap-1 text-xs -ml-[100px] mr-[30px]">
+        <div className="col-span-1 flex flex-col gap-1 text-xs mr-[30px]">
           {/* Plan Volume */}
           <div className="text-muted-foreground font-medium">План</div>
           <div className="flex items-center gap-1">
@@ -357,7 +357,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
         </div>
 
         {/* Cost column */}
-        <div className="col-span-1 flex flex-col gap-1 text-xs -ml-[70px] mr-[30px]">
+        <div className="col-span-1 flex flex-col gap-1 text-xs ml-[30px] mr-[30px]">
           {/* Plan Cost */}
           <div className="text-muted-foreground font-medium">План</div>
           <div className="flex items-center gap-1">
