@@ -570,7 +570,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
           
           {/* Working Days */}
-          <div className="flex flex-col justify-center items-center">
+          <div className="flex flex-col justify-center items-center ml-[10px]">
             <div className="text-muted-foreground font-medium text-center leading-tight mb-1">
               <div>Рабочие</div>
             </div>
