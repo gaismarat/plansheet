@@ -491,44 +491,32 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           </div>
         </div>
 
-        {/* Progress Control - Placeholder for alignment */}
-        <div className="col-span-2" onClick={(e) => e.stopPropagation()}>
+        {/* Progress Control - Percentage Input and Slider */}
+        <div className="col-span-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-1 shrink-0">
+            <input 
+              type="number"
+              min={0}
+              max={100}
+              value={localProgress}
+              onChange={handleProgressInputChange}
+              onBlur={handleProgressInputBlur}
+              className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-sm"
+            />
+            <span className="text-muted-foreground text-sm">%</span>
+          </div>
+          <div className="relative group/slider flex-1">
+            <Slider
+              defaultValue={[work.progressPercentage]}
+              value={[localProgress]}
+              max={100}
+              step={1}
+              onValueChange={handleSliderChange}
+              className="cursor-pointer"
+            />
+          </div>
         </div>
       </div>
-
-          {/* Progress Slider Row */}
-          <div className="mt-2 grid grid-cols-12 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
-            <div className="col-span-2" />
-            <div className="col-span-2" />
-            <div className="col-span-1" />
-            <div className="col-span-1" />
-            <div className="col-span-3" />
-            <div className="col-span-1" />
-            <div className="col-span-2 flex items-center gap-2">
-              <div className="flex items-center gap-1 shrink-0">
-                <input 
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={localProgress}
-                  onChange={handleProgressInputChange}
-                  onBlur={handleProgressInputBlur}
-                  className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-sm"
-                />
-                <span className="text-muted-foreground text-sm">%</span>
-              </div>
-              <div className="relative group/slider flex-1">
-                <Slider
-                  defaultValue={[work.progressPercentage]}
-                  value={[localProgress]}
-                  max={100}
-                  step={1}
-                  onValueChange={handleSliderChange}
-                  className="cursor-pointer"
-                />
-              </div>
-            </div>
-          </div>
 
               {/* Actions Row */}
           <div className="mt-12 flex justify-end gap-1">
