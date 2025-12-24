@@ -551,8 +551,7 @@ export function WorkItemRow({ work, expandAll = true }: WorkItemRowProps) {
           {/* Calendar Days */}
           <div className="flex flex-col justify-center items-center ml-[70px] mr-[50px]">
             <div className="text-muted-foreground font-medium text-center leading-tight mb-1">
-              <div>Дни</div>
-              <div>календарь</div>
+              <div>Календарные</div>
             </div>
             <div className="text-muted-foreground text-[10px] mb-0.5">План</div>
             <span className="font-mono text-foreground font-medium">
