@@ -6,12 +6,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Analytics from "@/pages/analytics";
+import KSP from "@/pages/ksp";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/analytics" component={Analytics} />
+      <Route path="/ksp" component={KSP} />
       <Route component={NotFound} />
     </Switch>
   );
