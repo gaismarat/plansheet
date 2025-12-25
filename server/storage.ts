@@ -1,22 +1,37 @@
 import { db } from "./db";
 import {
+  blocks,
   works,
   workGroups,
   holidays,
+  type Block,
   type Work,
   type WorkGroup,
   type Holiday,
+  type InsertBlock,
   type InsertWork,
   type InsertWorkGroup,
   type InsertHoliday,
-  type UpdateWorkRequest
+  type UpdateBlockRequest,
+  type UpdateWorkGroupRequest,
+  type UpdateWorkRequest,
+  type BlockResponse,
+  type WorkGroupResponse
 } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 
 export interface IStorage {
+  // Blocks
+  getBlocksWithGroupsAndWorks(): Promise<BlockResponse[]>;
+  getUnassignedGroups(): Promise<WorkGroupResponse[]>;
+  createBlock(block: InsertBlock): Promise<Block>;
+  updateBlock(id: number, updates: UpdateBlockRequest): Promise<Block>;
+  deleteBlock(id: number): Promise<void>;
+  
   // Work Groups
   getWorkGroupsWithWorks(): Promise<(WorkGroup & { works: Work[] })[]>;
   createWorkGroup(group: InsertWorkGroup): Promise<WorkGroup>;
+  updateWorkGroup(id: number, updates: UpdateWorkGroupRequest): Promise<WorkGroup>;
   deleteWorkGroup(id: number): Promise<void>;
 
   // Works
@@ -38,6 +53,63 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // === BLOCKS ===
+  
+  async getBlocksWithGroupsAndWorks(): Promise<BlockResponse[]> {
+    return await db.query.blocks.findMany({
+      with: {
+        groups: {
+          with: {
+            works: {
+              orderBy: (works, { asc }) => [asc(works.order), asc(works.id)],
+            },
+          },
+          orderBy: (workGroups, { asc }) => [asc(workGroups.order), asc(workGroups.id)],
+        },
+      },
+      orderBy: (blocks, { asc }) => [asc(blocks.order), asc(blocks.id)],
+    });
+  }
+
+  async getUnassignedGroups(): Promise<WorkGroupResponse[]> {
+    return await db.query.workGroups.findMany({
+      where: isNull(workGroups.blockId),
+      with: {
+        works: {
+          orderBy: (works, { asc }) => [asc(works.order), asc(works.id)],
+        },
+      },
+      orderBy: (workGroups, { asc }) => [asc(workGroups.order), asc(workGroups.id)],
+    });
+  }
+
+  async createBlock(block: InsertBlock): Promise<Block> {
+    const allBlocks = await db.select().from(blocks);
+    const maxOrder = Math.max(...allBlocks.map(b => b.order), -1);
+    
+    const [newBlock] = await db.insert(blocks).values({
+      ...block,
+      order: maxOrder + 1
+    }).returning();
+    return newBlock;
+  }
+
+  async updateBlock(id: number, updates: UpdateBlockRequest): Promise<Block> {
+    const [updated] = await db
+      .update(blocks)
+      .set(updates)
+      .where(eq(blocks.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBlock(id: number): Promise<void> {
+    await db.update(workGroups).set({ blockId: null }).where(eq(workGroups.blockId, id));
+    await db.delete(blocks).where(eq(blocks.id, id));
+  }
+
+  // === WORK GROUPS ===
+
   async getWorkGroupsWithWorks(): Promise<(WorkGroup & { works: Work[] })[]> {
     const groups = await db.select().from(workGroups).orderBy(workGroups.id);
     const result: (WorkGroup & { works: Work[] })[] = [];
@@ -63,8 +135,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWorkGroup(group: InsertWorkGroup): Promise<WorkGroup> {
-    const [newGroup] = await db.insert(workGroups).values(group).returning();
+    const allGroups = await db.select().from(workGroups).where(
+      group.blockId ? eq(workGroups.blockId, group.blockId) : isNull(workGroups.blockId)
+    );
+    const maxOrder = Math.max(...allGroups.map(g => g.order), -1);
+    
+    const [newGroup] = await db.insert(workGroups).values({
+      ...group,
+      order: maxOrder + 1
+    }).returning();
     return newGroup;
+  }
+
+  async updateWorkGroup(id: number, updates: UpdateWorkGroupRequest): Promise<WorkGroup> {
+    const [updated] = await db
+      .update(workGroups)
+      .set(updates)
+      .where(eq(workGroups.id, id))
+      .returning();
+    return updated;
   }
 
   async deleteWorkGroup(id: number): Promise<void> {

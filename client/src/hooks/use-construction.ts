@@ -1,6 +1,105 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl, type WorkGroupInput, type WorkInput, type WorkUpdateInput } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import type { InsertBlock, UpdateBlockRequest, UpdateWorkGroupRequest } from "@shared/schema";
+
+// ============================================
+// BLOCKS HOOKS
+// ============================================
+
+export function useBlocks() {
+  return useQuery({
+    queryKey: [api.blocks.list.path],
+    queryFn: async () => {
+      const res = await fetch(api.blocks.list.path);
+      if (!res.ok) throw new Error("Failed to fetch blocks");
+      return api.blocks.list.responses[200].parse(await res.json());
+    },
+  });
+}
+
+export function useUnassignedGroups() {
+  return useQuery({
+    queryKey: [api.blocks.unassignedGroups.path],
+    queryFn: async () => {
+      const res = await fetch(api.blocks.unassignedGroups.path);
+      if (!res.ok) throw new Error("Failed to fetch unassigned groups");
+      return api.blocks.unassignedGroups.responses[200].parse(await res.json());
+    },
+  });
+}
+
+export function useCreateBlock() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: InsertBlock) => {
+      const validated = api.blocks.create.input.parse(data);
+      const res = await fetch(api.blocks.create.path, {
+        method: api.blocks.create.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(validated),
+      });
+      if (!res.ok) throw new Error("Failed to create block");
+      return api.blocks.create.responses[201].parse(await res.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.blocks.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.blocks.unassignedGroups.path] });
+      toast({ title: "Блок создан", description: "Новый блок успешно добавлен" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useUpdateBlock() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: number } & UpdateBlockRequest) => {
+      const validated = api.blocks.update.input.parse(updates);
+      const url = buildUrl(api.blocks.update.path, { id });
+      const res = await fetch(url, {
+        method: api.blocks.update.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(validated),
+      });
+      if (!res.ok) throw new Error("Failed to update block");
+      return api.blocks.update.responses[200].parse(await res.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.blocks.list.path] });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeleteBlock() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const url = buildUrl(api.blocks.delete.path, { id });
+      const res = await fetch(url, { method: api.blocks.delete.method });
+      if (!res.ok) throw new Error("Failed to delete block");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.blocks.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.blocks.unassignedGroups.path] });
+      toast({ title: "Блок удалён", description: "Блок был удалён" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
 
 // ============================================
 // WORK GROUPS HOOKS
@@ -42,6 +141,33 @@ export function useCreateWorkGroup() {
   });
 }
 
+export function useUpdateWorkGroup() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: number } & UpdateWorkGroupRequest) => {
+      const validated = api.workGroups.update.input.parse(updates);
+      const url = buildUrl(api.workGroups.update.path, { id });
+      const res = await fetch(url, {
+        method: api.workGroups.update.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(validated),
+      });
+      if (!res.ok) throw new Error("Failed to update work group");
+      return api.workGroups.update.responses[200].parse(await res.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.workGroups.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.blocks.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.blocks.unassignedGroups.path] });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
 export function useDeleteWorkGroup() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -54,6 +180,8 @@ export function useDeleteWorkGroup() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.workGroups.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.blocks.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.blocks.unassignedGroups.path] });
       toast({ title: "Группа удалена", description: "Группа работ была удалена" });
     },
     onError: (error) => {

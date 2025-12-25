@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertWorkGroupSchema, insertWorkSchema, insertHolidaySchema, works, workGroups, holidays } from './schema';
+import { insertBlockSchema, insertWorkGroupSchema, insertWorkSchema, insertHolidaySchema, blocks, works, workGroups, holidays } from './schema';
 
 // ============================================
 // SHARED ERROR SCHEMAS
@@ -21,6 +21,49 @@ export const errorSchemas = {
 // API CONTRACT
 // ============================================
 export const api = {
+  blocks: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/blocks',
+      responses: {
+        200: z.array(z.custom<typeof blocks.$inferSelect & { groups: (typeof workGroups.$inferSelect & { works: (typeof works.$inferSelect)[] })[] }>()),
+      },
+    },
+    unassignedGroups: {
+      method: 'GET' as const,
+      path: '/api/blocks/unassigned-groups',
+      responses: {
+        200: z.array(z.custom<typeof workGroups.$inferSelect & { works: (typeof works.$inferSelect)[] }>()),
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/blocks',
+      input: insertBlockSchema,
+      responses: {
+        201: z.custom<typeof blocks.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/blocks/:id',
+      input: insertBlockSchema.partial(),
+      responses: {
+        200: z.custom<typeof blocks.$inferSelect>(),
+        400: errorSchemas.validation,
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/blocks/:id',
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
   workGroups: {
     list: {
       method: 'GET' as const,
@@ -36,6 +79,16 @@ export const api = {
       responses: {
         201: z.custom<typeof workGroups.$inferSelect>(),
         400: errorSchemas.validation,
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/work-groups/:id',
+      input: insertWorkGroupSchema.partial(),
+      responses: {
+        200: z.custom<typeof workGroups.$inferSelect>(),
+        400: errorSchemas.validation,
+        404: errorSchemas.notFound,
       },
     },
     delete: {

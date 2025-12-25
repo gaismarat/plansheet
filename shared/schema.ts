@@ -5,9 +5,18 @@ import { relations } from "drizzle-orm";
 
 // === TABLE DEFINITIONS ===
 
+export const blocks = pgTable("blocks", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(), // Название блока
+  order: integer("order").default(0).notNull(), // Порядок блока
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const workGroups = pgTable("work_groups", {
   id: serial("id").primaryKey(),
+  blockId: integer("block_id").references(() => blocks.id), // Ссылка на блок (опционально)
   name: text("name").notNull(), // Название группы работ (e.g., "Earthworks", "Foundation")
+  order: integer("order").default(0).notNull(), // Порядок группы
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -40,7 +49,15 @@ export const holidays = pgTable("holidays", {
 
 // === RELATIONS ===
 
-export const workGroupsRelations = relations(workGroups, ({ many }) => ({
+export const blocksRelations = relations(blocks, ({ many }) => ({
+  groups: many(workGroups),
+}));
+
+export const workGroupsRelations = relations(workGroups, ({ one, many }) => ({
+  block: one(blocks, {
+    fields: [workGroups.blockId],
+    references: [blocks.id],
+  }),
   works: many(works),
 }));
 
@@ -53,6 +70,7 @@ export const worksRelations = relations(works, ({ one }) => ({
 
 // === BASE SCHEMAS ===
 
+export const insertBlockSchema = createInsertSchema(blocks).omit({ id: true, createdAt: true });
 export const insertWorkGroupSchema = createInsertSchema(workGroups).omit({ id: true, createdAt: true });
 export const insertWorkSchema = createInsertSchema(works).omit({ id: true, createdAt: true }).extend({
   progressPercentage: z.coerce.number().min(0).max(100).default(0),
@@ -70,6 +88,9 @@ export const insertWorkSchema = createInsertSchema(works).omit({ id: true, creat
 
 // === EXPLICIT API CONTRACT TYPES ===
 
+export type Block = typeof blocks.$inferSelect;
+export type InsertBlock = z.infer<typeof insertBlockSchema>;
+
 export type WorkGroup = typeof workGroups.$inferSelect;
 export type InsertWorkGroup = z.infer<typeof insertWorkGroupSchema>;
 
@@ -77,13 +98,17 @@ export type Work = typeof works.$inferSelect;
 export type InsertWork = z.infer<typeof insertWorkSchema>;
 
 // Request types
+export type CreateBlockRequest = InsertBlock;
+export type UpdateBlockRequest = Partial<InsertBlock>;
 export type CreateWorkGroupRequest = InsertWorkGroup;
+export type UpdateWorkGroupRequest = Partial<InsertWorkGroup>;
 export type CreateWorkRequest = InsertWork;
 export type UpdateWorkRequest = Partial<InsertWork>;
 
 // Response types
 export type WorkResponse = Work;
-export type WorkGroupResponse = WorkGroup & { works?: WorkResponse[] }; // Optional nested works for list view
+export type WorkGroupResponse = WorkGroup & { works?: WorkResponse[] };
+export type BlockResponse = Block & { groups?: WorkGroupResponse[] };
 
 // === HOLIDAYS ===
 export const insertHolidaySchema = createInsertSchema(holidays).omit({ id: true });

@@ -9,6 +9,56 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // === Blocks ===
+  
+  app.get(api.blocks.list.path, async (_req, res) => {
+    const blocksList = await storage.getBlocksWithGroupsAndWorks();
+    res.json(blocksList);
+  });
+
+  app.get(api.blocks.unassignedGroups.path, async (_req, res) => {
+    const groups = await storage.getUnassignedGroups();
+    res.json(groups);
+  });
+
+  app.post(api.blocks.create.path, async (req, res) => {
+    try {
+      const input = api.blocks.create.input.parse(req.body);
+      const block = await storage.createBlock(input);
+      res.status(201).json(block);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  app.put(api.blocks.update.path, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const input = api.blocks.update.input.parse(req.body);
+      const updated = await storage.updateBlock(id, input);
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  app.delete(api.blocks.delete.path, async (req, res) => {
+    await storage.deleteBlock(Number(req.params.id));
+    res.status(204).send();
+  });
+
   // === Work Groups ===
   
   app.get(api.workGroups.list.path, async (_req, res) => {
@@ -21,6 +71,23 @@ export async function registerRoutes(
       const input = api.workGroups.create.input.parse(req.body);
       const group = await storage.createWorkGroup(input);
       res.status(201).json(group);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  app.put(api.workGroups.update.path, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const input = api.workGroups.update.input.parse(req.body);
+      const updated = await storage.updateWorkGroup(id, input);
+      res.json(updated);
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({
