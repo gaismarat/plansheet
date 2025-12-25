@@ -359,6 +359,39 @@ function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWo
     ? Math.round(group.works!.reduce((acc, w) => acc + w.progressPercentage, 0) / totalWorks)
     : 0;
 
+  if (forceHideWorks) {
+    return (
+      <div className={`border rounded-xl bg-card shadow-sm overflow-hidden border-border/60 ${isNested ? 'bg-background' : ''}`}>
+        <div className="flex items-center px-6 py-4">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="bg-primary/10 p-2 rounded-md text-primary">
+              <FolderOpen className="w-5 h-5" />
+            </div>
+            <div className="text-left">
+              <h3 className="font-display text-lg font-bold text-foreground">{group.name}</h3>
+              <p className="text-xs text-muted-foreground font-sans font-medium flex gap-2">
+                <span>Работ: {totalWorks}</span>
+                <span className="text-border">|</span>
+                <span>Завершено: {completedWorks}</span>
+              </p>
+            </div>
+          </div>
+          
+          <div className="hidden sm:flex items-center gap-2 ml-4">
+            <span className="text-xs font-bold text-muted-foreground">ВЫПОЛНЕНИЕ</span>
+            <div className="w-24 h-2 bg-secondary rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-500" 
+                style={{ width: `${avgProgress}%` }}
+              />
+            </div>
+            <span className="text-xs font-mono w-8 text-right">{avgProgress}%</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <AccordionItem value={`group-${group.id}`} className={`border rounded-xl bg-card shadow-sm overflow-hidden border-border/60 ${isNested ? 'bg-background' : ''}`}>
       <div className="flex items-center px-6 py-4 hover:bg-secondary/30 transition-colors">
