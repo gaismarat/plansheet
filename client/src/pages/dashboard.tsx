@@ -332,32 +332,27 @@ function BlockAccordionItem({ block, holidayDates }: { block: BlockResponse; hol
           </div>
         </div>
 
-        {showAllGroups ? (
-          totalGroups === 0 ? (
-            <div className="text-center py-10 border-2 border-dashed border-border rounded-lg bg-background/50">
-              <p className="text-muted-foreground mb-2">В этом блоке пока нет групп.</p>
-              <p className="text-xs text-muted-foreground">Создайте группу и добавьте её в этот блок через редактирование.</p>
-            </div>
-          ) : (
-            <Accordion type="multiple" defaultValue={block.groups?.map(g => `group-${g.id}`)} className="space-y-3">
-              {block.groups?.map((group) => (
-                <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} isNested />
-              ))}
-            </Accordion>
-          )
-        ) : (
-          <div className="text-center py-6 text-muted-foreground text-sm">
-            Группы скрыты. Нажмите переключатель чтобы показать.
+        {totalGroups === 0 ? (
+          <div className="text-center py-10 border-2 border-dashed border-border rounded-lg bg-background/50">
+            <p className="text-muted-foreground mb-2">В этом блоке пока нет групп.</p>
+            <p className="text-xs text-muted-foreground">Создайте группу и добавьте её в этот блок через редактирование.</p>
           </div>
+        ) : (
+          <Accordion type="multiple" defaultValue={showAllGroups ? block.groups?.map(g => `group-${g.id}`) : []} className="space-y-3">
+            {block.groups?.map((group) => (
+              <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} isNested forceHideWorks={!showAllGroups} />
+            ))}
+          </Accordion>
         )}
       </AccordionContent>
     </AccordionItem>
   );
 }
 
-function GroupAccordionItem({ group, holidayDates, isNested = false }: { group: WorkGroupResponse; holidayDates: Set<string>; isNested?: boolean }) {
+function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWorks = false }: { group: WorkGroupResponse; holidayDates: Set<string>; isNested?: boolean; forceHideWorks?: boolean }) {
   const { mutate: deleteGroup } = useDeleteWorkGroup();
   const [showAllWorks, setShowAllWorks] = useState(!isNested);
+  const effectiveShowWorks = forceHideWorks ? false : showAllWorks;
   const totalWorks = group.works?.length || 0;
   const completedWorks = group.works?.filter(w => w.progressPercentage === 100).length || 0;
   const avgProgress = totalWorks > 0 
@@ -450,7 +445,7 @@ function GroupAccordionItem({ group, holidayDates, isNested = false }: { group: 
         ) : (
           <div className="space-y-1">
             {group.works?.map((work) => (
-              <WorkItemRow key={work.id} work={work} expandAll={showAllWorks} holidayDates={holidayDates} />
+              <WorkItemRow key={work.id} work={work} expandAll={effectiveShowWorks} holidayDates={holidayDates} />
             ))}
           </div>
         )}
