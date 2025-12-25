@@ -259,8 +259,8 @@ function BlockAccordionItem({ block, holidayDates }: { block: BlockResponse; hol
 
   return (
     <AccordionItem value={`block-${block.id}`} className="border rounded-xl bg-card shadow-sm overflow-hidden border-primary/30">
-      <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-secondary/30 transition-colors">
-        <div className="flex items-center justify-between w-full pr-4">
+      <div className="flex items-center px-6 py-4 hover:bg-secondary/30 transition-colors">
+        <AccordionTrigger className="flex-1 hover:no-underline p-0">
           <div className="flex items-center gap-4">
             <div className="bg-primary/20 p-2 rounded-md text-primary">
               <Layers className="w-5 h-5" />
@@ -274,31 +274,31 @@ function BlockAccordionItem({ block, holidayDates }: { block: BlockResponse; hol
               </p>
             </div>
           </div>
-          
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-              <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Показать/скрыть группы</span>
-              <Switch 
-                checked={showAllGroups} 
-                onCheckedChange={setShowAllGroups}
-                className={`${showAllGroups ? 'bg-green-500' : 'bg-red-500'}`}
-                data-testid={`switch-block-groups-${block.id}`}
+        </AccordionTrigger>
+        
+        <div className="flex items-center gap-6 ml-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Показать/скрыть группы</span>
+            <Switch 
+              checked={showAllGroups} 
+              onCheckedChange={setShowAllGroups}
+              className={`${showAllGroups ? 'bg-green-500' : 'bg-red-500'}`}
+              data-testid={`switch-block-groups-${block.id}`}
+            />
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground">ВЫПОЛНЕНИЕ</span>
+            <div className="w-24 h-2 bg-secondary rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-500" 
+                style={{ width: `${avgProgress}%` }}
               />
             </div>
-
-            <div className="hidden sm:flex items-center gap-2">
-              <span className="text-xs font-bold text-muted-foreground">ВЫПОЛНЕНИЕ</span>
-              <div className="w-24 h-2 bg-secondary rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all duration-500" 
-                  style={{ width: `${avgProgress}%` }}
-                />
-              </div>
-              <span className="text-xs font-mono w-8 text-right">{avgProgress}%</span>
-            </div>
+            <span className="text-xs font-mono w-8 text-right">{avgProgress}%</span>
           </div>
         </div>
-      </AccordionTrigger>
+      </div>
       
       <AccordionContent className="bg-secondary/10 border-t border-border/50 px-6 py-6">
         <div className="flex justify-between items-center mb-4">
@@ -361,8 +361,8 @@ function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWo
 
   return (
     <AccordionItem value={`group-${group.id}`} className={`border rounded-xl bg-card shadow-sm overflow-hidden border-border/60 ${isNested ? 'bg-background' : ''}`}>
-      <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-secondary/30 transition-colors">
-        <div className="flex items-center justify-between w-full pr-4">
+      <div className="flex items-center px-6 py-4 hover:bg-secondary/30 transition-colors">
+        <AccordionTrigger className="flex-1 hover:no-underline p-0">
           <div className="flex items-center gap-4">
             <div className="bg-primary/10 p-2 rounded-md text-primary">
               <FolderOpen className="w-5 h-5" />
@@ -376,31 +376,31 @@ function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWo
               </p>
             </div>
           </div>
-          
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-              <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Показать/скрыть работы</span>
-              <Switch 
-                checked={showAllWorks} 
-                onCheckedChange={setShowAllWorks}
-                className={`${showAllWorks ? 'bg-green-500' : 'bg-red-500'}`}
-                data-testid={`switch-group-works-${group.id}`}
+        </AccordionTrigger>
+        
+        <div className="flex items-center gap-6 ml-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Показать/скрыть работы</span>
+            <Switch 
+              checked={showAllWorks} 
+              onCheckedChange={setShowAllWorks}
+              className={`${showAllWorks ? 'bg-green-500' : 'bg-red-500'}`}
+              data-testid={`switch-group-works-${group.id}`}
+            />
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground">ВЫПОЛНЕНИЕ</span>
+            <div className="w-24 h-2 bg-secondary rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-500" 
+                style={{ width: `${avgProgress}%` }}
               />
             </div>
-
-            <div className="hidden sm:flex items-center gap-2">
-              <span className="text-xs font-bold text-muted-foreground">ВЫПОЛНЕНИЕ</span>
-              <div className="w-24 h-2 bg-secondary rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all duration-500" 
-                  style={{ width: `${avgProgress}%` }}
-                />
-              </div>
-              <span className="text-xs font-mono w-8 text-right">{avgProgress}%</span>
-            </div>
+            <span className="text-xs font-mono w-8 text-right">{avgProgress}%</span>
           </div>
         </div>
-      </AccordionTrigger>
+      </div>
       
       <AccordionContent className="bg-secondary/10 border-t border-border/50 px-6 py-6">
         <div className="flex justify-between items-center mb-4">
