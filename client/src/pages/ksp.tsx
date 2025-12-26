@@ -369,9 +369,7 @@ function BlockRow({
             : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
           
           return (
-            <td key={idx} className={`border border-border bg-primary/5 relative ${isToday ? 'bg-primary/20' : ''}`}>
-              {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
-            </td>
+            <td key={idx} className={`border border-border bg-primary/5 relative ${isToday ? 'bg-primary/20' : ''}`} />
           );
         })}
       </tr>
@@ -430,9 +428,7 @@ function GroupRows({
             : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
           
           return (
-            <td key={idx} className={`border border-border bg-secondary/10 relative ${isToday ? 'bg-primary/20' : ''}`}>
-              {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
-            </td>
+            <td key={idx} className={`border border-border bg-secondary/10 relative ${isToday ? 'bg-primary/20' : ''}`} />
           );
         })}
       </tr>
@@ -450,24 +446,6 @@ function GroupRows({
   );
 }
 
-function CurrentDateLine({ viewMode, today, unit }: { viewMode: ViewMode; today: Date; unit: Date }) {
-  let leftPercent = 50;
-  
-  if (viewMode === "weeks") {
-    const weekStart = startOfDay(unit);
-    const weekEnd = endOfWeek(unit, { weekStartsOn: 1 });
-    const totalDays = differenceInDays(weekEnd, weekStart) + 1;
-    const daysFromStart = differenceInDays(today, weekStart);
-    leftPercent = ((daysFromStart + 0.5) / totalDays) * 100;
-  }
-
-  return (
-    <div 
-      className="absolute top-0 bottom-0 w-0 border-l-2 border-dashed border-primary z-10"
-      style={{ left: `${leftPercent}%` }}
-    />
-  );
-}
 
 function WorkRow({
   work,
@@ -585,7 +563,6 @@ function WorkRow({
                 isInActualRange ? 'bg-amber-500' : ''
               }`} />
             </div>
-            {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
           </td>
         );
       })}
