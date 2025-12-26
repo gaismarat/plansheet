@@ -42,18 +42,17 @@ function CurrentDateOverlay({ timeUnits, viewMode, today }: { timeUnits: Date[];
       className="absolute top-0 bottom-0 w-0 pointer-events-none z-30"
       style={{ left: `${leftOffset}px` }}
     >
-      <div className="absolute top-1/2 -translate-y-1/2 flex items-center">
-        <span 
-          className="text-[10px] text-primary font-medium whitespace-nowrap opacity-50 px-1"
-          style={{ 
-            writingMode: 'vertical-rl',
-            transform: 'rotate(180deg)',
-            marginLeft: '-14px'
-          }}
-        >
-          Текущая дата
-        </span>
-      </div>
+      <div className="absolute h-full border-l-2 border-dashed border-primary" />
+      <span 
+        className="absolute top-1/2 -translate-y-1/2 text-[10px] text-primary font-medium whitespace-nowrap opacity-60"
+        style={{ 
+          writingMode: 'vertical-rl',
+          transform: 'rotate(180deg)',
+          left: '5px'
+        }}
+      >
+        Текущая дата
+      </span>
     </div>
   );
 }
