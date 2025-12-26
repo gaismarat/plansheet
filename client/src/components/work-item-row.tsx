@@ -604,7 +604,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set() }
           </div>
           
           {/* Weekend Days */}
-          <div className="flex flex-col justify-center items-center -ml-[5px]">
+          <div className="flex flex-col justify-center items-center ml-[5px]">
             <div className="text-muted-foreground font-medium text-center leading-tight mb-1">
               <div>Выходные</div>
             </div>
