@@ -11,40 +11,6 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 type ViewMode = "days" | "weeks";
 
-function CurrentDateOverlay({ timeUnits, viewMode, today }: { timeUnits: Date[]; viewMode: ViewMode; today: Date }) {
-  const todayIndex = timeUnits.findIndex(unit => {
-    if (viewMode === "days") {
-      return isSameDay(unit, today);
-    } else {
-      return isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
-    }
-  });
-
-  if (todayIndex === -1) return null;
-
-  const unit = timeUnits[todayIndex];
-  let leftPercent = 50;
-  
-  if (viewMode === "weeks") {
-    const weekStart = startOfDay(unit);
-    const weekEnd = endOfWeek(unit, { weekStartsOn: 1 });
-    const totalDays = differenceInDays(weekEnd, weekStart) + 1;
-    const daysFromStart = differenceInDays(today, weekStart);
-    leftPercent = ((daysFromStart + 0.5) / totalDays) * 100;
-  }
-
-  const fixedColumnsWidth = 250 + 50 + 50 + 65;
-  const cellWidth = 40;
-  const leftOffset = fixedColumnsWidth + (todayIndex * cellWidth) + (cellWidth * leftPercent / 100);
-
-  return (
-    <div 
-      className="absolute top-0 bottom-0 w-0 border-l-2 border-dashed border-primary pointer-events-none z-30"
-      style={{ left: `${leftOffset}px` }}
-    />
-  );
-}
-
 export default function KSP() {
   const { data: blocksData, isLoading: blocksLoading } = useBlocks();
   const { data: unassignedGroups, isLoading: groupsLoading } = useUnassignedGroups();
@@ -211,7 +177,6 @@ export default function KSP() {
       <div className="flex-1 overflow-hidden relative">
         <ScrollArea className="h-full">
           <div className="min-w-max relative">
-            <CurrentDateOverlay timeUnits={timeUnits} viewMode={viewMode} today={today} />
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-20 bg-card">
                 <tr>
