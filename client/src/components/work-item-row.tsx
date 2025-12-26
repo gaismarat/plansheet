@@ -489,7 +489,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set() }
         </div>
 
         {/* Plan End Date */}
-        <div className="col-span-1 flex flex-col gap-1 text-xs ml-[110px]">
+        <div className="col-span-1 flex flex-col gap-1 text-xs ml-[90px]">
           <div className="text-muted-foreground font-medium">План</div>
           <div className="flex items-center gap-1">
             <input 
