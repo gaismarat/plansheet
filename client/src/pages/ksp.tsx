@@ -5,7 +5,7 @@ import { Link } from "wouter";
 import { ArrowLeft, CalendarDays, ChevronRight, ChevronDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type WorkGroupResponse, type BlockResponse, type Work } from "@shared/schema";
-import { addDays, startOfWeek, endOfWeek, format, parseISO, differenceInDays, eachDayOfInterval, eachWeekOfInterval, isWithinInterval, isBefore, isAfter, startOfDay } from "date-fns";
+import { addDays, startOfWeek, endOfWeek, format, parseISO, differenceInDays, eachDayOfInterval, eachWeekOfInterval, isWithinInterval, isBefore, isAfter, startOfDay, isSameDay } from "date-fns";
 import { ru } from "date-fns/locale";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
@@ -22,6 +22,8 @@ export default function KSP() {
   const blocks = blocksData || [];
   const groups = unassignedGroups || [];
 
+  const today = useMemo(() => startOfDay(new Date()), []);
+
   const allWorks = useMemo(() => {
     const works: Work[] = [];
     blocks.forEach(block => {
@@ -37,7 +39,6 @@ export default function KSP() {
 
   const dateRange = useMemo(() => {
     if (allWorks.length === 0) {
-      const today = new Date();
       return {
         start: startOfWeek(today, { weekStartsOn: 1 }),
         end: endOfWeek(addDays(today, 60), { weekStartsOn: 1 })
@@ -66,7 +67,6 @@ export default function KSP() {
     });
 
     if (!hasValidDate) {
-      const today = new Date();
       return {
         start: startOfWeek(today, { weekStartsOn: 1 }),
         end: endOfWeek(addDays(today, 60), { weekStartsOn: 1 })
@@ -77,7 +77,7 @@ export default function KSP() {
       start: startOfWeek(addDays(minDate, -7), { weekStartsOn: 1 }),
       end: endOfWeek(addDays(maxDate, 14), { weekStartsOn: 1 })
     };
-  }, [allWorks]);
+  }, [allWorks, today]);
 
   const timeUnits = useMemo(() => {
     if (viewMode === "days") {
@@ -180,26 +180,44 @@ export default function KSP() {
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-20 bg-card">
                 <tr>
-                  <th className="border border-border bg-muted/50 p-2 text-left font-medium min-w-[300px] sticky left-0 z-30">
+                  <th className="border border-border bg-muted/50 p-2 text-left font-medium min-w-[250px] sticky left-0 z-30">
                     Наименование
                   </th>
-                  {timeUnits.map((unit, idx) => (
-                    <th 
-                      key={idx} 
-                      className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[40px] text-xs"
-                    >
-                      {viewMode === "days" 
-                        ? format(unit, "dd", { locale: ru })
-                        : format(unit, "dd.MM", { locale: ru })
-                      }
-                      <div className="text-muted-foreground text-[10px]">
+                  <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[90px] text-xs">
+                    Начало
+                    <div className="text-muted-foreground text-[10px]">план / факт</div>
+                  </th>
+                  <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[90px] text-xs">
+                    Конец
+                    <div className="text-muted-foreground text-[10px]">план / факт</div>
+                  </th>
+                  <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[80px] text-xs">
+                    Длит-ть
+                    <div className="text-muted-foreground text-[10px]">план / факт</div>
+                  </th>
+                  {timeUnits.map((unit, idx) => {
+                    const isToday = viewMode === "days" 
+                      ? isSameDay(unit, today)
+                      : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+                    
+                    return (
+                      <th 
+                        key={idx} 
+                        className={`border border-border bg-muted/50 p-1 text-center font-medium min-w-[40px] text-xs relative ${isToday ? 'bg-primary/20' : ''}`}
+                      >
                         {viewMode === "days" 
-                          ? format(unit, "EEE", { locale: ru })
-                          : `Нед ${format(unit, "w", { locale: ru })}`
+                          ? format(unit, "dd", { locale: ru })
+                          : format(unit, "dd.MM", { locale: ru })
                         }
-                      </div>
-                    </th>
-                  ))}
+                        <div className="text-muted-foreground text-[10px]">
+                          {viewMode === "days" 
+                            ? format(unit, "EEE", { locale: ru })
+                            : `Нед ${format(unit, "w", { locale: ru })}`
+                          }
+                        </div>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -209,6 +227,7 @@ export default function KSP() {
                     block={block} 
                     timeUnits={timeUnits}
                     viewMode={viewMode}
+                    today={today}
                     isExpanded={expandedBlocks.has(block.id)}
                     expandedGroups={expandedGroups}
                     onToggleBlock={() => toggleBlock(block.id)}
@@ -221,6 +240,7 @@ export default function KSP() {
                     group={group}
                     timeUnits={timeUnits}
                     viewMode={viewMode}
+                    today={today}
                     isExpanded={expandedGroups.has(group.id)}
                     onToggle={() => toggleGroup(group.id)}
                     indentLevel={0}
@@ -234,7 +254,7 @@ export default function KSP() {
       </div>
 
       <div className="bg-card border-t border-border p-3">
-        <div className="container mx-auto flex items-center gap-6 text-sm">
+        <div className="container mx-auto flex items-center gap-6 text-sm flex-wrap">
           <div className="flex items-center gap-2">
             <div className="w-4 h-3 bg-blue-500 rounded-sm" />
             <span className="text-muted-foreground">План</span>
@@ -251,6 +271,10 @@ export default function KSP() {
             <div className="w-4 h-3 bg-green-500 rounded-sm" />
             <span className="text-muted-foreground">Опережение</span>
           </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-0.5 border-t-2 border-dashed border-primary" style={{ width: 16 }} />
+            <span className="text-muted-foreground">Текущая дата</span>
+          </div>
         </div>
       </div>
     </div>
@@ -261,6 +285,7 @@ function BlockRow({
   block, 
   timeUnits, 
   viewMode,
+  today,
   isExpanded, 
   expandedGroups,
   onToggleBlock,
@@ -269,6 +294,7 @@ function BlockRow({
   block: BlockResponse; 
   timeUnits: Date[];
   viewMode: ViewMode;
+  today: Date;
   isExpanded: boolean;
   expandedGroups: Set<number>;
   onToggleBlock: () => void;
@@ -287,9 +313,20 @@ function BlockRow({
             {block.name}
           </button>
         </td>
-        {timeUnits.map((_, idx) => (
-          <td key={idx} className="border border-border bg-primary/5" />
-        ))}
+        <td className="border border-border bg-primary/5" />
+        <td className="border border-border bg-primary/5" />
+        <td className="border border-border bg-primary/5" />
+        {timeUnits.map((unit, idx) => {
+          const isToday = viewMode === "days" 
+            ? isSameDay(unit, today)
+            : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+          
+          return (
+            <td key={idx} className={`border border-border bg-primary/5 relative ${isToday ? 'bg-primary/20' : ''}`}>
+              {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
+            </td>
+          );
+        })}
       </tr>
       {isExpanded && block.groups?.map(group => (
         <GroupRows
@@ -297,6 +334,7 @@ function BlockRow({
           group={group}
           timeUnits={timeUnits}
           viewMode={viewMode}
+          today={today}
           isExpanded={expandedGroups.has(group.id)}
           onToggle={() => onToggleGroup(group.id)}
           indentLevel={1}
@@ -310,6 +348,7 @@ function GroupRows({
   group,
   timeUnits,
   viewMode,
+  today,
   isExpanded,
   onToggle,
   indentLevel
@@ -317,6 +356,7 @@ function GroupRows({
   group: WorkGroupResponse;
   timeUnits: Date[];
   viewMode: ViewMode;
+  today: Date;
   isExpanded: boolean;
   onToggle: () => void;
   indentLevel: number;
@@ -334,9 +374,20 @@ function GroupRows({
             {group.name}
           </button>
         </td>
-        {timeUnits.map((_, idx) => (
-          <td key={idx} className="border border-border bg-secondary/10" />
-        ))}
+        <td className="border border-border bg-secondary/10" />
+        <td className="border border-border bg-secondary/10" />
+        <td className="border border-border bg-secondary/10" />
+        {timeUnits.map((unit, idx) => {
+          const isToday = viewMode === "days" 
+            ? isSameDay(unit, today)
+            : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+          
+          return (
+            <td key={idx} className={`border border-border bg-secondary/10 relative ${isToday ? 'bg-primary/20' : ''}`}>
+              {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
+            </td>
+          );
+        })}
       </tr>
       {isExpanded && group.works?.map(work => (
         <WorkRow 
@@ -344,6 +395,7 @@ function GroupRows({
           work={work} 
           timeUnits={timeUnits}
           viewMode={viewMode}
+          today={today}
           indentLevel={indentLevel + 1}
         />
       ))}
@@ -351,21 +403,60 @@ function GroupRows({
   );
 }
 
+function CurrentDateLine({ viewMode, today, unit }: { viewMode: ViewMode; today: Date; unit: Date }) {
+  let leftPercent = 50;
+  
+  if (viewMode === "weeks") {
+    const weekStart = startOfDay(unit);
+    const weekEnd = endOfWeek(unit, { weekStartsOn: 1 });
+    const totalDays = differenceInDays(weekEnd, weekStart) + 1;
+    const daysFromStart = differenceInDays(today, weekStart);
+    leftPercent = ((daysFromStart + 0.5) / totalDays) * 100;
+  }
+
+  return (
+    <div 
+      className="absolute top-0 bottom-0 w-0 border-l-2 border-dashed border-primary z-10"
+      style={{ left: `${leftPercent}%` }}
+    >
+      <span 
+        className="absolute top-1 text-[8px] text-primary font-medium whitespace-nowrap opacity-60"
+        style={{ 
+          writingMode: 'vertical-rl',
+          transform: 'rotate(180deg)',
+          left: '-2px'
+        }}
+      >
+        Текущая дата
+      </span>
+    </div>
+  );
+}
+
 function WorkRow({
   work,
   timeUnits,
   viewMode,
+  today,
   indentLevel
 }: {
   work: Work;
   timeUnits: Date[];
   viewMode: ViewMode;
+  today: Date;
   indentLevel: number;
 }) {
   const planStart = work.planStartDate ? parseISO(work.planStartDate) : null;
   const planEnd = work.planEndDate ? parseISO(work.planEndDate) : null;
   const actualStart = work.actualStartDate ? parseISO(work.actualStartDate) : null;
   const actualEnd = work.actualEndDate ? parseISO(work.actualEndDate) : null;
+
+  const planDuration = planStart && planEnd ? differenceInDays(planEnd, planStart) + 1 : null;
+  const actualDuration = actualStart && actualEnd ? differenceInDays(actualEnd, actualStart) + 1 : null;
+
+  const startDeviation = planStart && actualStart ? differenceInDays(actualStart, planStart) : null;
+  const endDeviation = planEnd && actualEnd ? differenceInDays(actualEnd, planEnd) : null;
+  const durationDeviation = planDuration && actualDuration ? actualDuration - planDuration : null;
 
   const getCellContent = (unit: Date) => {
     const unitEnd = viewMode === "weeks" ? endOfWeek(unit, { weekStartsOn: 1 }) : unit;
@@ -392,6 +483,27 @@ function WorkRow({
     return { isInPlanRange, isInActualRange, isDelay, isAhead };
   };
 
+  const formatDate = (date: Date | null) => {
+    if (!date) return "—";
+    return format(date, "dd.MM", { locale: ru });
+  };
+
+  const getDeviationIndicator = (deviation: number | null) => {
+    if (deviation === null) return null;
+    if (deviation === 0) return null;
+    
+    const isNegative = deviation < 0;
+    const color = isNegative ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
+    const bgColor = isNegative ? "bg-green-100 dark:bg-green-900/30" : "bg-red-100 dark:bg-red-900/30";
+    const sign = isNegative ? "" : "+";
+    
+    return (
+      <span className={`text-[9px] px-1 rounded ${color} ${bgColor}`}>
+        {sign}{deviation}д
+      </span>
+    );
+  };
+
   return (
     <tr className="hover:bg-muted/50 transition-colors">
       <td 
@@ -400,11 +512,35 @@ function WorkRow({
       >
         <span className="text-foreground">{work.name}</span>
       </td>
+      <td className="border border-border p-1 text-center text-xs">
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-muted-foreground">{formatDate(planStart)}</span>
+          <span className="font-medium">{formatDate(actualStart)}</span>
+          {getDeviationIndicator(startDeviation)}
+        </div>
+      </td>
+      <td className="border border-border p-1 text-center text-xs">
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-muted-foreground">{formatDate(planEnd)}</span>
+          <span className="font-medium">{formatDate(actualEnd)}</span>
+          {getDeviationIndicator(endDeviation)}
+        </div>
+      </td>
+      <td className="border border-border p-1 text-center text-xs">
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-muted-foreground">{planDuration ?? "—"}</span>
+          <span className="font-medium">{actualDuration ?? "—"}</span>
+          {getDeviationIndicator(durationDeviation)}
+        </div>
+      </td>
       {timeUnits.map((unit, idx) => {
         const { isInPlanRange, isInActualRange, isDelay, isAhead } = getCellContent(unit);
+        const isToday = viewMode === "days" 
+          ? isSameDay(unit, today)
+          : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
         
         return (
-          <td key={idx} className="border border-border p-0 h-10 relative">
+          <td key={idx} className={`border border-border p-0 h-10 relative ${isToday ? 'bg-primary/10' : ''}`}>
             <div className="absolute inset-0 flex flex-col">
               <div className={`flex-1 ${isInPlanRange ? 'bg-blue-500' : ''}`} />
               <div className={`flex-1 ${
@@ -413,6 +549,7 @@ function WorkRow({
                 isInActualRange ? 'bg-amber-500' : ''
               }`} />
             </div>
+            {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
           </td>
         );
       })}
