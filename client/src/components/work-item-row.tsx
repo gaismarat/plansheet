@@ -239,8 +239,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set() }
             <div className="col-span-1 text-xs text-muted-foreground font-semibold flex items-center">
               <ChevronDown className="w-3 h-3 mr-1" />
             </div>
-            <div className="col-span-5 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
-            <div className="col-span-3 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
+            <div className="col-span-8 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
           </div>
 
@@ -251,22 +250,17 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set() }
               <ChevronDown className="w-4 h-4 text-muted-foreground rotate-0 group-hover:text-primary transition-colors" />
             </div>
 
-            {/* Name & ID */}
-            <div className="col-span-5 flex flex-col justify-center">
+            {/* Name & ID & Responsible */}
+            <div className="col-span-8 flex flex-col justify-center">
               <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
                 {work.name}
               </span>
               <span className="text-xs text-muted-foreground font-mono mt-0.5">
                 ID: {work.id.toString().padStart(4, '0')}
               </span>
-            </div>
-
-            {/* Responsible */}
-            <div className="col-span-3 flex items-center">
-              <div className="flex items-center gap-1.5 bg-secondary/50 px-1.5 py-0.5 rounded text-xs text-secondary-foreground font-medium truncate max-w-full">
-                <div className="w-1 h-1 rounded-full bg-primary/40 shrink-0" />
-                <span className="truncate text-xs" title={work.responsiblePerson}>{work.responsiblePerson}</span>
-              </div>
+              <span className="text-xs text-muted-foreground mt-0.5 truncate" title={work.responsiblePerson}>
+                {work.responsiblePerson}
+              </span>
             </div>
 
             {/* Progress Control */}
@@ -297,19 +291,21 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set() }
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[60px]">НАЧАЛО</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[110px]">КОНЕЦ</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold ml-[90px] mr-[50px] text-right">ТРУДОЁМКОСТЬ, дни</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold">ОТВЕТСТВЕННЫЙ</div>
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold text-center">ПРОГРЕСС</div>
+            <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ПРОГРЕСС</div>
           </div>
 
           {/* Data Row */}
           <div className="grid grid-cols-12 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
-        {/* Name & ID */}
+        {/* Name & ID & Responsible */}
         <div className="col-span-2 flex flex-col justify-center">
           <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
             {work.name}
           </span>
           <span className="text-xs text-muted-foreground font-mono mt-0.5">
             ID: {work.id.toString().padStart(4, '0')}
+          </span>
+          <span className="text-xs text-muted-foreground mt-0.5 truncate" title={work.responsiblePerson}>
+            {work.responsiblePerson}
           </span>
         </div>
 
@@ -625,16 +621,8 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set() }
           </div>
         </div>
 
-        {/* Responsible */}
-        <div className="col-span-1 flex items-center">
-          <div className="flex items-center gap-1.5 bg-secondary/50 px-1.5 py-0.5 rounded text-xs text-secondary-foreground font-medium truncate max-w-full">
-            <div className="w-1 h-1 rounded-full bg-primary/40 shrink-0" />
-            <span className="truncate text-xs" title={work.responsiblePerson}>{work.responsiblePerson}</span>
-          </div>
-        </div>
-
         {/* Progress Control - Percentage Input and Slider */}
-        <div className="col-span-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <div className="col-span-3 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-1 shrink-0">
             <input 
               type="number"
