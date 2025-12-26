@@ -33,7 +33,7 @@ function CurrentDateOverlay({ timeUnits, viewMode, today }: { timeUnits: Date[];
     leftPercent = ((daysFromStart + 0.5) / totalDays) * 100;
   }
 
-  const fixedColumnsWidth = 250 + 90 + 90 + 80;
+  const fixedColumnsWidth = 250 + 50 + 50 + 50;
   const cellWidth = 40;
   const leftOffset = fixedColumnsWidth + (todayIndex * cellWidth) + (cellWidth * leftPercent / 100);
 
@@ -231,15 +231,15 @@ export default function KSP() {
                   <th className="border border-border bg-muted/50 p-2 text-left font-medium min-w-[250px] sticky left-0 z-30">
                     Наименование
                   </th>
-                  <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[90px] text-xs">
+                  <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[50px] w-[50px] text-xs">
                     Начало
                     <div className="text-muted-foreground text-[10px]">план / факт</div>
                   </th>
-                  <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[90px] text-xs">
+                  <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[50px] w-[50px] text-xs">
                     Конец
                     <div className="text-muted-foreground text-[10px]">план / факт</div>
                   </th>
-                  <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[80px] text-xs">
+                  <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[50px] w-[50px] text-xs">
                     Длит-ть
                     <div className="text-muted-foreground text-[10px]">план / факт</div>
                   </th>
