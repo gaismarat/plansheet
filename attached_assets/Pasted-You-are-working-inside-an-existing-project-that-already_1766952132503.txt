@@ -1,0 +1,79 @@
+You are working inside an existing project that already contains:
+- a calendar / schedule (critical path or gantt-like),
+- WorkItem entities,
+- WorkPlan and WorkFact (plan/fact tracking).
+
+DO NOT rewrite or replace existing logic.
+Extend the project conservatively.
+
+GOAL:
+Add a flexible internal classification system used by the BIM team
+to hierarchically classify contracts, PDCs, works and sub-works.
+The classification must not be primary data and must not break
+existing entities if changed or deleted.
+
+CONCEPTUAL RULES (VERY IMPORTANT):
+1. Contracts, budgets and PDCs are PRIMARY and exist independently.
+2. Classification codes are SECONDARY and can change freely.
+3. Deleting a classification code must NOT delete or invalidate works.
+4. Each work can have at most ONE classification code.
+5. Classification is project-specific.
+6. Codes are human-readable paths, not identifiers.
+
+CLASSIFICATION HIERARCHY:
+Contract           → Code like: C01
+PDC                → Code like: C01.P01
+Work               → Code like: C01.P01.W01
+Sub-work           → Code like: C01.P01.W01.S01
+
+DATA MODEL TO ADD:
+
+1) Classification codes table:
+- id (uuid, PK)
+- project_id
+- parent_id (self FK, nullable)
+- code (string, editable)
+- name
+- is_deleted (boolean)
+
+2) Assignment table (soft link):
+- id (uuid, PK)
+- entity_type (enum: Contract | PDC | WorkItem)
+- entity_id (uuid)
+- classification_code_id (nullable FK)
+- assigned_at
+
+IMPORTANT:
+- entity_id refers to existing entities, do NOT change them.
+- classification_code_id must be nullable.
+- No cascade deletes.
+
+FUNCTIONAL REQUIREMENTS:
+- Allow creating, renaming, moving and soft-deleting classification codes.
+- Allow assigning a classification code to:
+  - a contract,
+  - a PDC,
+  - a WorkItem.
+- If a classification code is deleted, assignments remain,
+  but classification_code_id becomes NULL.
+- Work plan/fact logic must continue to work unchanged.
+
+CALENDAR / SCHEDULE INTEGRATION:
+- Add optional filtering/grouping of works by classification code prefix
+  (example: "C01.P01.*").
+- Do NOT change existing schedule calculations.
+
+DELIVERABLES:
+1) Database migrations / schema changes.
+2) Backend models and services.
+3) Minimal API endpoints:
+   - CRUD classification codes
+   - assign / unassign code to entity
+4) Basic validation (one work = one code max).
+5) Short README explaining how classification integrates
+   with existing plan/fact and schedule.
+
+DO NOT:
+- Refactor unrelated code.
+- Introduce hard FK dependency from WorkItem to classification.
+- Change business logic of plan/fact or schedule.
