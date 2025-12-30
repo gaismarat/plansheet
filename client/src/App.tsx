@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Analytics from "@/pages/analytics";
 import KSP from "@/pages/ksp";
+import Budget from "@/pages/budget";
 
 function Router() {
   return (
@@ -14,6 +15,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/ksp" component={KSP} />
+      <Route path="/budget" component={Budget} />
       <Route component={NotFound} />
     </Switch>
   );

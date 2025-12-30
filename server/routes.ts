@@ -226,6 +226,146 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // === Contracts (Budgets) ===
+
+  app.get('/api/contracts', async (_req, res) => {
+    const contractsList = await storage.getContracts();
+    res.json(contractsList);
+  });
+
+  app.get('/api/contracts/:id', async (req, res) => {
+    const contract = await storage.getContractWithData(Number(req.params.id));
+    if (!contract) {
+      return res.status(404).json({ message: "Contract not found" });
+    }
+    res.json(contract);
+  });
+
+  app.post('/api/contracts', async (req, res) => {
+    try {
+      const contract = await storage.createContract(req.body);
+      res.status(201).json(contract);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/contracts/:id', async (req, res) => {
+    try {
+      const updated = await storage.updateContract(Number(req.params.id), req.body);
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.delete('/api/contracts/:id', async (req, res) => {
+    await storage.deleteContract(Number(req.params.id));
+    res.status(204).send();
+  });
+
+  // === Budget Columns ===
+
+  app.get('/api/contracts/:contractId/columns', async (req, res) => {
+    const columns = await storage.getBudgetColumns(Number(req.params.contractId));
+    res.json(columns);
+  });
+
+  app.post('/api/budget-columns', async (req, res) => {
+    try {
+      const column = await storage.createBudgetColumn(req.body);
+      res.status(201).json(column);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/budget-columns/:id', async (req, res) => {
+    try {
+      const updated = await storage.updateBudgetColumn(Number(req.params.id), req.body);
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.delete('/api/budget-columns/:id', async (req, res) => {
+    await storage.deleteBudgetColumn(Number(req.params.id));
+    res.status(204).send();
+  });
+
+  // === Budget Rows ===
+
+  app.get('/api/contracts/:contractId/rows', async (req, res) => {
+    const rows = await storage.getBudgetRows(Number(req.params.contractId));
+    res.json(rows);
+  });
+
+  app.post('/api/budget-rows', async (req, res) => {
+    try {
+      const row = await storage.createBudgetRow(req.body);
+      res.status(201).json(row);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/budget-rows/:id', async (req, res) => {
+    try {
+      const updated = await storage.updateBudgetRow(Number(req.params.id), req.body);
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.delete('/api/budget-rows/:id', async (req, res) => {
+    await storage.deleteBudgetRow(Number(req.params.id));
+    res.status(204).send();
+  });
+
+  // === Budget Values ===
+
+  app.get('/api/budget-rows/:rowId/values', async (req, res) => {
+    const values = await storage.getBudgetValues(Number(req.params.rowId));
+    res.json(values);
+  });
+
+  app.post('/api/budget-values', async (req, res) => {
+    try {
+      const value = await storage.upsertBudgetValue(req.body);
+      res.status(201).json(value);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.delete('/api/budget-values/:id', async (req, res) => {
+    await storage.deleteBudgetValue(Number(req.params.id));
+    res.status(204).send();
+  });
+
   // Seed Data
   await seedDatabase();
 

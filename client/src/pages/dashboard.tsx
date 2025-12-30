@@ -7,7 +7,7 @@ import { CreateWorkDialog } from "@/components/forms/create-work-dialog";
 import { WorkItemRow } from "@/components/work-item-row";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, FolderOpen, HardHat, TrendingUp, BarChart3, Download, Layers, CalendarDays } from "lucide-react";
+import { Trash2, FolderOpen, HardHat, TrendingUp, BarChart3, Download, Layers, CalendarDays, Wallet } from "lucide-react";
 import * as XLSX from "xlsx";
 import { CalendarDialog } from "@/components/calendar-dialog";
 import { Link } from "wouter";
@@ -181,6 +181,12 @@ export default function Dashboard() {
               <span className="hidden sm:inline">Выгрузка</span>
             </Button>
             <CalendarDialog />
+            <Link href="/budget">
+              <Button variant="ghost" size="sm" className="gap-2" data-testid="button-budget">
+                <Wallet className="w-4 h-4" />
+                <span className="hidden sm:inline">Бюджет</span>
+              </Button>
+            </Link>
             <Link href="/ksp">
               <Button variant="ghost" size="sm" className="gap-2" data-testid="button-ksp">
                 <CalendarDays className="w-4 h-4" />

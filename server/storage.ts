@@ -4,21 +4,35 @@ import {
   works,
   workGroups,
   holidays,
+  contracts,
+  budgetColumns,
+  budgetRows,
+  budgetValues,
   type Block,
   type Work,
   type WorkGroup,
   type Holiday,
+  type Contract,
+  type BudgetColumn,
+  type BudgetRow,
+  type BudgetValue,
+  type ContractWithData,
+  type BudgetRowWithChildren,
   type InsertBlock,
   type InsertWork,
   type InsertWorkGroup,
   type InsertHoliday,
+  type InsertContract,
+  type InsertBudgetColumn,
+  type InsertBudgetRow,
+  type InsertBudgetValue,
   type UpdateBlockRequest,
   type UpdateWorkGroupRequest,
   type UpdateWorkRequest,
   type BlockResponse,
   type WorkGroupResponse
 } from "@shared/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, asc } from "drizzle-orm";
 
 export interface IStorage {
   // Blocks
@@ -50,6 +64,30 @@ export interface IStorage {
   deleteHoliday(id: number): Promise<void>;
   deleteHolidayByDate(date: string): Promise<void>;
   getHolidayByDate(date: string): Promise<Holiday | undefined>;
+
+  // Contracts (Budgets)
+  getContracts(): Promise<Contract[]>;
+  getContractWithData(id: number): Promise<ContractWithData | undefined>;
+  createContract(contract: InsertContract): Promise<Contract>;
+  updateContract(id: number, updates: Partial<InsertContract>): Promise<Contract>;
+  deleteContract(id: number): Promise<void>;
+
+  // Budget Columns
+  getBudgetColumns(contractId: number): Promise<BudgetColumn[]>;
+  createBudgetColumn(column: InsertBudgetColumn): Promise<BudgetColumn>;
+  updateBudgetColumn(id: number, updates: Partial<InsertBudgetColumn>): Promise<BudgetColumn>;
+  deleteBudgetColumn(id: number): Promise<void>;
+
+  // Budget Rows
+  getBudgetRows(contractId: number): Promise<BudgetRow[]>;
+  createBudgetRow(row: InsertBudgetRow): Promise<BudgetRow>;
+  updateBudgetRow(id: number, updates: Partial<InsertBudgetRow>): Promise<BudgetRow>;
+  deleteBudgetRow(id: number): Promise<void>;
+
+  // Budget Values
+  getBudgetValues(rowId: number): Promise<BudgetValue[]>;
+  upsertBudgetValue(value: InsertBudgetValue): Promise<BudgetValue>;
+  deleteBudgetValue(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -240,6 +278,178 @@ export class DatabaseStorage implements IStorage {
   async getHolidayByDate(date: string): Promise<Holiday | undefined> {
     const [holiday] = await db.select().from(holidays).where(eq(holidays.date, date));
     return holiday;
+  }
+
+  // === CONTRACTS (BUDGETS) ===
+
+  async getContracts(): Promise<Contract[]> {
+    return await db.select().from(contracts).orderBy(asc(contracts.id));
+  }
+
+  async getContractWithData(id: number): Promise<ContractWithData | undefined> {
+    const [contract] = await db.select().from(contracts).where(eq(contracts.id, id));
+    if (!contract) return undefined;
+
+    const columns = await db.select().from(budgetColumns)
+      .where(eq(budgetColumns.contractId, id))
+      .orderBy(asc(budgetColumns.order), asc(budgetColumns.id));
+
+    const rows = await db.select().from(budgetRows)
+      .where(eq(budgetRows.contractId, id))
+      .orderBy(asc(budgetRows.order), asc(budgetRows.id));
+
+    const allValues = await db.select().from(budgetValues);
+
+    // Build hierarchical structure
+    const buildHierarchy = (parentId: number | null): BudgetRowWithChildren[] => {
+      return rows
+        .filter(r => r.parentId === parentId)
+        .map(row => ({
+          ...row,
+          values: allValues.filter(v => v.rowId === row.id),
+          children: buildHierarchy(row.id)
+        }));
+    };
+
+    return {
+      ...contract,
+      columns,
+      rows: buildHierarchy(null)
+    };
+  }
+
+  async createContract(contract: InsertContract): Promise<Contract> {
+    const [newContract] = await db.insert(contracts).values(contract).returning();
+    
+    // Create default "ВСЕГО" column
+    await db.insert(budgetColumns).values({
+      contractId: newContract.id,
+      name: "ВСЕГО",
+      order: 0,
+      isTotal: 1
+    });
+
+    // Create default chapters
+    await db.insert(budgetRows).values([
+      { contractId: newContract.id, name: "ДОХОДЫ", level: "chapter", chapterType: "income", order: 0 },
+      { contractId: newContract.id, name: "РАСХОДЫ", level: "chapter", chapterType: "expense", order: 1 }
+    ]);
+
+    return newContract;
+  }
+
+  async updateContract(id: number, updates: Partial<InsertContract>): Promise<Contract> {
+    const [updated] = await db.update(contracts).set(updates).where(eq(contracts.id, id)).returning();
+    return updated;
+  }
+
+  async deleteContract(id: number): Promise<void> {
+    await db.delete(contracts).where(eq(contracts.id, id));
+  }
+
+  // === BUDGET COLUMNS ===
+
+  async getBudgetColumns(contractId: number): Promise<BudgetColumn[]> {
+    return await db.select().from(budgetColumns)
+      .where(eq(budgetColumns.contractId, contractId))
+      .orderBy(asc(budgetColumns.order), asc(budgetColumns.id));
+  }
+
+  async createBudgetColumn(column: InsertBudgetColumn): Promise<BudgetColumn> {
+    const existing = await db.select().from(budgetColumns)
+      .where(eq(budgetColumns.contractId, column.contractId));
+    const maxOrder = Math.max(...existing.map(c => c.order), -1);
+    
+    const [newColumn] = await db.insert(budgetColumns).values({
+      ...column,
+      order: maxOrder + 1
+    }).returning();
+    return newColumn;
+  }
+
+  async updateBudgetColumn(id: number, updates: Partial<InsertBudgetColumn>): Promise<BudgetColumn> {
+    const [updated] = await db.update(budgetColumns).set(updates).where(eq(budgetColumns.id, id)).returning();
+    return updated;
+  }
+
+  async deleteBudgetColumn(id: number): Promise<void> {
+    await db.delete(budgetColumns).where(eq(budgetColumns.id, id));
+  }
+
+  // === BUDGET ROWS ===
+
+  async getBudgetRows(contractId: number): Promise<BudgetRow[]> {
+    return await db.select().from(budgetRows)
+      .where(eq(budgetRows.contractId, contractId))
+      .orderBy(asc(budgetRows.order), asc(budgetRows.id));
+  }
+
+  async createBudgetRow(row: InsertBudgetRow): Promise<BudgetRow> {
+    const existing = await db.select().from(budgetRows)
+      .where(and(
+        eq(budgetRows.contractId, row.contractId),
+        row.parentId ? eq(budgetRows.parentId, row.parentId) : isNull(budgetRows.parentId)
+      ));
+    const maxOrder = Math.max(...existing.map(r => r.order), -1);
+    
+    const [newRow] = await db.insert(budgetRows).values({
+      ...row,
+      order: maxOrder + 1
+    }).returning();
+
+    // Create default values for all columns
+    const columns = await this.getBudgetColumns(row.contractId);
+    for (const col of columns) {
+      await db.insert(budgetValues).values({
+        rowId: newRow.id,
+        columnId: col.id,
+        manualValue: 0,
+        pdcValue: 0
+      });
+    }
+
+    return newRow;
+  }
+
+  async updateBudgetRow(id: number, updates: Partial<InsertBudgetRow>): Promise<BudgetRow> {
+    const [updated] = await db.update(budgetRows).set(updates).where(eq(budgetRows.id, id)).returning();
+    return updated;
+  }
+
+  async deleteBudgetRow(id: number): Promise<void> {
+    // Delete children first (recursive)
+    const children = await db.select().from(budgetRows).where(eq(budgetRows.parentId, id));
+    for (const child of children) {
+      await this.deleteBudgetRow(child.id);
+    }
+    await db.delete(budgetRows).where(eq(budgetRows.id, id));
+  }
+
+  // === BUDGET VALUES ===
+
+  async getBudgetValues(rowId: number): Promise<BudgetValue[]> {
+    return await db.select().from(budgetValues).where(eq(budgetValues.rowId, rowId));
+  }
+
+  async upsertBudgetValue(value: InsertBudgetValue): Promise<BudgetValue> {
+    // Check if exists
+    const [existing] = await db.select().from(budgetValues)
+      .where(and(eq(budgetValues.rowId, value.rowId), eq(budgetValues.columnId, value.columnId)));
+    
+    if (existing) {
+      const [updated] = await db.update(budgetValues)
+        .set({ manualValue: value.manualValue, pdcValue: value.pdcValue })
+        .where(eq(budgetValues.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(budgetValues).values(value).returning();
+      return created;
+    }
+  }
+
+  async deleteBudgetValue(id: number): Promise<void> {
+    await db.delete(budgetValues).where(eq(budgetValues.id, id));
   }
 }
 
