@@ -300,6 +300,7 @@ export default function Budget() {
                     variant="ghost" 
                     size="icon" 
                     className="h-6 w-6"
+                    data-testid={`button-add-child-${row.id}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       setAddRowParentId(row.id);
@@ -314,6 +315,7 @@ export default function Budget() {
                   variant="ghost" 
                   size="icon" 
                   className="h-6 w-6 text-destructive"
+                  data-testid={`button-delete-row-${row.id}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     deleteRow.mutate(row.id);
@@ -337,6 +339,7 @@ export default function Budget() {
                   <Input
                     type="number"
                     className="h-7 text-right text-xs"
+                    data-testid={`input-value-${row.id}-${col.id}`}
                     value={row.values?.find(v => v.columnId === col.id)?.manualValue || 0}
                     onChange={(e) => {
                       updateValue.mutate({
