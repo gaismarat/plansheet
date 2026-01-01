@@ -36,6 +36,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 export default function Budget() {
   const { toast } = useToast();
@@ -51,6 +53,7 @@ export default function Budget() {
   const [addRowLevel, setAddRowLevel] = useState<string>("section");
   const [addRowName, setAddRowName] = useState("");
   const [showAddRowDialog, setShowAddRowDialog] = useState(false);
+  const [addRowChapterType, setAddRowChapterType] = useState<string>("income");
 
   const { data: contracts = [], isLoading: contractsLoading } = useQuery<Contract[]>({
     queryKey: ["/api/contracts"],
@@ -129,14 +132,15 @@ export default function Budget() {
   });
 
   const createRow = useMutation({
-    mutationFn: async ({ parentId, name, level }: { parentId: number | null; name: string; level: string }) => {
+    mutationFn: async ({ parentId, name, level, chapterType }: { parentId: number | null; name: string; level: string; chapterType?: string }) => {
       const parentRow = parentId ? findRowById(contractData?.rows || [], parentId) : null;
+      const finalChapterType = level === "section" ? chapterType : parentRow?.chapterType;
       return await apiRequest("POST", "/api/budget-rows", { 
         contractId: selectedContractId, 
         parentId,
         name,
         level,
-        chapterType: parentRow?.chapterType || null,
+        chapterType: finalChapterType || null,
         rowType: "manual"
       });
     },
@@ -144,6 +148,9 @@ export default function Budget() {
       queryClient.invalidateQueries({ queryKey: ["/api/contracts", selectedContractId] });
       setShowAddRowDialog(false);
       setAddRowName("");
+      setAddRowParentId(null);
+      setAddRowLevel("section");
+      setAddRowChapterType("income");
       toast({ title: "Строка добавлена" });
     },
   });
@@ -176,6 +183,48 @@ export default function Budget() {
       }
     }
     return null;
+  };
+
+  const getAvailableParents = (level: string): { id: number; name: string; chapterType?: string | null }[] => {
+    if (!contractData?.rows) return [];
+    
+    if (level === "section") {
+      return contractData.rows.filter(r => r.level === "chapter").map(r => ({ 
+        id: r.id, 
+        name: r.name,
+        chapterType: r.chapterType
+      }));
+    }
+    
+    if (level === "group") {
+      const sections: { id: number; name: string; chapterType?: string | null }[] = [];
+      const collectSections = (rows: BudgetRowWithChildren[]) => {
+        for (const row of rows) {
+          if (row.level === "section") {
+            sections.push({ id: row.id, name: row.name, chapterType: row.chapterType });
+          }
+          if (row.children) collectSections(row.children);
+        }
+      };
+      collectSections(contractData.rows);
+      return sections;
+    }
+    
+    if (level === "item") {
+      const groups: { id: number; name: string; chapterType?: string | null }[] = [];
+      const collectGroups = (rows: BudgetRowWithChildren[]) => {
+        for (const row of rows) {
+          if (row.level === "group" || row.level === "section") {
+            groups.push({ id: row.id, name: `${row.level === "section" ? "[Р] " : "[Г] "}${row.name}`, chapterType: row.chapterType });
+          }
+          if (row.children) collectGroups(row.children);
+        }
+      };
+      collectGroups(contractData.rows);
+      return groups;
+    }
+    
+    return [];
   };
 
   const toggleRow = (rowId: number) => {
@@ -553,23 +602,22 @@ export default function Budget() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-border flex gap-2">
-              {contractData.rows?.filter(r => r.level === "chapter").map(chapter => (
-                <Button 
-                  key={chapter.id}
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    setAddRowParentId(chapter.id);
-                    setAddRowLevel("section");
-                    setShowAddRowDialog(true);
-                  }}
-                  data-testid={`button-add-section-${chapter.chapterType}`}
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Добавить раздел в {chapter.name}
-                </Button>
-              ))}
+            <div className="p-4 border-t border-border">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setAddRowParentId(null);
+                  setAddRowLevel("section");
+                  setAddRowChapterType("income");
+                  setAddRowName("");
+                  setShowAddRowDialog(true);
+                }}
+                data-testid="button-add-row"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Добавить
+              </Button>
             </div>
           </Card>
         ) : (
@@ -584,34 +632,102 @@ export default function Budget() {
       </main>
 
       <Dialog open={showAddRowDialog} onOpenChange={setShowAddRowDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Добавить строку</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <Select value={addRowLevel} onValueChange={setAddRowLevel}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="section">Раздел</SelectItem>
-                <SelectItem value="group">Группа</SelectItem>
-                <SelectItem value="item">Элемент</SelectItem>
-              </SelectContent>
-            </Select>
-            <Input 
-              placeholder="Название"
-              value={addRowName}
-              onChange={(e) => setAddRowName(e.target.value)}
-              data-testid="input-row-name"
-            />
-            <Button 
-              onClick={() => createRow.mutate({ parentId: addRowParentId, name: addRowName, level: addRowLevel })}
-              disabled={!addRowName.trim()}
-              data-testid="button-create-row"
-            >
-              Добавить
-            </Button>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label>Тип</Label>
+              <Select 
+                value={addRowLevel} 
+                onValueChange={(value) => {
+                  setAddRowLevel(value);
+                  setAddRowParentId(null);
+                }}
+              >
+                <SelectTrigger data-testid="select-row-level">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="section">Раздел</SelectItem>
+                  <SelectItem value="group">Группа</SelectItem>
+                  <SelectItem value="item">Элемент</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {addRowLevel === "section" && (
+              <div className="space-y-2">
+                <Label>Категория</Label>
+                <RadioGroup 
+                  value={addRowChapterType} 
+                  onValueChange={setAddRowChapterType}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="income" id="income" data-testid="radio-income" />
+                    <Label htmlFor="income" className="cursor-pointer">Доход</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="expense" id="expense" data-testid="radio-expense" />
+                    <Label htmlFor="expense" className="cursor-pointer">Расход</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            )}
+
+            {(addRowLevel === "group" || addRowLevel === "item") && (
+              <div className="space-y-2">
+                <Label>{addRowLevel === "group" ? "Раздел" : "Родительский элемент"}</Label>
+                <Select 
+                  value={addRowParentId?.toString() || ""} 
+                  onValueChange={(value) => setAddRowParentId(parseInt(value))}
+                >
+                  <SelectTrigger data-testid="select-parent">
+                    <SelectValue placeholder="Выберите..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAvailableParents(addRowLevel).map(parent => (
+                      <SelectItem key={parent.id} value={parent.id.toString()}>
+                        {parent.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Название</Label>
+              <Input 
+                placeholder="Введите название"
+                value={addRowName}
+                onChange={(e) => setAddRowName(e.target.value)}
+                data-testid="input-row-name"
+              />
+            </div>
+
+            <div className="pt-4">
+              <Button 
+                className="w-full"
+                onClick={() => {
+                  const parentId = addRowLevel === "section" 
+                    ? contractData?.rows?.find(r => r.level === "chapter" && r.chapterType === addRowChapterType)?.id || null
+                    : addRowParentId;
+                  createRow.mutate({ 
+                    parentId, 
+                    name: addRowName, 
+                    level: addRowLevel,
+                    chapterType: addRowChapterType 
+                  });
+                }}
+                disabled={!addRowName.trim() || ((addRowLevel === "group" || addRowLevel === "item") && !addRowParentId)}
+                data-testid="button-create-row"
+              >
+                Добавить
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
