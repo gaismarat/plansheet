@@ -54,6 +54,8 @@ export default function Budget() {
   const [addRowName, setAddRowName] = useState("");
   const [showAddRowDialog, setShowAddRowDialog] = useState(false);
   const [addRowChapterType, setAddRowChapterType] = useState<string>("income");
+  const [editingRowId, setEditingRowId] = useState<number | null>(null);
+  const [editingRowName, setEditingRowName] = useState("");
 
   const { data: contracts = [], isLoading: contractsLoading } = useQuery<Contract[]>({
     queryKey: ["/api/contracts"],
@@ -162,6 +164,16 @@ export default function Budget() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contracts", selectedContractId] });
       toast({ title: "Строка удалена" });
+    },
+  });
+
+  const updateRow = useMutation({
+    mutationFn: async ({ id, name }: { id: number; name: string }) => {
+      return await apiRequest("PUT", `/api/budget-rows/${id}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", selectedContractId] });
+      setEditingRowId(null);
     },
   });
 
@@ -332,7 +344,7 @@ export default function Budget() {
       <div key={row.id}>
         <div className={`flex items-stretch border-b border-border hover:bg-muted/20 ${bgClass}`}>
           <div 
-            className="flex-1 min-w-[300px] flex items-center gap-2 py-2 cursor-pointer"
+            className="flex-1 min-w-[300px] flex items-center gap-2 py-2 cursor-pointer group"
             style={{ paddingLeft }}
             onClick={() => hasChildren && toggleRow(row.id)}
           >
@@ -341,38 +353,87 @@ export default function Budget() {
             ) : (
               <div className="w-4" />
             )}
-            <span className="text-sm">{row.name}</span>
-            {!isChapter && (
-              <div className="flex gap-1 ml-auto mr-2 opacity-0 hover:opacity-100 transition-opacity">
-                {row.level !== "item" && (
+            {editingRowId === row.id ? (
+              <div className="flex items-center gap-1 flex-1" onClick={(e) => e.stopPropagation()}>
+                <Input
+                  value={editingRowName}
+                  onChange={(e) => setEditingRowName(e.target.value)}
+                  className="h-7 text-sm flex-1"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      updateRow.mutate({ id: row.id, name: editingRowName });
+                    } else if (e.key === "Escape") {
+                      setEditingRowId(null);
+                    }
+                  }}
+                />
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  className="h-6 w-6"
+                  onClick={() => updateRow.mutate({ id: row.id, name: editingRowName })}
+                >
+                  <Check className="w-3 h-3" />
+                </Button>
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  className="h-6 w-6"
+                  onClick={() => setEditingRowId(null)}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <span className="text-sm">{row.name}</span>
+                <div className="flex gap-1 ml-auto mr-2 invisible group-hover:visible">
                   <Button 
                     variant="ghost" 
                     size="icon" 
                     className="h-6 w-6"
-                    data-testid={`button-add-child-${row.id}`}
+                    data-testid={`button-edit-row-${row.id}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setAddRowParentId(row.id);
-                      setAddRowLevel(row.level === "section" ? "group" : "item");
-                      setShowAddRowDialog(true);
+                      setEditingRowId(row.id);
+                      setEditingRowName(row.name);
                     }}
                   >
-                    <Plus className="w-3 h-3" />
+                    <Pencil className="w-3 h-3" />
                   </Button>
-                )}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-6 w-6 text-destructive"
-                  data-testid={`button-delete-row-${row.id}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteRow.mutate(row.id);
-                  }}
-                >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-              </div>
+                  {!isChapter && row.level !== "item" && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6"
+                      data-testid={`button-add-child-${row.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAddRowParentId(row.id);
+                        setAddRowLevel(row.level === "section" ? "group" : "item");
+                        setShowAddRowDialog(true);
+                      }}
+                    >
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  )}
+                  {!isChapter && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 text-destructive"
+                      data-testid={`button-delete-row-${row.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteRow.mutate(row.id);
+                      }}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+              </>
             )}
           </div>
 
@@ -415,6 +476,7 @@ export default function Budget() {
               </div>
             );
           })}
+          <div className="w-[120px] shrink-0 border-l border-transparent" />
         </div>
 
         {isExpanded && row.children?.map(child => renderRow(child, columns, depth + 1))}
