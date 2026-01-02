@@ -334,25 +334,45 @@ export default function Budget() {
     const isGroup = row.level === "group";
     const isItem = row.level === "item";
 
-    const bgClass = isChapter ? "bg-primary/10 font-bold" : 
-                    isSection ? "bg-secondary/50 font-semibold" : 
-                    isGroup ? "bg-muted/30" : "";
+    const paddingLeft = isChapter ? 12 : isSection ? 24 : isGroup ? 36 : 48;
 
-    const paddingLeft = depth * 24 + 12;
+    const getRowContent = () => {
+      if (isChapter) {
+        return <span className="text-sm font-bold uppercase">{row.name}</span>;
+      }
+      if (isSection) {
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-1 self-stretch bg-primary rounded-sm shrink-0" />
+            <span className="text-sm font-semibold uppercase">{row.name}</span>
+          </div>
+        );
+      }
+      if (isGroup) {
+        return <span className="text-sm font-semibold">{row.name}</span>;
+      }
+      return (
+        <span className="text-sm">
+          <span className="mr-2">–</span>{row.name}
+        </span>
+      );
+    };
 
     return (
       <div key={row.id}>
-        <div className={`flex items-stretch border-b border-border hover:bg-muted/20 ${bgClass}`}>
+        <div className="flex items-stretch border-b border-border hover:bg-muted/20">
           <div 
             className="flex-1 min-w-[300px] flex items-center gap-2 py-2 cursor-pointer group"
             style={{ paddingLeft }}
             onClick={() => hasChildren && toggleRow(row.id)}
           >
-            {hasChildren ? (
-              isExpanded ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />
-            ) : (
-              <div className="w-4" />
-            )}
+            {isChapter ? (
+              hasChildren ? (
+                isExpanded ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />
+              ) : (
+                <div className="w-4" />
+              )
+            ) : null}
             {editingRowId === row.id ? (
               <div className="flex items-center gap-1 flex-1" onClick={(e) => e.stopPropagation()}>
                 <Input
@@ -387,7 +407,7 @@ export default function Budget() {
               </div>
             ) : (
               <>
-                <span className="text-sm">{row.name}</span>
+                {getRowContent()}
                 <div className="flex gap-1 ml-auto mr-2 invisible group-hover:visible">
                   <Button 
                     variant="ghost" 
