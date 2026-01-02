@@ -325,6 +325,12 @@ export default function Budget() {
         "Статья затрат": "  ".repeat(indent) + row.name,
       };
 
+      const totalValues = calculateTotalAcrossColumns(row, stageColumns);
+      rowData["ВСЕГО (Бюджет)"] = totalValues.manual;
+      if (row.level !== "item" || row.rowType === "linked") {
+        rowData["ВСЕГО (ПДЦ)"] = totalValues.pdc;
+      }
+
       stageColumns.forEach(col => {
         const values = calculateAggregatedValues(row, col.id);
         rowData[col.name + " (Бюджет)"] = values.manual;
@@ -332,12 +338,6 @@ export default function Budget() {
           rowData[col.name + " (ПДЦ)"] = values.pdc;
         }
       });
-
-      const totalValues = calculateTotalAcrossColumns(row, stageColumns);
-      rowData["ВСЕГО (Бюджет)"] = totalValues.manual;
-      if (row.level !== "item" || row.rowType === "linked") {
-        rowData["ВСЕГО (ПДЦ)"] = totalValues.pdc;
-      }
 
       data.push(rowData);
 
@@ -388,7 +388,9 @@ export default function Budget() {
 
     return (
       <div key={row.id}>
-        <div className="flex items-stretch border-b border-border hover:bg-muted/20">
+        <div 
+          className={`flex items-stretch border-b border-border hover:bg-muted/20 ${isChapter ? 'bg-[#F2F4F7] dark:bg-muted/40' : ''}`}
+        >
           <div 
             className="flex-1 min-w-[300px] flex items-center gap-2 py-2 cursor-pointer group"
             style={{ paddingLeft }}
@@ -485,6 +487,28 @@ export default function Budget() {
             )}
           </div>
 
+          {(() => {
+            const stageColumns = columns.filter(c => !c.isTotal);
+            const totalCol = columns.find(c => c.isTotal);
+            if (!totalCol) return null;
+            const totalValues = calculateTotalAcrossColumns(row, stageColumns);
+            const showPdc = row.level !== "item" || row.rowType === "linked";
+            const deviation = totalValues.manual !== 0 ? ((totalValues.pdc - totalValues.manual) / totalValues.manual * 100) : 0;
+            const deviationColor = getDeviationColor(row, totalValues.manual, totalValues.pdc);
+            return (
+              <div key={totalCol.id} className="w-[120px] shrink-0 border-l border-border flex flex-col justify-center px-2 py-1 text-right bg-muted/30">
+                <div className="text-xs font-mono font-semibold">{formatNumber(totalValues.manual)}</div>
+                {showPdc && totalValues.pdc !== totalValues.manual && (
+                  <div className={`text-xs font-mono ${deviationColor}`}>
+                    {formatNumber(totalValues.pdc)} 
+                    <span className="ml-1">
+                      ({deviation > 0 ? "+" : ""}{deviation.toFixed(1)}%)
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           {columns.filter(c => !c.isTotal).map(col => {
             const values = calculateAggregatedValues(row, col.id);
             const showPdc = row.level !== "item" || row.rowType === "linked";
@@ -524,28 +548,6 @@ export default function Budget() {
               </div>
             );
           })}
-          {(() => {
-            const stageColumns = columns.filter(c => !c.isTotal);
-            const totalCol = columns.find(c => c.isTotal);
-            if (!totalCol) return null;
-            const totalValues = calculateTotalAcrossColumns(row, stageColumns);
-            const showPdc = row.level !== "item" || row.rowType === "linked";
-            const deviation = totalValues.manual !== 0 ? ((totalValues.pdc - totalValues.manual) / totalValues.manual * 100) : 0;
-            const deviationColor = getDeviationColor(row, totalValues.manual, totalValues.pdc);
-            return (
-              <div key={totalCol.id} className="w-[120px] shrink-0 border-l border-border flex flex-col justify-center px-2 py-1 text-right bg-muted/30">
-                <div className="text-xs font-mono font-semibold">{formatNumber(totalValues.manual)}</div>
-                {showPdc && totalValues.pdc !== totalValues.manual && (
-                  <div className={`text-xs font-mono ${deviationColor}`}>
-                    {formatNumber(totalValues.pdc)} 
-                    <span className="ml-1">
-                      ({deviation > 0 ? "+" : ""}{deviation.toFixed(1)}%)
-                    </span>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
           <div className="w-[120px] shrink-0 border-l border-transparent" />
         </div>
 
@@ -668,6 +670,11 @@ export default function Budget() {
               <div className="min-w-max">
                 <div className="flex items-center border-b border-border bg-muted/50 font-semibold text-sm">
                   <div className="flex-1 min-w-[300px] px-3 py-2">Статья затрат</div>
+                  {contractData.columns?.find(c => c.isTotal) && (
+                    <div className="w-[120px] shrink-0 border-l border-border px-2 py-2 text-center bg-muted/30">
+                      <span className="font-semibold">ВСЕГО</span>
+                    </div>
+                  )}
                   {contractData.columns?.filter(c => !c.isTotal).map(col => (
                     <div key={col.id} className="w-[120px] shrink-0 border-l border-border px-2 py-2 text-center">
                       {editingColumnId === col.id ? (
@@ -714,11 +721,6 @@ export default function Budget() {
                       )}
                     </div>
                   ))}
-                  {contractData.columns?.find(c => c.isTotal) && (
-                    <div className="w-[120px] shrink-0 border-l border-border px-2 py-2 text-center bg-muted/30">
-                      <span className="font-semibold">ВСЕГО</span>
-                    </div>
-                  )}
                   <div className="w-[120px] shrink-0 border-l border-border px-2 py-2">
                     <Button 
                       variant="ghost" 
