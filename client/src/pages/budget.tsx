@@ -824,7 +824,7 @@ export default function Budget() {
                   <SelectTrigger data-testid="select-parent">
                     <SelectValue placeholder="Выберите..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[160px] overflow-y-auto bg-popover">
                     {getAvailableParents(addRowLevel).map(parent => (
                       <SelectItem key={parent.id} value={parent.id.toString()}>
                         {parent.name}
