@@ -1,7 +1,26 @@
-import { pgTable, text, serial, integer, real, timestamp, varchar, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, real, timestamp, varchar, numeric, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
+
+// === USER & PERMISSIONS TABLES ===
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  isAdmin: boolean("is_admin").default(false).notNull(),
+  createdById: integer("created_by_id"), // null for first admin
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const permissions = pgTable("permissions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  permissionType: text("permission_type").notNull(), // "page_access" | "edit_data" | "view_field"
+  resource: text("resource").notNull(), // page name or field name
+  allowed: boolean("allowed").default(true).notNull(),
+});
 
 // === TABLE DEFINITIONS ===
 
@@ -223,3 +242,36 @@ export type ContractWithData = Contract & {
   columns?: BudgetColumn[];
   rows?: BudgetRowWithChildren[];
 };
+
+// === USER & PERMISSIONS RELATIONS ===
+
+export const usersRelations = relations(users, ({ many, one }) => ({
+  permissions: many(permissions),
+  createdBy: one(users, {
+    fields: [users.createdById],
+    references: [users.id],
+  }),
+}));
+
+export const permissionsRelations = relations(permissions, ({ one }) => ({
+  user: one(users, {
+    fields: [permissions.userId],
+    references: [users.id],
+  }),
+}));
+
+// === USER & PERMISSIONS SCHEMAS ===
+
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, passwordHash: true }).extend({
+  password: z.string().min(4),
+});
+export const insertPermissionSchema = createInsertSchema(permissions).omit({ id: true });
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type Permission = typeof permissions.$inferSelect;
+export type InsertPermission = z.infer<typeof insertPermissionSchema>;
+
+// User without password hash for client
+export type SafeUser = Omit<User, "passwordHash">;
+export type UserWithPermissions = SafeUser & { permissions: Permission[] };

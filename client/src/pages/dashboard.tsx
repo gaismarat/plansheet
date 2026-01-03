@@ -7,7 +7,15 @@ import { CreateWorkDialog } from "@/components/forms/create-work-dialog";
 import { WorkItemRow } from "@/components/work-item-row";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, FolderOpen, HardHat, TrendingUp, BarChart3, Download, Layers, CalendarDays, Wallet } from "lucide-react";
+import { Trash2, FolderOpen, HardHat, TrendingUp, BarChart3, Download, Layers, CalendarDays, Wallet, User, LogOut, Shield } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import * as XLSX from "xlsx";
 import { CalendarDialog } from "@/components/calendar-dialog";
 import { Link } from "wouter";
@@ -38,6 +46,8 @@ export default function Dashboard() {
   const { data: unassignedGroups, isLoading: groupsLoading } = useUnassignedGroups();
   const { data: holidays = [] } = useHolidays();
   const holidayDates = new Set(holidays.map(h => h.date));
+  const { user, logout, canViewField } = useAuth();
+  const showCostColumn = canViewField("cost");
 
   const isLoading = blocksLoading || groupsLoading;
   const blocks = blocksData || [];
@@ -52,104 +62,51 @@ export default function Dashboard() {
 
   const exportToExcel = () => {
     const data: any[] = [];
+    const showCost = showCostColumn;
+    
+    const createBaseRow = (blockName = "", groupName = "", workData: any = null) => {
+      const row: any = {
+        "Блок": blockName,
+        "Группа": groupName,
+        "Наименование работы": workData?.name || "",
+        "ID": workData?.id || "",
+        "Объём (план)": workData?.volumeAmount ?? "",
+        "Объём (факт)": workData?.volumeActual ?? "",
+        "Ед. изм.": workData?.volumeUnit || "",
+      };
+      
+      if (showCost) {
+        row["Стоимость (план)"] = workData?.costPlan ?? "";
+        row["Стоимость (факт)"] = workData?.costActual ?? "";
+      }
+      
+      row["Дата начала (план)"] = workData?.planStartDate || "";
+      row["Дата начала (факт)"] = workData?.actualStartDate || "";
+      row["Дата окончания (план)"] = workData?.planEndDate || "";
+      row["Дата окончания (факт)"] = workData?.actualEndDate || "";
+      row["Ответственный"] = workData?.responsiblePerson || "";
+      row["Прогресс %"] = workData?.progressPercentage ?? "";
+      
+      return row;
+    };
     
     blocks.forEach((block) => {
-      data.push({
-        "Блок": block.name,
-        "Группа": "",
-        "Наименование работы": "",
-        "ID": "",
-        "Объём (план)": "",
-        "Объём (факт)": "",
-        "Ед. изм.": "",
-        "Стоимость (план)": "",
-        "Стоимость (факт)": "",
-        "Дата начала (план)": "",
-        "Дата начала (факт)": "",
-        "Дата окончания (план)": "",
-        "Дата окончания (факт)": "",
-        "Ответственный": "",
-        "Прогресс %": "",
-      });
+      data.push(createBaseRow(block.name));
       
       block.groups?.forEach((group) => {
-        data.push({
-          "Блок": "",
-          "Группа": group.name,
-          "Наименование работы": "",
-          "ID": "",
-          "Объём (план)": "",
-          "Объём (факт)": "",
-          "Ед. изм.": "",
-          "Стоимость (план)": "",
-          "Стоимость (факт)": "",
-          "Дата начала (план)": "",
-          "Дата начала (факт)": "",
-          "Дата окончания (план)": "",
-          "Дата окончания (факт)": "",
-          "Ответственный": "",
-          "Прогресс %": "",
-        });
+        data.push(createBaseRow("", group.name));
         
         group.works?.forEach((work) => {
-          data.push({
-            "Блок": "",
-            "Группа": "",
-            "Наименование работы": work.name,
-            "ID": work.id,
-            "Объём (план)": work.volumeAmount,
-            "Объём (факт)": work.volumeActual,
-            "Ед. изм.": work.volumeUnit,
-            "Стоимость (план)": work.costPlan,
-            "Стоимость (факт)": work.costActual,
-            "Дата начала (план)": work.planStartDate || "",
-            "Дата начала (факт)": work.actualStartDate || "",
-            "Дата окончания (план)": work.planEndDate || "",
-            "Дата окончания (факт)": work.actualEndDate || "",
-            "Ответственный": work.responsiblePerson || "",
-            "Прогресс %": work.progressPercentage,
-          });
+          data.push(createBaseRow("", "", work));
         });
       });
     });
     
     groups.forEach((group) => {
-      data.push({
-        "Блок": "",
-        "Группа": group.name,
-        "Наименование работы": "",
-        "ID": "",
-        "Объём (план)": "",
-        "Объём (факт)": "",
-        "Ед. изм.": "",
-        "Стоимость (план)": "",
-        "Стоимость (факт)": "",
-        "Дата начала (план)": "",
-        "Дата начала (факт)": "",
-        "Дата окончания (план)": "",
-        "Дата окончания (факт)": "",
-        "Ответственный": "",
-        "Прогресс %": "",
-      });
+      data.push(createBaseRow("", group.name));
       
       group.works?.forEach((work) => {
-        data.push({
-          "Блок": "",
-          "Группа": "",
-          "Наименование работы": work.name,
-          "ID": work.id,
-          "Объём (план)": work.volumeAmount,
-          "Объём (факт)": work.volumeActual,
-          "Ед. изм.": work.volumeUnit,
-          "Стоимость (план)": work.costPlan,
-          "Стоимость (факт)": work.costActual,
-          "Дата начала (план)": work.planStartDate || "",
-          "Дата начала (факт)": work.actualStartDate || "",
-          "Дата окончания (план)": work.planEndDate || "",
-          "Дата окончания (факт)": work.actualEndDate || "",
-          "Ответственный": work.responsiblePerson || "",
-          "Прогресс %": work.progressPercentage,
-        });
+        data.push(createBaseRow("", "", work));
       });
     });
     
@@ -201,6 +158,31 @@ export default function Dashboard() {
             </Link>
             <CreateBlockDialog />
             <CreateWorkGroupDialog />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2" data-testid="button-user-menu">
+                  <User className="w-4 h-4" />
+                  <span className="hidden sm:inline">{user?.username}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {user?.isAdmin && (
+                  <>
+                    <Link href="/admin">
+                      <DropdownMenuItem data-testid="menu-admin">
+                        <Shield className="w-4 h-4 mr-2" />
+                        Пользователи
+                      </DropdownMenuItem>
+                    </Link>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem onClick={() => logout()} data-testid="menu-logout">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Выход
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
@@ -232,7 +214,7 @@ export default function Dashboard() {
               {blocks.length > 0 && (
                 <Accordion type="multiple" defaultValue={blocks.map(b => `block-${b.id}`)} className="space-y-4">
                   {blocks.map((block) => (
-                    <BlockAccordionItem key={block.id} block={block} holidayDates={holidayDates} />
+                    <BlockAccordionItem key={block.id} block={block} holidayDates={holidayDates} showCost={showCostColumn} />
                   ))}
                 </Accordion>
               )}
@@ -246,7 +228,7 @@ export default function Dashboard() {
                   )}
                   <Accordion type="multiple" defaultValue={groups.map(g => `group-${g.id}`)} className="space-y-4">
                     {groups.map((group) => (
-                      <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} />
+                      <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} showCost={showCostColumn} />
                     ))}
                   </Accordion>
                 </div>
@@ -259,7 +241,7 @@ export default function Dashboard() {
   );
 }
 
-function BlockAccordionItem({ block, holidayDates }: { block: BlockResponse; holidayDates: Set<string> }) {
+function BlockAccordionItem({ block, holidayDates, showCost = true }: { block: BlockResponse; holidayDates: Set<string>; showCost?: boolean }) {
   const { mutate: deleteBlock } = useDeleteBlock();
   const [showAllGroups, setShowAllGroups] = useState(true);
   
@@ -352,7 +334,7 @@ function BlockAccordionItem({ block, holidayDates }: { block: BlockResponse; hol
         ) : (
           <Accordion type="multiple" defaultValue={showAllGroups ? block.groups?.map(g => `group-${g.id}`) : []} className="space-y-3">
             {block.groups?.map((group) => (
-              <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} isNested forceHideWorks={!showAllGroups} />
+              <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} isNested forceHideWorks={!showAllGroups} showCost={showCost} />
             ))}
           </Accordion>
         )}
@@ -361,7 +343,7 @@ function BlockAccordionItem({ block, holidayDates }: { block: BlockResponse; hol
   );
 }
 
-function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWorks = false }: { group: WorkGroupResponse; holidayDates: Set<string>; isNested?: boolean; forceHideWorks?: boolean }) {
+function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWorks = false, showCost = true }: { group: WorkGroupResponse; holidayDates: Set<string>; isNested?: boolean; forceHideWorks?: boolean; showCost?: boolean }) {
   const { mutate: deleteGroup } = useDeleteWorkGroup();
   const [showAllWorks, setShowAllWorks] = useState(!isNested);
   const effectiveShowWorks = forceHideWorks ? false : showAllWorks;
@@ -490,7 +472,7 @@ function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWo
         ) : (
           <div className="space-y-1">
             {group.works?.map((work) => (
-              <WorkItemRow key={work.id} work={work} expandAll={effectiveShowWorks} holidayDates={holidayDates} />
+              <WorkItemRow key={work.id} work={work} expandAll={effectiveShowWorks} holidayDates={holidayDates} showCost={showCost} />
             ))}
           </div>
         )}

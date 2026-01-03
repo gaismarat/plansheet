@@ -3,6 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import { requireAuth, requireAdmin } from "./auth";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -373,6 +374,97 @@ export async function registerRoutes(
 
   app.delete('/api/budget-values/:id', async (req, res) => {
     await storage.deleteBudgetValue(Number(req.params.id));
+    res.status(204).send();
+  });
+
+  // === User Management (Admin only) ===
+
+  app.get('/api/users', requireAdmin, async (_req, res) => {
+    const users = await storage.getUsers();
+    res.json(users);
+  });
+
+  app.get('/api/users/:id', requireAdmin, async (req, res) => {
+    const user = await storage.getUserWithPermissions(Number(req.params.id));
+    if (!user) {
+      return res.status(404).json({ message: "Пользователь не найден" });
+    }
+    res.json(user);
+  });
+
+  app.post('/api/users', requireAdmin, async (req, res) => {
+    try {
+      const { username, password, isAdmin } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ message: "Логин и пароль обязательны" });
+      }
+      
+      const existing = await storage.getUserByUsername(username);
+      if (existing) {
+        return res.status(400).json({ message: "Пользователь с таким логином уже существует" });
+      }
+      
+      const adminId = (req.user as any)?.id;
+      const user = await storage.createUser(username, password, isAdmin || false, adminId);
+      res.status(201).json(user);
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  app.put('/api/users/:id/password', requireAdmin, async (req, res) => {
+    try {
+      const { password } = req.body;
+      if (!password) {
+        return res.status(400).json({ message: "Пароль обязателен" });
+      }
+      await storage.updateUserPassword(Number(req.params.id), password);
+      res.json({ message: "Пароль изменён" });
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  app.delete('/api/users/:id', requireAdmin, async (req, res) => {
+    const userId = Number(req.params.id);
+    const adminId = (req.user as any)?.id;
+    
+    if (userId === adminId) {
+      return res.status(400).json({ message: "Нельзя удалить себя" });
+    }
+    
+    await storage.deleteUser(userId);
+    res.status(204).send();
+  });
+
+  // === Permission Management ===
+
+  app.get('/api/users/:id/permissions', requireAdmin, async (req, res) => {
+    const permissions = await storage.getPermissions(Number(req.params.id));
+    res.json(permissions);
+  });
+
+  app.post('/api/users/:id/permissions', requireAdmin, async (req, res) => {
+    try {
+      const { permissionType, resource, allowed } = req.body;
+      if (!permissionType || !resource) {
+        return res.status(400).json({ message: "Тип разрешения и ресурс обязательны" });
+      }
+      
+      const permission = await storage.setPermission(
+        Number(req.params.id),
+        permissionType,
+        resource,
+        allowed !== false
+      );
+      res.status(201).json(permission);
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  app.delete('/api/permissions/:id', requireAdmin, async (req, res) => {
+    await storage.deletePermission(Number(req.params.id));
     res.status(204).send();
   });
 

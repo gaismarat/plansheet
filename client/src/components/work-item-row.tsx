@@ -19,9 +19,10 @@ interface WorkItemRowProps {
   work: Work;
   expandAll?: boolean;
   holidayDates?: Set<string>;
+  showCost?: boolean;
 }
 
-export function WorkItemRow({ work, expandAll = true, holidayDates = new Set() }: WorkItemRowProps) {
+export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), showCost = true }: WorkItemRowProps) {
   const { mutate: updateWork } = useUpdateWork();
   const { mutate: deleteWork, isPending: isDeleting } = useDeleteWork();
   const { mutate: moveUp } = useMoveWorkUp();
@@ -287,10 +288,12 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set() }
           <div className="grid grid-cols-12 gap-3 mb-3">
             <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[30px] mr-[30px]">ОБЪЁМ</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[60px] mr-[30px]">СТОИМОСТЬ</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[60px]">НАЧАЛО</div>
+            {showCost && (
+              <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[60px] mr-[30px]">СТОИМОСТЬ</div>
+            )}
+            <div className={`col-span-1 text-xs text-muted-foreground font-semibold text-center ${showCost ? 'ml-[60px]' : 'ml-[30px]'}`}>НАЧАЛО</div>
             <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[110px]">КОНЕЦ</div>
-            <div className="col-span-3 text-xs text-muted-foreground font-semibold ml-[90px] mr-[50px] text-right">ТРУДОЁМКОСТЬ, дни</div>
+            <div className={`${showCost ? 'col-span-3' : 'col-span-4'} text-xs text-muted-foreground font-semibold ml-[90px] mr-[50px] text-right`}>ТРУДОЁМКОСТЬ, дни</div>
             <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ПРОГРЕСС</div>
           </div>
 
@@ -362,59 +365,61 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set() }
         </div>
 
         {/* Cost column */}
-        <div className="col-span-1 flex flex-col gap-1 text-xs ml-[30px] mr-[30px]">
-          {/* Plan Cost */}
-          <div className="text-muted-foreground font-medium">План</div>
-          <div className="flex items-center gap-1">
-            <input 
-              type="text"
-              value={localCostPlan.toLocaleString('ru-RU')}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
-                handleCostPlanChange({ target: { value: val.toString() } } as any);
-              }}
-              onBlur={handleCostPlanBlur}
-              className="w-24 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
-            />
-            <span className="text-muted-foreground">руб.</span>
-          </div>
+        {showCost && (
+          <div className="col-span-1 flex flex-col gap-1 text-xs ml-[30px] mr-[30px]">
+            {/* Plan Cost */}
+            <div className="text-muted-foreground font-medium">План</div>
+            <div className="flex items-center gap-1">
+              <input 
+                type="text"
+                value={localCostPlan.toLocaleString('ru-RU')}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
+                  handleCostPlanChange({ target: { value: val.toString() } } as any);
+                }}
+                onBlur={handleCostPlanBlur}
+                className="w-24 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
+              />
+              <span className="text-muted-foreground">руб.</span>
+            </div>
 
-          {/* Comparison */}
-          <div className="py-0.5 whitespace-nowrap">
-            {(() => {
-              if (localCostPlan === 0) return null;
-              const diff = localCostActual - localCostPlan;
-              const percent = (Math.abs(diff) / localCostPlan) * 100;
-              
-              if (diff > 0) {
-                return <span className="text-red-500 font-medium">Превышение {percent.toFixed(1)}%</span>;
-              } else if (diff < 0) {
-                return <span className="text-green-500 font-medium">Экономия {percent.toFixed(1)}%</span>;
-              } else {
-                return <span className="text-green-500 font-medium">Плановая стоимость</span>;
-              }
-            })()}
-          </div>
+            {/* Comparison */}
+            <div className="py-0.5 whitespace-nowrap">
+              {(() => {
+                if (localCostPlan === 0) return null;
+                const diff = localCostActual - localCostPlan;
+                const percent = (Math.abs(diff) / localCostPlan) * 100;
+                
+                if (diff > 0) {
+                  return <span className="text-red-500 font-medium">Превышение {percent.toFixed(1)}%</span>;
+                } else if (diff < 0) {
+                  return <span className="text-green-500 font-medium">Экономия {percent.toFixed(1)}%</span>;
+                } else {
+                  return <span className="text-green-500 font-medium">Плановая стоимость</span>;
+                }
+              })()}
+            </div>
 
-          {/* Actual Cost */}
-          <div className="text-muted-foreground font-medium">Факт</div>
-          <div className="flex items-center gap-1">
-            <input 
-              type="text"
-              value={localCostActual.toLocaleString('ru-RU')}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
-                handleCostActualChange({ target: { value: val.toString() } } as any);
-              }}
-              onBlur={handleCostActualBlur}
-              className="w-24 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
-            />
-            <span className="text-muted-foreground">руб.</span>
+            {/* Actual Cost */}
+            <div className="text-muted-foreground font-medium">Факт</div>
+            <div className="flex items-center gap-1">
+              <input 
+                type="text"
+                value={localCostActual.toLocaleString('ru-RU')}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
+                  handleCostActualChange({ target: { value: val.toString() } } as any);
+                }}
+                onBlur={handleCostActualBlur}
+                className="w-24 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
+              />
+              <span className="text-muted-foreground">руб.</span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Plan Start Date */}
-        <div className="col-span-1 flex flex-col gap-1 text-xs ml-[60px]">
+        <div className={`col-span-1 flex flex-col gap-1 text-xs ${showCost ? 'ml-[60px]' : 'ml-[30px]'}`}>
           <div className="text-muted-foreground font-medium">План</div>
           <div className="flex items-center gap-1">
             <input 
@@ -556,7 +561,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set() }
         </div>
 
         {/* Labor Intensity (ТРУДОЁМКОСТЬ) - Three columns */}
-        <div className="col-span-3 grid grid-cols-3 gap-0 text-xs ml-[120px]">
+        <div className={`${showCost ? 'col-span-3' : 'col-span-4'} grid grid-cols-3 gap-0 text-xs ml-[120px]`}>
           {/* Calendar Days */}
           <div className="flex flex-col justify-center items-center ml-[50px] mr-[50px]">
             <div className="text-muted-foreground font-medium text-center leading-tight mb-1">

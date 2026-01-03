@@ -8,6 +8,8 @@ import {
   budgetColumns,
   budgetRows,
   budgetValues,
+  users,
+  permissions,
   type Block,
   type Work,
   type WorkGroup,
@@ -30,9 +32,15 @@ import {
   type UpdateWorkGroupRequest,
   type UpdateWorkRequest,
   type BlockResponse,
-  type WorkGroupResponse
+  type WorkGroupResponse,
+  type User,
+  type Permission,
+  type SafeUser,
+  type UserWithPermissions,
+  type InsertPermission
 } from "@shared/schema";
 import { eq, and, isNull, asc } from "drizzle-orm";
+import bcrypt from "bcrypt";
 
 export interface IStorage {
   // Blocks
@@ -89,6 +97,25 @@ export interface IStorage {
   getBudgetValues(rowId: number): Promise<BudgetValue[]>;
   upsertBudgetValue(value: InsertBudgetValue): Promise<BudgetValue>;
   deleteBudgetValue(id: number): Promise<void>;
+
+  // Users
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserById(id: number): Promise<User | undefined>;
+  getUsers(): Promise<SafeUser[]>;
+  getUserWithPermissions(id: number): Promise<UserWithPermissions | undefined>;
+  createUser(username: string, password: string, isAdmin: boolean, createdById?: number): Promise<SafeUser>;
+  updateUserPassword(id: number, newPassword: string): Promise<void>;
+  deleteUser(id: number): Promise<void>;
+  validatePassword(user: User, password: string): Promise<boolean>;
+
+  // Permissions
+  getPermissions(userId: number): Promise<Permission[]>;
+  setPermission(userId: number, permissionType: string, resource: string, allowed: boolean): Promise<Permission>;
+  deletePermission(id: number): Promise<void>;
+  hasPermission(userId: number, permissionType: string, resource: string): Promise<boolean>;
+
+  // Admin initialization
+  initializeAdmin(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -479,6 +506,136 @@ export class DatabaseStorage implements IStorage {
 
   async deleteBudgetValue(id: number): Promise<void> {
     await db.delete(budgetValues).where(eq(budgetValues.id, id));
+  }
+
+  // === USERS ===
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async getUserById(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUsers(): Promise<SafeUser[]> {
+    const allUsers = await db.select({
+      id: users.id,
+      username: users.username,
+      isAdmin: users.isAdmin,
+      createdById: users.createdById,
+      createdAt: users.createdAt
+    }).from(users).orderBy(asc(users.id));
+    return allUsers;
+  }
+
+  async getUserWithPermissions(id: number): Promise<UserWithPermissions | undefined> {
+    const [user] = await db.select({
+      id: users.id,
+      username: users.username,
+      isAdmin: users.isAdmin,
+      createdById: users.createdById,
+      createdAt: users.createdAt
+    }).from(users).where(eq(users.id, id));
+    
+    if (!user) return undefined;
+    
+    const userPermissions = await db.select().from(permissions).where(eq(permissions.userId, id));
+    return { ...user, permissions: userPermissions };
+  }
+
+  async createUser(username: string, password: string, isAdmin: boolean, createdById?: number): Promise<SafeUser> {
+    const passwordHash = await bcrypt.hash(password, 10);
+    const [newUser] = await db.insert(users).values({
+      username,
+      passwordHash,
+      isAdmin,
+      createdById
+    }).returning();
+    
+    const { passwordHash: _, ...safeUser } = newUser;
+    return safeUser;
+  }
+
+  async updateUserPassword(id: number, newPassword: string): Promise<void> {
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.update(users).set({ passwordHash }).where(eq(users.id, id));
+  }
+
+  async deleteUser(id: number): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
+
+  async validatePassword(user: User, password: string): Promise<boolean> {
+    return await bcrypt.compare(password, user.passwordHash);
+  }
+
+  // === PERMISSIONS ===
+
+  async getPermissions(userId: number): Promise<Permission[]> {
+    return await db.select().from(permissions).where(eq(permissions.userId, userId));
+  }
+
+  async setPermission(userId: number, permissionType: string, resource: string, allowed: boolean): Promise<Permission> {
+    // Check if permission exists
+    const [existing] = await db.select().from(permissions)
+      .where(and(
+        eq(permissions.userId, userId),
+        eq(permissions.permissionType, permissionType),
+        eq(permissions.resource, resource)
+      ));
+    
+    if (existing) {
+      const [updated] = await db.update(permissions)
+        .set({ allowed })
+        .where(eq(permissions.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(permissions).values({
+        userId,
+        permissionType,
+        resource,
+        allowed
+      }).returning();
+      return created;
+    }
+  }
+
+  async deletePermission(id: number): Promise<void> {
+    await db.delete(permissions).where(eq(permissions.id, id));
+  }
+
+  async hasPermission(userId: number, permissionType: string, resource: string): Promise<boolean> {
+    // Admins have all permissions
+    const user = await this.getUserById(userId);
+    if (user?.isAdmin) return true;
+    
+    const [permission] = await db.select().from(permissions)
+      .where(and(
+        eq(permissions.userId, userId),
+        eq(permissions.permissionType, permissionType),
+        eq(permissions.resource, resource)
+      ));
+    
+    return permission?.allowed ?? false;
+  }
+
+  // === ADMIN INITIALIZATION ===
+
+  async initializeAdmin(): Promise<void> {
+    // Check if admin already exists
+    const existingAdmin = await this.getUserByUsername("GaisinMF");
+    if (existingAdmin) {
+      console.log("Admin user already exists");
+      return;
+    }
+    
+    // Create the admin user
+    await this.createUser("GaisinMF", "nhu!P3nG@-", true);
+    console.log("Admin user GaisinMF created successfully");
   }
 }
 

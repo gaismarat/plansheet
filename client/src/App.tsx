@@ -1,21 +1,85 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Analytics from "@/pages/analytics";
 import KSP from "@/pages/ksp";
 import Budget from "@/pages/budget";
+import Login from "@/pages/login";
+import Admin from "@/pages/admin";
+import { Loader2 } from "lucide-react";
+
+function ProtectedRoute({ component: Component, page }: { component: React.ComponentType; page?: string }) {
+  const { user, isLoading, hasPageAccess } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Redirect to="/login" />;
+  }
+
+  if (page && !user.isAdmin && !hasPageAccess(page)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-2">Нет доступа</h1>
+          <p className="text-muted-foreground">У вас нет разрешения на просмотр этой страницы</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <Component />;
+}
 
 function Router() {
+  const { user, isLoading } = useAuth();
+  const [location] = useLocation();
+
+  if (isLoading && location !== "/login") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user && location !== "/login") {
+    return <Redirect to="/login" />;
+  }
+
+  if (user && location === "/login") {
+    return <Redirect to="/" />;
+  }
+
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/analytics" component={Analytics} />
-      <Route path="/ksp" component={KSP} />
-      <Route path="/budget" component={Budget} />
+      <Route path="/login" component={Login} />
+      <Route path="/">
+        <ProtectedRoute component={Dashboard} page="works" />
+      </Route>
+      <Route path="/analytics">
+        <ProtectedRoute component={Analytics} page="works" />
+      </Route>
+      <Route path="/ksp">
+        <ProtectedRoute component={KSP} page="ksp" />
+      </Route>
+      <Route path="/budget">
+        <ProtectedRoute component={Budget} page="budget" />
+      </Route>
+      <Route path="/admin">
+        <ProtectedRoute component={Admin} />
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -24,10 +88,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider delayDuration={0}>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider delayDuration={0}>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

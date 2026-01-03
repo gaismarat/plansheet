@@ -1,0 +1,148 @@
+import passport from "passport";
+import { Strategy as LocalStrategy } from "passport-local";
+import session from "express-session";
+import { storage } from "./storage";
+import type { Express, Request, Response, NextFunction } from "express";
+import type { User, SafeUser, UserWithPermissions } from "@shared/schema";
+import connectPgSimple from "connect-pg-simple";
+import { Pool } from "pg";
+
+declare global {
+  namespace Express {
+    interface User extends SafeUser {}
+  }
+}
+
+export function setupAuth(app: Express) {
+  const PgSession = connectPgSimple(session);
+  
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+  });
+
+  app.use(
+    session({
+      store: new PgSession({
+        pool,
+        createTableIfMissing: true,
+      }),
+      secret: process.env.SESSION_SECRET || "construction-tracker-secret",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      },
+    })
+  );
+
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  passport.use(
+    new LocalStrategy(async (username, password, done) => {
+      try {
+        const user = await storage.getUserByUsername(username);
+        if (!user) {
+          return done(null, false, { message: "Неверный логин или пароль" });
+        }
+        
+        const isValid = await storage.validatePassword(user, password);
+        if (!isValid) {
+          return done(null, false, { message: "Неверный логин или пароль" });
+        }
+        
+        const { passwordHash: _, ...safeUser } = user;
+        return done(null, safeUser);
+      } catch (err) {
+        return done(err);
+      }
+    })
+  );
+
+  passport.serializeUser((user, done) => {
+    done(null, user.id);
+  });
+
+  passport.deserializeUser(async (id: number, done) => {
+    try {
+      const user = await storage.getUserWithPermissions(id);
+      done(null, user);
+    } catch (err) {
+      done(err);
+    }
+  });
+
+  // Auth routes
+  app.post("/api/auth/login", (req, res, next) => {
+    passport.authenticate("local", (err: Error | null, user: SafeUser | false, info: { message: string }) => {
+      if (err) {
+        return next(err);
+      }
+      if (!user) {
+        return res.status(401).json({ message: info?.message || "Ошибка авторизации" });
+      }
+      req.logIn(user, (err) => {
+        if (err) {
+          return next(err);
+        }
+        return res.json({ user });
+      });
+    })(req, res, next);
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Ошибка выхода" });
+      }
+      res.json({ message: "Выход выполнен" });
+    });
+  });
+
+  app.get("/api/auth/me", (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Не авторизован" });
+    }
+    res.json({ user: req.user });
+  });
+}
+
+// Middleware to require authentication
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Требуется авторизация" });
+  }
+  next();
+}
+
+// Middleware to require admin
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Требуется авторизация" });
+  }
+  if (!(req.user as UserWithPermissions)?.isAdmin) {
+    return res.status(403).json({ message: "Требуются права администратора" });
+  }
+  next();
+}
+
+// Middleware to check specific permission
+export function requirePermission(permissionType: string, resource: string) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Требуется авторизация" });
+    }
+    
+    const user = req.user as UserWithPermissions;
+    if (user.isAdmin) {
+      return next();
+    }
+    
+    const hasPermission = await storage.hasPermission(user.id, permissionType, resource);
+    if (!hasPermission) {
+      return res.status(403).json({ message: "Нет доступа" });
+    }
+    next();
+  };
+}
