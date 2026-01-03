@@ -30,6 +30,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerFooter,
+  DrawerClose,
+} from "@/components/ui/drawer";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -56,6 +64,11 @@ export default function Budget() {
   const [addRowChapterType, setAddRowChapterType] = useState<string>("income");
   const [editingRowId, setEditingRowId] = useState<number | null>(null);
   const [editingRowName, setEditingRowName] = useState("");
+  const [editingValueRowId, setEditingValueRowId] = useState<number | null>(null);
+  const [editingValueColumnId, setEditingValueColumnId] = useState<number | null>(null);
+  const [editingValueRubles, setEditingValueRubles] = useState<string>("");
+  const [editingValueRowName, setEditingValueRowName] = useState<string>("");
+  const [showValueDrawer, setShowValueDrawer] = useState(false);
 
   const { data: contracts = [], isLoading: contractsLoading } = useQuery<Contract[]>({
     queryKey: ["/api/contracts"],
@@ -516,22 +529,28 @@ export default function Budget() {
             const deviationColor = getDeviationColor(row, values.manual, values.pdc);
 
             return (
-              <div key={col.id} className="w-[120px] shrink-0 border-l border-border flex flex-col justify-center px-2 py-1 text-right">
+              <div key={col.id} className="w-[120px] shrink-0 border-l border-border flex flex-col justify-center px-2 py-1 text-right group/cell">
                 {isItem && row.rowType === "manual" ? (
-                  <Input
-                    type="number"
-                    className="h-7 text-right text-xs"
-                    data-testid={`input-value-${row.id}-${col.id}`}
-                    value={row.values?.find(v => v.columnId === col.id)?.manualValue || 0}
-                    onChange={(e) => {
-                      updateValue.mutate({
-                        rowId: row.id,
-                        columnId: col.id,
-                        manualValue: parseFloat(e.target.value) || 0
-                      });
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
+                  <div className="flex items-center justify-end gap-1">
+                    <div className="text-xs font-mono">{formatNumber(values.manual)}</div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-5 w-5 invisible group-hover/cell:visible"
+                      data-testid={`button-edit-value-${row.id}-${col.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const currentValue = row.values?.find(v => v.columnId === col.id)?.manualValue || 0;
+                        setEditingValueRowId(row.id);
+                        setEditingValueColumnId(col.id);
+                        setEditingValueRubles(String(Math.round(currentValue * 1000000)));
+                        setEditingValueRowName(row.name);
+                        setShowValueDrawer(true);
+                      }}
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </Button>
+                  </div>
                 ) : (
                   <>
                     <div className="text-xs font-mono">{formatNumber(values.manual)}</div>
@@ -868,6 +887,52 @@ export default function Budget() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Drawer open={showValueDrawer} onOpenChange={setShowValueDrawer}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Ввод стоимости: {editingValueRowName}</DrawerTitle>
+          </DrawerHeader>
+          <div className="p-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Сумма в рублях</Label>
+              <Input
+                type="number"
+                placeholder="Введите сумму в рублях"
+                value={editingValueRubles}
+                onChange={(e) => setEditingValueRubles(e.target.value)}
+                className="text-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                data-testid="input-value-rubles"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                Будет отображаться: {formatNumber((parseFloat(editingValueRubles) || 0) / 1000000)} млн
+              </p>
+            </div>
+          </div>
+          <DrawerFooter>
+            <Button 
+              onClick={() => {
+                if (editingValueRowId && editingValueColumnId !== null) {
+                  const valueInMillions = (parseFloat(editingValueRubles) || 0) / 1000000;
+                  updateValue.mutate({
+                    rowId: editingValueRowId,
+                    columnId: editingValueColumnId,
+                    manualValue: valueInMillions
+                  });
+                  setShowValueDrawer(false);
+                }
+              }}
+              data-testid="button-save-value"
+            >
+              Сохранить
+            </Button>
+            <DrawerClose asChild>
+              <Button variant="outline">Отмена</Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }
