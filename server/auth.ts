@@ -20,6 +20,9 @@ export function setupAuth(app: Express) {
     connectionString: process.env.DATABASE_URL,
   });
 
+  // Trust proxy for correct HTTPS detection behind Replit's proxy
+  app.set('trust proxy', 1);
+
   app.use(
     session({
       store: new PgSession({
@@ -31,6 +34,8 @@ export function setupAuth(app: Express) {
       saveUninitialized: false,
       cookie: {
         secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
+        httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
       },
     })
