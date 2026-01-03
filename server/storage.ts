@@ -626,16 +626,21 @@ export class DatabaseStorage implements IStorage {
   // === ADMIN INITIALIZATION ===
 
   async initializeAdmin(): Promise<void> {
-    // Check if admin already exists
-    const existingAdmin = await this.getUserByUsername("GaisinMF");
-    if (existingAdmin) {
-      console.log("Admin user already exists");
-      return;
+    try {
+      // Check if admin already exists
+      const existingAdmin = await this.getUserByUsername("GaisinMF");
+      if (existingAdmin) {
+        console.log("Admin user already exists");
+        return;
+      }
+      
+      // Create the admin user
+      await this.createUser("GaisinMF", "nhu!P3nG@-", true);
+      console.log("Admin user GaisinMF created successfully");
+    } catch (error) {
+      console.error("Error initializing admin user:", error);
+      throw error;
     }
-    
-    // Create the admin user
-    await this.createUser("GaisinMF", "nhu!P3nG@-", true);
-    console.log("Admin user GaisinMF created successfully");
   }
 }
 
