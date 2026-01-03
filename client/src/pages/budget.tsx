@@ -15,6 +15,7 @@ import {
   Download, 
   ChevronDown, 
   ChevronRight,
+  ChevronUp,
   Pencil,
   Trash2,
   X,
@@ -193,6 +194,15 @@ export default function Budget() {
   const updateValue = useMutation({
     mutationFn: async ({ rowId, columnId, manualValue }: { rowId: number; columnId: number; manualValue: number }) => {
       return await apiRequest("POST", "/api/budget-values", { rowId, columnId, manualValue });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", selectedContractId] });
+    },
+  });
+
+  const reorderRow = useMutation({
+    mutationFn: async ({ id, direction }: { id: number; direction: 'up' | 'down' }) => {
+      return await apiRequest("PUT", `/api/budget-rows/${id}/reorder`, { direction });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contracts", selectedContractId] });
@@ -378,13 +388,16 @@ export default function Budget() {
     XLSX.writeFile(wb, `budget_${contractData.name}.xlsx`);
   };
 
-  const renderRow = (row: BudgetRowWithChildren, columns: BudgetColumn[], depth: number = 0) => {
+  const renderRow = (row: BudgetRowWithChildren, columns: BudgetColumn[], depth: number = 0, siblingIndex: number = 0, totalSiblings: number = 1) => {
     const isExpanded = expandedRows.has(row.id);
     const hasChildren = row.children && row.children.length > 0;
     const isChapter = row.level === "chapter";
     const isSection = row.level === "section";
     const isGroup = row.level === "group";
     const isItem = row.level === "item";
+
+    const canMoveUp = siblingIndex > 0;
+    const canMoveDown = siblingIndex < totalSiblings - 1;
 
     const paddingLeft = isChapter ? 12 : isSection ? 24 : isGroup ? 36 : 48;
 
@@ -476,6 +489,34 @@ export default function Budget() {
                   >
                     <Pencil className="w-3 h-3" />
                   </Button>
+                  {isSection && canMoveUp && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6"
+                      data-testid={`button-move-up-${row.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        reorderRow.mutate({ id: row.id, direction: 'up' });
+                      }}
+                    >
+                      <ChevronUp className="w-3 h-3" />
+                    </Button>
+                  )}
+                  {isSection && canMoveDown && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6"
+                      data-testid={`button-move-down-${row.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        reorderRow.mutate({ id: row.id, direction: 'down' });
+                      }}
+                    >
+                      <ChevronDown className="w-3 h-3" />
+                    </Button>
+                  )}
                   {!isChapter && row.level !== "item" && (
                     <Button 
                       variant="ghost" 
@@ -581,7 +622,7 @@ export default function Budget() {
           <div className="w-[120px] shrink-0 border-l border-transparent" />
         </div>
 
-        {isExpanded && row.children?.map(child => renderRow(child, columns, depth + 1))}
+        {isExpanded && row.children?.map((child, idx) => renderRow(child, columns, depth + 1, idx, row.children?.length || 1))}
       </div>
     );
   };

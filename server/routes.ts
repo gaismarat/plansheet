@@ -342,6 +342,16 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  app.put('/api/budget-rows/:id/reorder', async (req, res) => {
+    try {
+      const direction = req.body.direction as 'up' | 'down';
+      await storage.reorderBudgetRow(Number(req.params.id), direction);
+      res.status(200).json({ success: true });
+    } catch (err) {
+      throw err;
+    }
+  });
+
   // === Budget Values ===
 
   app.get('/api/budget-rows/:rowId/values', async (req, res) => {

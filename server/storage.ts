@@ -82,6 +82,7 @@ export interface IStorage {
   getBudgetRows(contractId: number): Promise<BudgetRow[]>;
   createBudgetRow(row: InsertBudgetRow): Promise<BudgetRow>;
   updateBudgetRow(id: number, updates: Partial<InsertBudgetRow>): Promise<BudgetRow>;
+  reorderBudgetRow(id: number, direction: 'up' | 'down'): Promise<void>;
   deleteBudgetRow(id: number): Promise<void>;
 
   // Budget Values
@@ -414,6 +415,29 @@ export class DatabaseStorage implements IStorage {
   async updateBudgetRow(id: number, updates: Partial<InsertBudgetRow>): Promise<BudgetRow> {
     const [updated] = await db.update(budgetRows).set(updates).where(eq(budgetRows.id, id)).returning();
     return updated;
+  }
+
+  async reorderBudgetRow(id: number, direction: 'up' | 'down'): Promise<void> {
+    const [row] = await db.select().from(budgetRows).where(eq(budgetRows.id, id));
+    if (!row) return;
+
+    // Get siblings with same parentId, ordered
+    const siblings = await db.select()
+      .from(budgetRows)
+      .where(eq(budgetRows.parentId, row.parentId!))
+      .orderBy(budgetRows.order);
+
+    const currentIndex = siblings.findIndex(s => s.id === id);
+    if (currentIndex === -1) return;
+
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (swapIndex < 0 || swapIndex >= siblings.length) return;
+
+    const swapRow = siblings[swapIndex];
+    
+    // Swap orders
+    await db.update(budgetRows).set({ order: swapRow.order }).where(eq(budgetRows.id, row.id));
+    await db.update(budgetRows).set({ order: row.order }).where(eq(budgetRows.id, swapRow.id));
   }
 
   async deleteBudgetRow(id: number): Promise<void> {
