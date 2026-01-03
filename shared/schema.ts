@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, real, timestamp, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, real, timestamp, varchar, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -80,8 +80,8 @@ export const budgetValues = pgTable("budget_values", {
   id: serial("id").primaryKey(),
   rowId: integer("row_id").notNull().references(() => budgetRows.id, { onDelete: "cascade" }),
   columnId: integer("column_id").notNull().references(() => budgetColumns.id, { onDelete: "cascade" }),
-  manualValue: real("manual_value").default(0), // Ручное значение
-  pdcValue: real("pdc_value").default(0), // Значение из ПДЦ (mock для сейчас)
+  manualValue: numeric("manual_value", { precision: 18, scale: 2 }).default("0"), // Ручное значение в рублях
+  pdcValue: numeric("pdc_value", { precision: 18, scale: 2 }).default("0"), // Значение из ПДЦ в рублях
 });
 
 // === RELATIONS ===

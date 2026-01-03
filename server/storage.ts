@@ -403,8 +403,8 @@ export class DatabaseStorage implements IStorage {
       await db.insert(budgetValues).values({
         rowId: newRow.id,
         columnId: col.id,
-        manualValue: 0,
-        pdcValue: 0
+        manualValue: "0",
+        pdcValue: "0"
       });
     }
 
@@ -437,8 +437,13 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(budgetValues.rowId, value.rowId), eq(budgetValues.columnId, value.columnId)));
     
     if (existing) {
+      // Only update provided fields, preserve existing pdcValue if not specified
+      const updateData: Partial<InsertBudgetValue> = {};
+      if (value.manualValue !== undefined) updateData.manualValue = value.manualValue;
+      if (value.pdcValue !== undefined) updateData.pdcValue = value.pdcValue;
+      
       const [updated] = await db.update(budgetValues)
-        .set({ manualValue: value.manualValue, pdcValue: value.pdcValue })
+        .set(updateData)
         .where(eq(budgetValues.id, existing.id))
         .returning();
       return updated;

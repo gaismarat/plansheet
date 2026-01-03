@@ -192,7 +192,7 @@ export default function Budget() {
 
   const updateValue = useMutation({
     mutationFn: async ({ rowId, columnId, manualValue }: { rowId: number; columnId: number; manualValue: number }) => {
-      return await apiRequest("POST", "/api/budget-values", { rowId, columnId, manualValue, pdcValue: 0 });
+      return await apiRequest("POST", "/api/budget-values", { rowId, columnId, manualValue });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contracts", selectedContractId] });
@@ -269,12 +269,19 @@ export default function Budget() {
     }
   };
 
+  const parseValue = (val: string | number | null | undefined): number => {
+    if (val === null || val === undefined) return 0;
+    return typeof val === 'string' ? parseFloat(val) || 0 : val;
+  };
+
   const calculateAggregatedValues = (row: BudgetRowWithChildren, columnId: number): { manual: number; pdc: number } => {
     if (row.level === "item") {
       const value = row.values?.find(v => v.columnId === columnId);
+      const manualVal = parseValue(value?.manualValue);
+      const pdcVal = parseValue(value?.pdcValue);
       return { 
-        manual: value?.manualValue || 0, 
-        pdc: row.rowType === "linked" ? (value?.pdcValue || 0) : (value?.manualValue || 0)
+        manual: manualVal, 
+        pdc: row.rowType === "linked" ? pdcVal : manualVal
       };
     }
 
@@ -301,12 +308,14 @@ export default function Budget() {
     }
   };
 
-  const formatNumber = (num: number): string => {
-    return num.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatNumber = (rubles: number): string => {
+    const millions = rubles / 1_000_000;
+    return millions.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  const toFullValue = (millions: number): number => millions * 1_000_000;
-  const toMillions = (full: number): number => full / 1_000_000;
+  const formatRubles = (rubles: number): string => {
+    return rubles.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
   const calculateTotalAcrossColumns = (row: BudgetRowWithChildren, stageColumns: BudgetColumn[]): { manual: number; pdc: number } => {
     let totalManual = 0;
@@ -333,22 +342,24 @@ export default function Budget() {
     const data: any[] = [];
     const stageColumns = (contractData.columns || []).filter(c => !c.isTotal);
 
+    const toMillions = (rubles: number) => rubles / 1_000_000;
+    
     const processRow = (row: BudgetRowWithChildren, indent: number) => {
       const rowData: any = {
         "Статья затрат": "  ".repeat(indent) + row.name,
       };
 
       const totalValues = calculateTotalAcrossColumns(row, stageColumns);
-      rowData["ВСЕГО (Бюджет)"] = totalValues.manual;
+      rowData["ВСЕГО (Бюджет), млн"] = toMillions(totalValues.manual).toFixed(2);
       if (row.level !== "item" || row.rowType === "linked") {
-        rowData["ВСЕГО (ПДЦ)"] = totalValues.pdc;
+        rowData["ВСЕГО (ПДЦ), млн"] = toMillions(totalValues.pdc).toFixed(2);
       }
 
       stageColumns.forEach(col => {
         const values = calculateAggregatedValues(row, col.id);
-        rowData[col.name + " (Бюджет)"] = values.manual;
+        rowData[col.name + " (Бюджет), млн"] = toMillions(values.manual).toFixed(2);
         if (row.level !== "item" || row.rowType === "linked") {
-          rowData[col.name + " (ПДЦ)"] = values.pdc;
+          rowData[col.name + " (ПДЦ), млн"] = toMillions(values.pdc).toFixed(2);
         }
       });
 
@@ -540,10 +551,10 @@ export default function Budget() {
                       data-testid={`button-edit-value-${row.id}-${col.id}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        const currentValue = row.values?.find(v => v.columnId === col.id)?.manualValue || 0;
+                        const currentValue = parseValue(row.values?.find(v => v.columnId === col.id)?.manualValue);
                         setEditingValueRowId(row.id);
                         setEditingValueColumnId(col.id);
-                        setEditingValueRubles(String(Math.round(currentValue * 1000000)));
+                        setEditingValueRubles(currentValue.toFixed(2));
                         setEditingValueRowName(row.name);
                         setShowValueDrawer(true);
                       }}
@@ -895,9 +906,10 @@ export default function Budget() {
           </DrawerHeader>
           <div className="p-4 space-y-4">
             <div className="space-y-2">
-              <Label>Сумма в рублях</Label>
+              <Label>Сумма в рублях (с копейками)</Label>
               <Input
                 type="number"
+                step="0.01"
                 placeholder="Введите сумму в рублях"
                 value={editingValueRubles}
                 onChange={(e) => setEditingValueRubles(e.target.value)}
@@ -906,7 +918,7 @@ export default function Budget() {
                 autoFocus
               />
               <p className="text-xs text-muted-foreground">
-                Будет отображаться: {formatNumber((parseFloat(editingValueRubles) || 0) / 1000000)} млн
+                Будет отображаться: {formatNumber(parseFloat(editingValueRubles) || 0)} млн
               </p>
             </div>
           </div>
@@ -914,11 +926,11 @@ export default function Budget() {
             <Button 
               onClick={() => {
                 if (editingValueRowId && editingValueColumnId !== null) {
-                  const valueInMillions = (parseFloat(editingValueRubles) || 0) / 1000000;
+                  const valueInRubles = parseFloat(editingValueRubles) || 0;
                   updateValue.mutate({
                     rowId: editingValueRowId,
                     columnId: editingValueColumnId,
-                    manualValue: valueInMillions
+                    manualValue: valueInRubles
                   });
                   setShowValueDrawer(false);
                 }
