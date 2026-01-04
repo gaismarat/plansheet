@@ -421,6 +421,16 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  app.put('/api/pdc-documents/:id/reorder', async (req, res) => {
+    try {
+      const direction = req.body.direction as 'up' | 'down';
+      await storage.reorderPdcDocument(Number(req.params.id), direction);
+      res.status(200).json({ success: true });
+    } catch (err) {
+      throw err;
+    }
+  });
+
   // === PDC Blocks ===
 
   app.post('/api/pdc-blocks', async (req, res) => {

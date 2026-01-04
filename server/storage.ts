@@ -139,6 +139,7 @@ export interface IStorage {
   createPdcDocument(doc: InsertPdcDocument): Promise<PdcDocument>;
   updatePdcDocument(id: number, updates: Partial<InsertPdcDocument>): Promise<PdcDocument>;
   deletePdcDocument(id: number): Promise<void>;
+  reorderPdcDocument(id: number, direction: 'up' | 'down'): Promise<void>;
 
   // PDC Blocks
   createPdcBlock(block: InsertPdcBlock): Promise<PdcBlock>;
@@ -698,7 +699,7 @@ export class DatabaseStorage implements IStorage {
   // === PDC DOCUMENTS ===
 
   async getPdcDocuments(): Promise<PdcDocument[]> {
-    return await db.select().from(pdcDocuments).orderBy(asc(pdcDocuments.id));
+    return await db.select().from(pdcDocuments).orderBy(asc(pdcDocuments.order), asc(pdcDocuments.id));
   }
 
   async getPdcDocumentWithData(id: number): Promise<PdcDocumentWithData | undefined> {
@@ -729,7 +730,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPdcDocument(doc: InsertPdcDocument): Promise<PdcDocument> {
-    const [newDoc] = await db.insert(pdcDocuments).values(doc).returning();
+    const existing = await db.select().from(pdcDocuments);
+    const maxOrder = Math.max(...existing.map(d => d.order), -1);
+    
+    const [newDoc] = await db.insert(pdcDocuments).values({
+      ...doc,
+      order: maxOrder + 1
+    }).returning();
     return newDoc;
   }
 
@@ -740,6 +747,25 @@ export class DatabaseStorage implements IStorage {
 
   async deletePdcDocument(id: number): Promise<void> {
     await db.delete(pdcDocuments).where(eq(pdcDocuments.id, id));
+  }
+
+  async reorderPdcDocument(id: number, direction: 'up' | 'down'): Promise<void> {
+    const [doc] = await db.select().from(pdcDocuments).where(eq(pdcDocuments.id, id));
+    if (!doc) return;
+
+    const siblings = await db.select()
+      .from(pdcDocuments)
+      .orderBy(asc(pdcDocuments.order), asc(pdcDocuments.id));
+
+    const currentIndex = siblings.findIndex(s => s.id === id);
+    if (currentIndex === -1) return;
+
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (swapIndex < 0 || swapIndex >= siblings.length) return;
+
+    const swapDoc = siblings[swapIndex];
+    await db.update(pdcDocuments).set({ order: swapDoc.order }).where(eq(pdcDocuments.id, doc.id));
+    await db.update(pdcDocuments).set({ order: doc.order }).where(eq(pdcDocuments.id, swapDoc.id));
   }
 
   // === PDC BLOCKS ===

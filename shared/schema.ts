@@ -283,6 +283,7 @@ export const pdcDocuments = pgTable("pdc_documents", {
   name: text("name").notNull(),
   headerText: text("header_text"),
   vatRate: numeric("vat_rate", { precision: 5, scale: 2 }).default("20"),
+  order: integer("order").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

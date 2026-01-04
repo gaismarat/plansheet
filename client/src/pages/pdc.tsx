@@ -298,6 +298,8 @@ function PDCDocumentCard({
   calculateDocumentTotal
 }: PDCDocumentCardProps) {
   const { toast } = useToast();
+  const [editingName, setEditingName] = useState(false);
+  const [docName, setDocName] = useState(document.name);
   const [editingHeader, setEditingHeader] = useState(false);
   const [headerText, setHeaderText] = useState(document.headerText || "");
   const [editingVat, setEditingVat] = useState(false);
@@ -317,8 +319,18 @@ function PDCDocumentCard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pdc-documents"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pdc-documents", document.id] });
+      setEditingName(false);
       setEditingHeader(false);
       setEditingVat(false);
+    },
+  });
+
+  const reorderDocument = useMutation({
+    mutationFn: async (direction: 'up' | 'down') => {
+      return await apiRequest("PUT", `/api/pdc-documents/${document.id}/reorder`, { direction });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pdc-documents"] });
     },
   });
 
@@ -366,10 +378,44 @@ function PDCDocumentCard({
     <Card className="overflow-hidden">
       <Collapsible open={isExpanded} onOpenChange={onToggle}>
         <CollapsibleTrigger asChild>
-          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30">
+          <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 group">
             <div className="flex items-center gap-3">
               {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-              <span className="font-semibold text-lg">{document.name}</span>
+              {editingName ? (
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Input
+                    value={docName}
+                    onChange={(e) => setDocName(e.target.value)}
+                    className="h-8 text-lg font-semibold w-[300px]"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") updateDocument.mutate({ name: docName });
+                      if (e.key === "Escape") setEditingName(false);
+                    }}
+                  />
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateDocument.mutate({ name: docName })}>
+                    <Check className="w-4 h-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingName(false)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <span className="font-semibold text-lg">{document.name}</span>
+                  <div className="flex gap-1 invisible group-hover:visible" onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingName(true); setDocName(document.name); }}>
+                      <Pencil className="w-3 h-3" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => reorderDocument.mutate('up')}>
+                      <ChevronUp className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => reorderDocument.mutate('down')}>
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right mr-[100px]">
