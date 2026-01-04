@@ -174,7 +174,7 @@ export default function PDC() {
   return (
     <div className="min-h-screen bg-background/50">
       <header className="bg-card border-b border-border sticky top-0 z-10 backdrop-blur-sm bg-card/80">
-        <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-2">
+        <div className="px-4 md:px-6 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <Link href="/">
               <Button variant="ghost" size="icon" data-testid="button-back">
@@ -221,7 +221,7 @@ export default function PDC() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 md:px-6 py-8">
+      <main className="px-4 md:px-6 py-8">
         {documents.length === 0 ? (
           <Card className="p-8 text-center">
             <p className="text-muted-foreground mb-4">Нет созданных ПДЦ</p>
@@ -345,6 +345,19 @@ function PDCDocumentCard({
       newExpanded.delete(blockId);
     } else {
       newExpanded.add(blockId);
+      const block = (documentData?.blocks || []).find(b => b.id === blockId);
+      if (block) {
+        const newSections = new Set(expandedSections);
+        const newGroups = new Set(expandedGroups);
+        for (const section of block.sections || []) {
+          newSections.add(section.id);
+          for (const group of section.groups || []) {
+            newGroups.add(group.id);
+          }
+        }
+        setExpandedSections(newSections);
+        setExpandedGroups(newGroups);
+      }
     }
     setExpandedBlocks(newExpanded);
   };
@@ -456,7 +469,7 @@ function PDCDocumentCard({
             </div>
 
             <div className="p-4 border-t border-border bg-muted/30">
-              <div className="flex flex-col items-end gap-2">
+              <div className="flex flex-col items-start gap-2">
                 <div className="text-sm font-semibold">Итого по разделам:</div>
                 {(documentData?.blocks || []).map((block, idx) => (
                   <div key={block.id} className="flex justify-between w-full max-w-md">
@@ -569,8 +582,8 @@ function PDCTable({
   return (
     <div className="min-w-max">
       <div className="flex items-center border-b border-border bg-muted/50 font-semibold text-xs">
-        <div className="w-12 shrink-0 px-2 py-2 text-center">№ п/п</div>
-        <div className="flex-1 min-w-[300px] px-3 py-2">Наименование затрат</div>
+        <div className="w-16 shrink-0 px-2 py-2 text-center">№ п/п</div>
+        <div className="flex-1 min-w-[240px] px-3 py-2">Наименование затрат</div>
         <div className="w-[100px] shrink-0 border-l border-border px-2 py-2 text-center">Примечание</div>
         <div className="w-[80px] shrink-0 border-l border-border px-2 py-2 text-center">Ед. изм.</div>
         <div className="w-[80px] shrink-0 border-l border-border px-2 py-2 text-center">Коэф.</div>
@@ -578,7 +591,7 @@ function PDCTable({
         <div className="w-[100px] shrink-0 border-l border-border px-2 py-2 text-center">Материалы</div>
         <div className="w-[100px] shrink-0 border-l border-border px-2 py-2 text-center">СМР, ПНР</div>
         <div className="w-[100px] shrink-0 border-l border-border px-2 py-2 text-center">Цена с НДС</div>
-        <div className="w-[120px] shrink-0 border-l border-border px-2 py-2 text-center">Стоимость</div>
+        <div className="w-[160px] shrink-0 border-l border-border px-2 py-2 text-center">Стоимость</div>
       </div>
 
       {blocks.map((block, blockIdx) => (
@@ -690,11 +703,11 @@ function PDCBlockRow({
   return (
     <>
       <div className="flex items-stretch border-b border-border bg-[#F2F4F7] dark:bg-muted/40 group">
-        <div className="w-12 shrink-0 px-2 py-2 flex items-center justify-center font-bold">
+        <div className="w-16 shrink-0 px-2 py-2 flex items-center justify-center font-bold">
           {blockNumber}
         </div>
         <div 
-          className="flex-1 min-w-[300px] flex items-center gap-2 px-3 py-2 cursor-pointer"
+          className="flex-1 min-w-[240px] flex items-center gap-2 px-3 py-2 cursor-pointer"
           onClick={onToggle}
         >
           {isExpanded ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
@@ -766,7 +779,7 @@ function PDCBlockRow({
         <div className="w-[100px] shrink-0 border-l border-border" />
         <div className="w-[100px] shrink-0 border-l border-border" />
         <div className="w-[100px] shrink-0 border-l border-border" />
-        <div className="w-[120px] shrink-0 border-l border-border px-2 py-2 text-right font-mono font-semibold">
+        <div className="w-[160px] shrink-0 border-l border-border px-2 py-2 text-right font-mono font-semibold">
           {formatRubles(blockTotal)}
         </div>
       </div>
@@ -824,16 +837,19 @@ function PDCSectionRow({
   const { toast } = useToast();
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(section.name);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [description, setDescription] = useState(section.description || "");
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
 
   const updateSection = useMutation({
-    mutationFn: async (updates: { name?: string }) => {
+    mutationFn: async (updates: { name?: string; description?: string }) => {
       return await apiRequest("PUT", `/api/pdc-sections/${section.id}`, updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pdc-documents", documentId] });
       setEditingName(false);
+      setEditingDescription(false);
     },
   });
 
@@ -874,74 +890,104 @@ function PDCSectionRow({
   return (
     <>
       <div className="flex items-stretch border-b border-border group">
-        <div className="w-12 shrink-0 px-2 py-2 flex items-center justify-center text-sm">
+        <div className="w-16 shrink-0 px-2 py-2 flex items-center justify-center text-sm">
           {sectionNumber}
         </div>
         <div 
-          className="flex-1 min-w-[300px] flex items-center gap-2 pl-6 pr-3 py-2 cursor-pointer"
+          className="flex-1 min-w-[240px] flex gap-2 pl-6 pr-3 py-2 cursor-pointer"
           onClick={onToggle}
         >
           <div className="w-1 self-stretch bg-primary rounded-sm shrink-0" />
-          {editingName ? (
-            <div className="flex items-center gap-1 flex-1" onClick={(e) => e.stopPropagation()}>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="h-7 text-sm flex-1"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") updateSection.mutate({ name });
-                  if (e.key === "Escape") setEditingName(false);
-                }}
-              />
-              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateSection.mutate({ name })}>
-                <Check className="w-3 h-3" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditingName(false)}>
-                <X className="w-3 h-3" />
-              </Button>
-            </div>
-          ) : (
-            <>
-              <span className="text-sm font-semibold">{section.name}</span>
-              <div className="flex gap-1 ml-auto mr-2 invisible group-hover:visible">
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingName(true); setName(section.name); }}>
-                  <Pencil className="w-3 h-3" />
+          <div className="flex flex-col flex-1 gap-0.5">
+            {editingName ? (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="h-7 text-sm flex-1"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") updateSection.mutate({ name });
+                    if (e.key === "Escape") setEditingName(false);
+                  }}
+                />
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateSection.mutate({ name })}>
+                  <Check className="w-3 h-3" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); reorderSection.mutate('up'); }}>
-                  <ChevronUp className="w-3 h-3" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); reorderSection.mutate('down'); }}>
-                  <ChevronDown className="w-3 h-3" />
-                </Button>
-                <Dialog open={addGroupOpen} onOpenChange={setAddGroupOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => e.stopPropagation()}>
-                      <Plus className="w-3 h-3" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent onClick={(e) => e.stopPropagation()}>
-                    <DialogHeader>
-                      <DialogTitle>Добавить группу</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <Input 
-                        placeholder="Название группы"
-                        value={newGroupName}
-                        onChange={(e) => setNewGroupName(e.target.value)}
-                      />
-                      <Button onClick={() => createGroup.mutate(newGroupName)} disabled={!newGroupName.trim()}>
-                        Добавить
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={(e) => { e.stopPropagation(); deleteSection.mutate(); }}>
-                  <Trash2 className="w-3 h-3" />
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditingName(false)}>
+                  <X className="w-3 h-3" />
                 </Button>
               </div>
-            </>
-          )}
+            ) : (
+              <div className="flex items-center">
+                <span className="text-sm font-semibold">{section.name}</span>
+                <div className="flex gap-1 ml-auto mr-2 invisible group-hover:visible">
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingName(true); setName(section.name); }}>
+                    <Pencil className="w-3 h-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); reorderSection.mutate('up'); }}>
+                    <ChevronUp className="w-3 h-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); reorderSection.mutate('down'); }}>
+                    <ChevronDown className="w-3 h-3" />
+                  </Button>
+                  <Dialog open={addGroupOpen} onOpenChange={setAddGroupOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => e.stopPropagation()}>
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent onClick={(e) => e.stopPropagation()}>
+                      <DialogHeader>
+                        <DialogTitle>Добавить группу</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <Input 
+                          placeholder="Название группы"
+                          value={newGroupName}
+                          onChange={(e) => setNewGroupName(e.target.value)}
+                        />
+                        <Button onClick={() => createGroup.mutate(newGroupName)} disabled={!newGroupName.trim()}>
+                          Добавить
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={(e) => { e.stopPropagation(); deleteSection.mutate(); }}>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            {editingDescription ? (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="h-6 text-xs italic flex-1"
+                  placeholder="Поясняющая надпись..."
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") updateSection.mutate({ description });
+                    if (e.key === "Escape") setEditingDescription(false);
+                  }}
+                />
+                <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => updateSection.mutate({ description })}>
+                  <Check className="w-3 h-3" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => setEditingDescription(false)}>
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            ) : (
+              <div 
+                className="text-[11px] italic text-muted-foreground cursor-pointer hover:bg-muted/30 rounded px-1 -ml-1"
+                onClick={(e) => { e.stopPropagation(); setEditingDescription(true); setDescription(section.description || ""); }}
+              >
+                {section.description || <span className="invisible group-hover:visible">+ добавить пояснение</span>}
+              </div>
+            )}
+          </div>
         </div>
         <div className="w-[100px] shrink-0 border-l border-border" />
         <div className="w-[80px] shrink-0 border-l border-border" />
@@ -950,7 +996,7 @@ function PDCSectionRow({
         <div className="w-[100px] shrink-0 border-l border-border" />
         <div className="w-[100px] shrink-0 border-l border-border" />
         <div className="w-[100px] shrink-0 border-l border-border" />
-        <div className="w-[120px] shrink-0 border-l border-border px-2 py-2 text-right font-mono">
+        <div className="w-[160px] shrink-0 border-l border-border px-2 py-2 text-right font-mono">
           {formatRubles(sectionTotal)}
         </div>
       </div>
@@ -1065,11 +1111,11 @@ function PDCGroupRow({
   return (
     <>
       <div className="flex items-stretch border-b border-border group">
-        <div className="w-12 shrink-0 px-2 py-2 flex items-center justify-center text-xs">
+        <div className="w-16 shrink-0 px-2 py-2 flex items-center justify-center text-xs">
           {groupNumber}
         </div>
         <div 
-          className="flex-1 min-w-[300px] flex items-center gap-2 pl-9 pr-3 py-2 cursor-pointer"
+          className="flex-1 min-w-[240px] flex items-center gap-2 pl-9 pr-3 py-2 cursor-pointer"
           onClick={onToggle}
         >
           {editingName ? (
@@ -1185,7 +1231,7 @@ function PDCGroupRow({
         <div className="w-[100px] shrink-0 border-l border-border px-2 py-2 text-right text-xs font-mono">
           {formatRubles(groupSmrTotal)}
         </div>
-        <div className="w-[120px] shrink-0 border-l border-border px-2 py-2 text-right font-mono text-xs">
+        <div className="w-[160px] shrink-0 border-l border-border px-2 py-2 text-right font-mono text-xs">
           {formatRubles(groupTotal)}
         </div>
       </div>
@@ -1258,6 +1304,7 @@ function PDCElementRow({
     },
   });
 
+  const elementNumber = `${groupNumber}.${elementIdx + 1}`;
   const coef = parseNumeric(element.consumptionCoef);
   const quantity = parseNumeric(element.quantity);
   const materialPrice = parseNumeric(element.materialPrice);
@@ -1275,15 +1322,16 @@ function PDCElementRow({
 
   return (
     <div className="flex items-stretch border-b border-border group hover:bg-muted/20">
-      <div className="w-12 shrink-0 px-2 py-2 flex items-center justify-center text-xs text-muted-foreground">
+      <div className="w-16 shrink-0 px-2 py-2 flex items-center justify-center text-xs">
+        {elementNumber}
       </div>
-      <div className="flex-1 min-w-[300px] flex items-center gap-2 pl-12 pr-3 py-2">
+      <div className="flex-1 min-w-[240px] flex items-center gap-2 pl-12 pr-3 py-2">
         {editingName ? (
-          <div className="flex items-center gap-1 flex-1">
+          <div className="flex items-center gap-1 flex-1 justify-end">
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="h-7 text-sm flex-1"
+              className="h-7 text-sm flex-1 text-right italic"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") updateElement.mutate({ name });
@@ -1299,8 +1347,8 @@ function PDCElementRow({
           </div>
         ) : (
           <>
-            <span className="text-sm"><span className="mr-2 text-muted-foreground">–</span>{element.name}</span>
-            <div className="flex gap-1 ml-auto mr-2 invisible group-hover:visible">
+            <span className="text-sm italic ml-auto">{element.name}</span>
+            <div className="flex gap-1 ml-2 invisible group-hover:visible">
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditingName(true); setName(element.name); }}>
                 <Pencil className="w-3 h-3" />
               </Button>
@@ -1399,7 +1447,7 @@ function PDCElementRow({
       <div className="w-[100px] shrink-0 border-l border-border px-2 py-2 text-right text-xs font-mono">
         {formatRubles(elementTotal)}
       </div>
-      <div className="w-[120px] shrink-0 border-l border-border" />
+      <div className="w-[160px] shrink-0 border-l border-border" />
     </div>
   );
 }

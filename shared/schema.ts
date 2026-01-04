@@ -297,6 +297,7 @@ export const pdcSections = pgTable("pdc_sections", {
   id: serial("id").primaryKey(),
   blockId: integer("block_id").notNull().references(() => pdcBlocks.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  description: text("description"),
   order: integer("order").default(0).notNull(),
 });
 
