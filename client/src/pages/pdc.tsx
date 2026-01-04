@@ -1017,7 +1017,7 @@ function PDCSectionRow({
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="min-h-[40px] w-[140px] text-xs italic resize-none text-right"
+                  className="min-h-[40px] w-[560px] text-xs italic resize-none text-right"
                   placeholder="Примечание..."
                   autoFocus
                   onKeyDown={(e) => {
@@ -1033,7 +1033,7 @@ function PDCSectionRow({
               </div>
             ) : (
               <div 
-                className="text-[11px] italic text-muted-foreground cursor-pointer hover:bg-muted/30 rounded px-1 ml-auto w-[140px] text-right whitespace-pre-wrap break-words"
+                className="text-[11px] italic text-muted-foreground cursor-pointer hover:bg-muted/30 rounded px-1 ml-auto w-[560px] text-right whitespace-pre-wrap break-words"
                 onClick={(e) => { e.stopPropagation(); setEditingDescription(true); setDescription(section.description || ""); }}
               >
                 {section.description || <span className="invisible group-hover:visible">+ примечание</span>}
