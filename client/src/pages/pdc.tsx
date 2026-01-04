@@ -634,16 +634,16 @@ function PDCTable({
           <div className="w-[200px] shrink-0" />
         </div>
         <div className="flex items-stretch">
-          <div className="w-16 shrink-0 px-2 py-2 text-center border-r border-border">№ п/п</div>
-          <div className="flex-1 min-w-[170px] px-3 py-2 border-r border-border">Наименование затрат</div>
-          <div className="w-[100px] shrink-0 border-r border-border px-2 py-2 text-center">Примечание</div>
-          <div className="w-[80px] shrink-0 border-r border-border px-2 py-2 text-center">Ед. изм.</div>
-          <div className="w-[80px] shrink-0 border-r border-border px-2 py-2 text-center">Коэф.</div>
-          <div className="w-[80px] shrink-0 border-r border-border px-2 py-2 text-center">Кол-во</div>
-          <div className="w-[100px] shrink-0 border-r border-border px-2 py-2 text-center">Материалы</div>
-          <div className="w-[100px] shrink-0 border-r border-border px-2 py-2 text-center">СМР, ПНР</div>
-          <div className="w-[130px] shrink-0 border-r border-border px-2 py-2 text-center">Цена с НДС</div>
-          <div className="w-[200px] shrink-0 px-2 py-2 text-center">Стоимость</div>
+          <div className="w-16 shrink-0 px-2 py-2 flex items-center justify-center border-r border-border">№ п/п</div>
+          <div className="flex-1 min-w-[170px] px-3 py-2 flex items-center justify-center border-r border-border">Наименование затрат</div>
+          <div className="w-[100px] shrink-0 border-r border-border px-2 py-2 flex items-center justify-center">Примечание</div>
+          <div className="w-[80px] shrink-0 border-r border-border px-2 py-2 flex items-center justify-center">Ед. изм.</div>
+          <div className="w-[80px] shrink-0 border-r border-border px-2 py-2 flex items-center justify-center">Коэф.</div>
+          <div className="w-[80px] shrink-0 border-r border-border px-2 py-2 flex items-center justify-center">Кол-во</div>
+          <div className="w-[100px] shrink-0 border-r border-border px-2 py-2 flex items-center justify-center">Материалы</div>
+          <div className="w-[100px] shrink-0 border-r border-border px-2 py-2 flex items-center justify-center">СМР, ПНР</div>
+          <div className="w-[130px] shrink-0 border-r border-border px-2 py-2 flex items-center justify-center">Цена с НДС</div>
+          <div className="w-[200px] shrink-0 px-2 py-2 flex items-center justify-center">Стоимость</div>
         </div>
       </div>
 
@@ -785,8 +785,8 @@ function PDCBlockRow({
             </div>
           ) : (
             <>
-              <span className="text-sm font-bold uppercase">{block.name}</span>
-              <div className="flex gap-1 ml-auto mr-2 invisible group-hover:visible">
+              <span className="text-sm font-bold uppercase whitespace-pre-wrap break-words flex-1">{block.name}</span>
+              <div className="flex gap-1 shrink-0 invisible group-hover:visible">
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingName(true); setName(block.name); }}>
                   <Pencil className="w-3 h-3" />
                 </Button>
@@ -972,9 +972,9 @@ function PDCSectionRow({
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-1">
-                <span className="text-sm font-semibold">{section.name}</span>
-                <div className="flex gap-1 ml-auto shrink-0 invisible group-hover:visible">
+              <div className="flex items-start gap-1">
+                <span className="text-sm font-semibold whitespace-pre-wrap break-words flex-1">{section.name}</span>
+                <div className="flex gap-1 shrink-0 invisible group-hover:visible">
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingName(true); setName(section.name); }}>
                     <Pencil className="w-3 h-3" />
                   </Button>
@@ -1013,12 +1013,12 @@ function PDCSectionRow({
               </div>
             )}
             {editingDescription ? (
-              <div className="flex items-start gap-1" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-start gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="min-h-[40px] text-xs italic flex-1 resize-none"
-                  placeholder="Поясняющая надпись..."
+                  className="min-h-[40px] w-[140px] text-xs italic resize-none text-right"
+                  placeholder="Примечание..."
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Escape") setEditingDescription(false);
@@ -1033,10 +1033,10 @@ function PDCSectionRow({
               </div>
             ) : (
               <div 
-                className="text-[11px] italic text-muted-foreground cursor-pointer hover:bg-muted/30 rounded px-1 -ml-1 whitespace-pre-wrap break-words"
+                className="text-[11px] italic text-muted-foreground cursor-pointer hover:bg-muted/30 rounded px-1 ml-auto w-[140px] text-right whitespace-pre-wrap break-words"
                 onClick={(e) => { e.stopPropagation(); setEditingDescription(true); setDescription(section.description || ""); }}
               >
-                {section.description || <span className="invisible group-hover:visible">+ добавить пояснение</span>}
+                {section.description || <span className="invisible group-hover:visible">+ примечание</span>}
               </div>
             )}
           </div>
@@ -1191,8 +1191,8 @@ function PDCGroupRow({
             </div>
           ) : (
             <>
-              <span className="text-sm font-medium">{group.name}</span>
-              <div className="flex gap-1 ml-auto mr-2 invisible group-hover:visible">
+              <span className="text-sm font-medium whitespace-pre-wrap break-words flex-1">{group.name}</span>
+              <div className="flex gap-1 shrink-0 invisible group-hover:visible">
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingName(true); setName(group.name); }}>
                   <Pencil className="w-3 h-3" />
                 </Button>
@@ -1399,8 +1399,8 @@ function PDCElementRow({
           </div>
         ) : (
           <>
-            <span className="text-sm italic ml-auto">{element.name}</span>
-            <div className="flex gap-1 ml-2 invisible group-hover:visible">
+            <span className="text-sm italic whitespace-pre-wrap break-words flex-1">{element.name}</span>
+            <div className="flex gap-1 shrink-0 invisible group-hover:visible">
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditingName(true); setName(element.name); }}>
                 <Pencil className="w-3 h-3" />
               </Button>
