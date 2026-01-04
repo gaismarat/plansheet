@@ -697,6 +697,17 @@ async function seedDatabase() {
   // Check if we need to reinitialize order values for existing data
   const needsReorder = groups.some(g => g.works.some(w => w.order === 0) && g.works.length > 1);
   
+  // Reinitialize PDC documents order if all have order 0
+  const pdcDocs = await storage.getPdcDocuments();
+  const allPdcDocsZeroOrder = pdcDocs.length > 1 && pdcDocs.every(d => d.order === 0);
+  if (allPdcDocsZeroOrder) {
+    console.log("Reinitializing PDC documents order values...");
+    for (let i = 0; i < pdcDocs.length; i++) {
+      await storage.updatePdcDocument(pdcDocs[i].id, { order: i });
+    }
+    console.log("PDC documents order values reinitialized!");
+  }
+  
   if (groups.length === 0) {
     console.log("Seeding database...");
     
