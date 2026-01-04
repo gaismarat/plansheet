@@ -7,7 +7,7 @@ import { CreateWorkDialog } from "@/components/forms/create-work-dialog";
 import { WorkItemRow } from "@/components/work-item-row";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, FolderOpen, HardHat, TrendingUp, BarChart3, Download, Layers, CalendarDays, Wallet, User, LogOut, Shield } from "lucide-react";
+import { Trash2, FolderOpen, HardHat, TrendingUp, BarChart3, Download, Layers, CalendarDays, Wallet, User, LogOut, Shield, FileText } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   DropdownMenu,
@@ -142,6 +142,12 @@ export default function Dashboard() {
               <Button variant="ghost" size="sm" className="gap-2" data-testid="button-budget">
                 <Wallet className="w-4 h-4" />
                 <span className="hidden sm:inline">Бюджет</span>
+              </Button>
+            </Link>
+            <Link href="/pdc">
+              <Button variant="ghost" size="sm" className="gap-2" data-testid="button-pdc">
+                <FileText className="w-4 h-4" />
+                <span className="hidden sm:inline">ПДЦ</span>
               </Button>
             </Link>
             <Link href="/ksp">
