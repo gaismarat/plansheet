@@ -372,7 +372,7 @@ function PDCDocumentCard({
               <span className="font-semibold text-lg">{document.name}</span>
             </div>
             <div className="flex items-center gap-4">
-              <div className="text-right">
+              <div className="text-right mr-[100px]">
                 <div className="text-sm text-muted-foreground">Итого без НДС</div>
                 <div className="font-mono font-semibold">{formatRubles(total)}</div>
               </div>
@@ -620,30 +620,30 @@ function PDCTable({
   return (
     <div className="min-w-max">
       <div className="flex flex-col border-b border-border bg-muted/50 font-semibold text-xs">
-        <div className="flex items-center">
-          <div className="w-16 shrink-0" />
-          <div className="flex-1 min-w-[170px]" />
-          <div className="w-[100px] shrink-0 border-l border-border" />
-          <div className="w-[80px] shrink-0 border-l border-border" />
-          <div className="w-[80px] shrink-0 border-l border-border" />
-          <div className="w-[80px] shrink-0 border-l border-border" />
-          <div className="w-[200px] shrink-0 border-l border-border px-2 py-1 text-center border-b border-border">
+        <div className="flex items-stretch">
+          <div className="w-16 shrink-0 border-r border-border" />
+          <div className="flex-1 min-w-[170px] border-r border-border" />
+          <div className="w-[100px] shrink-0 border-r border-border" />
+          <div className="w-[80px] shrink-0 border-r border-border" />
+          <div className="w-[80px] shrink-0 border-r border-border" />
+          <div className="w-[80px] shrink-0 border-r border-border" />
+          <div className="w-[200px] shrink-0 border-x border-border border-b px-2 py-1 text-center">
             Цена за ед., руб. с НДС
           </div>
-          <div className="w-[130px] shrink-0 border-l border-border" />
-          <div className="w-[200px] shrink-0 border-l border-border" />
+          <div className="w-[130px] shrink-0 border-r border-border" />
+          <div className="w-[200px] shrink-0" />
         </div>
-        <div className="flex items-center">
-          <div className="w-16 shrink-0 px-2 py-2 text-center">№ п/п</div>
-          <div className="flex-1 min-w-[170px] px-3 py-2">Наименование затрат</div>
-          <div className="w-[100px] shrink-0 border-l border-border px-2 py-2 text-center">Примечание</div>
-          <div className="w-[80px] shrink-0 border-l border-border px-2 py-2 text-center">Ед. изм.</div>
-          <div className="w-[80px] shrink-0 border-l border-border px-2 py-2 text-center">Коэф.</div>
-          <div className="w-[80px] shrink-0 border-l border-border px-2 py-2 text-center">Кол-во</div>
-          <div className="w-[100px] shrink-0 border-l border-border px-2 py-2 text-center">Материалы</div>
-          <div className="w-[100px] shrink-0 border-l border-border px-2 py-2 text-center">СМР, ПНР</div>
-          <div className="w-[130px] shrink-0 border-l border-border px-2 py-2 text-center">Цена с НДС</div>
-          <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-center">Стоимость</div>
+        <div className="flex items-stretch">
+          <div className="w-16 shrink-0 px-2 py-2 text-center border-r border-border">№ п/п</div>
+          <div className="flex-1 min-w-[170px] px-3 py-2 border-r border-border">Наименование затрат</div>
+          <div className="w-[100px] shrink-0 border-r border-border px-2 py-2 text-center">Примечание</div>
+          <div className="w-[80px] shrink-0 border-r border-border px-2 py-2 text-center">Ед. изм.</div>
+          <div className="w-[80px] shrink-0 border-r border-border px-2 py-2 text-center">Коэф.</div>
+          <div className="w-[80px] shrink-0 border-r border-border px-2 py-2 text-center">Кол-во</div>
+          <div className="w-[100px] shrink-0 border-r border-border px-2 py-2 text-center">Материалы</div>
+          <div className="w-[100px] shrink-0 border-r border-border px-2 py-2 text-center">СМР, ПНР</div>
+          <div className="w-[130px] shrink-0 border-r border-border px-2 py-2 text-center">Цена с НДС</div>
+          <div className="w-[200px] shrink-0 px-2 py-2 text-center">Стоимость</div>
         </div>
       </div>
 
@@ -947,11 +947,11 @@ function PDCSectionRow({
           {sectionNumber}
         </div>
         <div 
-          className="flex-1 min-w-[170px] flex gap-2 pl-6 pr-3 py-2 cursor-pointer"
+          className="w-[170px] shrink-0 flex gap-2 pl-6 pr-3 py-2 cursor-pointer"
           onClick={onToggle}
         >
           <div className="w-1 self-stretch bg-primary rounded-sm shrink-0" />
-          <div className="flex flex-col flex-1 gap-0.5">
+          <div className="flex flex-col flex-1 gap-0.5 min-w-0">
             {editingName ? (
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                 <Input
@@ -972,9 +972,9 @@ function PDCSectionRow({
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center">
-                <span className="text-sm font-semibold">{section.name}</span>
-                <div className="flex gap-1 ml-auto mr-2 invisible group-hover:visible">
+              <div className="flex items-center min-w-0">
+                <span className="text-sm font-semibold truncate flex-1">{section.name}</span>
+                <div className="flex gap-1 shrink-0 ml-2 invisible group-hover:visible">
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingName(true); setName(section.name); }}>
                     <Pencil className="w-3 h-3" />
                   </Button>
