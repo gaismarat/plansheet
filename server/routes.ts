@@ -377,6 +377,214 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // === PDC Documents ===
+
+  app.get('/api/pdc-documents', async (_req, res) => {
+    const documents = await storage.getPdcDocuments();
+    res.json(documents);
+  });
+
+  app.get('/api/pdc-documents/:id', async (req, res) => {
+    const document = await storage.getPdcDocumentWithData(Number(req.params.id));
+    if (!document) {
+      return res.status(404).json({ message: "PDC document not found" });
+    }
+    res.json(document);
+  });
+
+  app.post('/api/pdc-documents', async (req, res) => {
+    try {
+      const document = await storage.createPdcDocument(req.body);
+      res.status(201).json(document);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/pdc-documents/:id', async (req, res) => {
+    try {
+      const updated = await storage.updatePdcDocument(Number(req.params.id), req.body);
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.delete('/api/pdc-documents/:id', async (req, res) => {
+    await storage.deletePdcDocument(Number(req.params.id));
+    res.status(204).send();
+  });
+
+  // === PDC Blocks ===
+
+  app.post('/api/pdc-blocks', async (req, res) => {
+    try {
+      const block = await storage.createPdcBlock(req.body);
+      res.status(201).json(block);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/pdc-blocks/:id', async (req, res) => {
+    try {
+      const updated = await storage.updatePdcBlock(Number(req.params.id), req.body);
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/pdc-blocks/:id/reorder', async (req, res) => {
+    try {
+      const direction = req.body.direction as 'up' | 'down';
+      await storage.reorderPdcBlock(Number(req.params.id), direction);
+      res.status(200).json({ success: true });
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  app.delete('/api/pdc-blocks/:id', async (req, res) => {
+    await storage.deletePdcBlock(Number(req.params.id));
+    res.status(204).send();
+  });
+
+  // === PDC Sections ===
+
+  app.post('/api/pdc-sections', async (req, res) => {
+    try {
+      const section = await storage.createPdcSection(req.body);
+      res.status(201).json(section);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/pdc-sections/:id', async (req, res) => {
+    try {
+      const updated = await storage.updatePdcSection(Number(req.params.id), req.body);
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/pdc-sections/:id/reorder', async (req, res) => {
+    try {
+      const direction = req.body.direction as 'up' | 'down';
+      await storage.reorderPdcSection(Number(req.params.id), direction);
+      res.status(200).json({ success: true });
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  app.delete('/api/pdc-sections/:id', async (req, res) => {
+    await storage.deletePdcSection(Number(req.params.id));
+    res.status(204).send();
+  });
+
+  // === PDC Groups ===
+
+  app.post('/api/pdc-groups', async (req, res) => {
+    try {
+      const group = await storage.createPdcGroup(req.body);
+      res.status(201).json(group);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/pdc-groups/:id', async (req, res) => {
+    try {
+      const updated = await storage.updatePdcGroup(Number(req.params.id), req.body);
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/pdc-groups/:id/reorder', async (req, res) => {
+    try {
+      const direction = req.body.direction as 'up' | 'down';
+      await storage.reorderPdcGroup(Number(req.params.id), direction);
+      res.status(200).json({ success: true });
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  app.delete('/api/pdc-groups/:id', async (req, res) => {
+    await storage.deletePdcGroup(Number(req.params.id));
+    res.status(204).send();
+  });
+
+  // === PDC Elements ===
+
+  app.post('/api/pdc-elements', async (req, res) => {
+    try {
+      const element = await storage.createPdcElement(req.body);
+      res.status(201).json(element);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/pdc-elements/:id', async (req, res) => {
+    try {
+      const updated = await storage.updatePdcElement(Number(req.params.id), req.body);
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/pdc-elements/:id/reorder', async (req, res) => {
+    try {
+      const direction = req.body.direction as 'up' | 'down';
+      await storage.reorderPdcElement(Number(req.params.id), direction);
+      res.status(200).json({ success: true });
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  app.delete('/api/pdc-elements/:id', async (req, res) => {
+    await storage.deletePdcElement(Number(req.params.id));
+    res.status(204).send();
+  });
+
   // === User Management (Admin only) ===
 
   app.get('/api/users', requireAdmin, async (_req, res) => {

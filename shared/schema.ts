@@ -275,3 +275,118 @@ export type InsertPermission = z.infer<typeof insertPermissionSchema>;
 // User without password hash for client
 export type SafeUser = Omit<User, "passwordHash">;
 export type UserWithPermissions = SafeUser & { permissions: Permission[] };
+
+// === PDC (Protocol of Cost Agreement) TABLES ===
+
+export const pdcDocuments = pgTable("pdc_documents", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  headerText: text("header_text"),
+  vatRate: numeric("vat_rate", { precision: 5, scale: 2 }).default("20"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const pdcBlocks = pgTable("pdc_blocks", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").notNull().references(() => pdcDocuments.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  order: integer("order").default(0).notNull(),
+});
+
+export const pdcSections = pgTable("pdc_sections", {
+  id: serial("id").primaryKey(),
+  blockId: integer("block_id").notNull().references(() => pdcBlocks.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  order: integer("order").default(0).notNull(),
+});
+
+export const pdcGroups = pgTable("pdc_groups", {
+  id: serial("id").primaryKey(),
+  sectionId: integer("section_id").notNull().references(() => pdcSections.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  unit: text("unit").default("шт."),
+  quantity: numeric("quantity", { precision: 18, scale: 4 }).default("0"),
+  smrPnrPrice: numeric("smr_pnr_price", { precision: 18, scale: 2 }).default("0"),
+  order: integer("order").default(0).notNull(),
+});
+
+export const pdcElements = pgTable("pdc_elements", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").notNull().references(() => pdcGroups.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  note: text("note"),
+  unit: text("unit").default("шт."),
+  consumptionCoef: numeric("consumption_coef", { precision: 10, scale: 4 }).default("1"),
+  quantity: numeric("quantity", { precision: 18, scale: 4 }).default("0"),
+  materialPrice: numeric("material_price", { precision: 18, scale: 2 }).default("0"),
+  order: integer("order").default(0).notNull(),
+});
+
+// === PDC RELATIONS ===
+
+export const pdcDocumentsRelations = relations(pdcDocuments, ({ many }) => ({
+  blocks: many(pdcBlocks),
+}));
+
+export const pdcBlocksRelations = relations(pdcBlocks, ({ one, many }) => ({
+  document: one(pdcDocuments, {
+    fields: [pdcBlocks.documentId],
+    references: [pdcDocuments.id],
+  }),
+  sections: many(pdcSections),
+}));
+
+export const pdcSectionsRelations = relations(pdcSections, ({ one, many }) => ({
+  block: one(pdcBlocks, {
+    fields: [pdcSections.blockId],
+    references: [pdcBlocks.id],
+  }),
+  groups: many(pdcGroups),
+}));
+
+export const pdcGroupsRelations = relations(pdcGroups, ({ one, many }) => ({
+  section: one(pdcSections, {
+    fields: [pdcGroups.sectionId],
+    references: [pdcSections.id],
+  }),
+  elements: many(pdcElements),
+}));
+
+export const pdcElementsRelations = relations(pdcElements, ({ one }) => ({
+  group: one(pdcGroups, {
+    fields: [pdcElements.groupId],
+    references: [pdcGroups.id],
+  }),
+}));
+
+// === PDC SCHEMAS ===
+
+export const insertPdcDocumentSchema = createInsertSchema(pdcDocuments).omit({ id: true, createdAt: true });
+export const insertPdcBlockSchema = createInsertSchema(pdcBlocks).omit({ id: true });
+export const insertPdcSectionSchema = createInsertSchema(pdcSections).omit({ id: true });
+export const insertPdcGroupSchema = createInsertSchema(pdcGroups).omit({ id: true });
+export const insertPdcElementSchema = createInsertSchema(pdcElements).omit({ id: true });
+
+// === PDC TYPES ===
+
+export type PdcDocument = typeof pdcDocuments.$inferSelect;
+export type InsertPdcDocument = z.infer<typeof insertPdcDocumentSchema>;
+
+export type PdcBlock = typeof pdcBlocks.$inferSelect;
+export type InsertPdcBlock = z.infer<typeof insertPdcBlockSchema>;
+
+export type PdcSection = typeof pdcSections.$inferSelect;
+export type InsertPdcSection = z.infer<typeof insertPdcSectionSchema>;
+
+export type PdcGroup = typeof pdcGroups.$inferSelect;
+export type InsertPdcGroup = z.infer<typeof insertPdcGroupSchema>;
+
+export type PdcElement = typeof pdcElements.$inferSelect;
+export type InsertPdcElement = z.infer<typeof insertPdcElementSchema>;
+
+// PDC nested types for API responses
+export type PdcElementWithData = PdcElement;
+export type PdcGroupWithElements = PdcGroup & { elements?: PdcElementWithData[] };
+export type PdcSectionWithGroups = PdcSection & { groups?: PdcGroupWithElements[] };
+export type PdcBlockWithSections = PdcBlock & { sections?: PdcSectionWithGroups[] };
+export type PdcDocumentWithData = PdcDocument & { blocks?: PdcBlockWithSections[] };

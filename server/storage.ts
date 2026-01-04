@@ -10,6 +10,11 @@ import {
   budgetValues,
   users,
   permissions,
+  pdcDocuments,
+  pdcBlocks,
+  pdcSections,
+  pdcGroups,
+  pdcElements,
   type Block,
   type Work,
   type WorkGroup,
@@ -37,7 +42,21 @@ import {
   type Permission,
   type SafeUser,
   type UserWithPermissions,
-  type InsertPermission
+  type InsertPermission,
+  type PdcDocument,
+  type PdcBlock,
+  type PdcSection,
+  type PdcGroup,
+  type PdcElement,
+  type InsertPdcDocument,
+  type InsertPdcBlock,
+  type InsertPdcSection,
+  type InsertPdcGroup,
+  type InsertPdcElement,
+  type PdcDocumentWithData,
+  type PdcBlockWithSections,
+  type PdcSectionWithGroups,
+  type PdcGroupWithElements
 } from "@shared/schema";
 import { eq, and, isNull, asc } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -113,6 +132,37 @@ export interface IStorage {
   setPermission(userId: number, permissionType: string, resource: string, allowed: boolean): Promise<Permission>;
   deletePermission(id: number): Promise<void>;
   hasPermission(userId: number, permissionType: string, resource: string): Promise<boolean>;
+
+  // PDC Documents
+  getPdcDocuments(): Promise<PdcDocument[]>;
+  getPdcDocumentWithData(id: number): Promise<PdcDocumentWithData | undefined>;
+  createPdcDocument(doc: InsertPdcDocument): Promise<PdcDocument>;
+  updatePdcDocument(id: number, updates: Partial<InsertPdcDocument>): Promise<PdcDocument>;
+  deletePdcDocument(id: number): Promise<void>;
+
+  // PDC Blocks
+  createPdcBlock(block: InsertPdcBlock): Promise<PdcBlock>;
+  updatePdcBlock(id: number, updates: Partial<InsertPdcBlock>): Promise<PdcBlock>;
+  deletePdcBlock(id: number): Promise<void>;
+  reorderPdcBlock(id: number, direction: 'up' | 'down'): Promise<void>;
+
+  // PDC Sections
+  createPdcSection(section: InsertPdcSection): Promise<PdcSection>;
+  updatePdcSection(id: number, updates: Partial<InsertPdcSection>): Promise<PdcSection>;
+  deletePdcSection(id: number): Promise<void>;
+  reorderPdcSection(id: number, direction: 'up' | 'down'): Promise<void>;
+
+  // PDC Groups
+  createPdcGroup(group: InsertPdcGroup): Promise<PdcGroup>;
+  updatePdcGroup(id: number, updates: Partial<InsertPdcGroup>): Promise<PdcGroup>;
+  deletePdcGroup(id: number): Promise<void>;
+  reorderPdcGroup(id: number, direction: 'up' | 'down'): Promise<void>;
+
+  // PDC Elements
+  createPdcElement(element: InsertPdcElement): Promise<PdcElement>;
+  updatePdcElement(id: number, updates: Partial<InsertPdcElement>): Promise<PdcElement>;
+  deletePdcElement(id: number): Promise<void>;
+  reorderPdcElement(id: number, direction: 'up' | 'down'): Promise<void>;
 
   // Admin initialization
   initializeAdmin(): Promise<void>;
@@ -643,6 +693,225 @@ export class DatabaseStorage implements IStorage {
     // Create the admin user
     await this.createUser("GaisinMF", adminPassword, true);
     console.log("Admin user GaisinMF created successfully");
+  }
+
+  // === PDC DOCUMENTS ===
+
+  async getPdcDocuments(): Promise<PdcDocument[]> {
+    return await db.select().from(pdcDocuments).orderBy(asc(pdcDocuments.id));
+  }
+
+  async getPdcDocumentWithData(id: number): Promise<PdcDocumentWithData | undefined> {
+    const result = await db.query.pdcDocuments.findFirst({
+      where: eq(pdcDocuments.id, id),
+      with: {
+        blocks: {
+          orderBy: (pdcBlocks, { asc }) => [asc(pdcBlocks.order), asc(pdcBlocks.id)],
+          with: {
+            sections: {
+              orderBy: (pdcSections, { asc }) => [asc(pdcSections.order), asc(pdcSections.id)],
+              with: {
+                groups: {
+                  orderBy: (pdcGroups, { asc }) => [asc(pdcGroups.order), asc(pdcGroups.id)],
+                  with: {
+                    elements: {
+                      orderBy: (pdcElements, { asc }) => [asc(pdcElements.order), asc(pdcElements.id)],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    return result as PdcDocumentWithData | undefined;
+  }
+
+  async createPdcDocument(doc: InsertPdcDocument): Promise<PdcDocument> {
+    const [newDoc] = await db.insert(pdcDocuments).values(doc).returning();
+    return newDoc;
+  }
+
+  async updatePdcDocument(id: number, updates: Partial<InsertPdcDocument>): Promise<PdcDocument> {
+    const [updated] = await db.update(pdcDocuments).set(updates).where(eq(pdcDocuments.id, id)).returning();
+    return updated;
+  }
+
+  async deletePdcDocument(id: number): Promise<void> {
+    await db.delete(pdcDocuments).where(eq(pdcDocuments.id, id));
+  }
+
+  // === PDC BLOCKS ===
+
+  async createPdcBlock(block: InsertPdcBlock): Promise<PdcBlock> {
+    const existing = await db.select().from(pdcBlocks)
+      .where(eq(pdcBlocks.documentId, block.documentId));
+    const maxOrder = Math.max(...existing.map(b => b.order), -1);
+    
+    const [newBlock] = await db.insert(pdcBlocks).values({
+      ...block,
+      order: maxOrder + 1
+    }).returning();
+    return newBlock;
+  }
+
+  async updatePdcBlock(id: number, updates: Partial<InsertPdcBlock>): Promise<PdcBlock> {
+    const [updated] = await db.update(pdcBlocks).set(updates).where(eq(pdcBlocks.id, id)).returning();
+    return updated;
+  }
+
+  async deletePdcBlock(id: number): Promise<void> {
+    await db.delete(pdcBlocks).where(eq(pdcBlocks.id, id));
+  }
+
+  async reorderPdcBlock(id: number, direction: 'up' | 'down'): Promise<void> {
+    const [block] = await db.select().from(pdcBlocks).where(eq(pdcBlocks.id, id));
+    if (!block) return;
+
+    const siblings = await db.select()
+      .from(pdcBlocks)
+      .where(eq(pdcBlocks.documentId, block.documentId))
+      .orderBy(asc(pdcBlocks.order));
+
+    const currentIndex = siblings.findIndex(s => s.id === id);
+    if (currentIndex === -1) return;
+
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (swapIndex < 0 || swapIndex >= siblings.length) return;
+
+    const swapBlock = siblings[swapIndex];
+    await db.update(pdcBlocks).set({ order: swapBlock.order }).where(eq(pdcBlocks.id, block.id));
+    await db.update(pdcBlocks).set({ order: block.order }).where(eq(pdcBlocks.id, swapBlock.id));
+  }
+
+  // === PDC SECTIONS ===
+
+  async createPdcSection(section: InsertPdcSection): Promise<PdcSection> {
+    const existing = await db.select().from(pdcSections)
+      .where(eq(pdcSections.blockId, section.blockId));
+    const maxOrder = Math.max(...existing.map(s => s.order), -1);
+    
+    const [newSection] = await db.insert(pdcSections).values({
+      ...section,
+      order: maxOrder + 1
+    }).returning();
+    return newSection;
+  }
+
+  async updatePdcSection(id: number, updates: Partial<InsertPdcSection>): Promise<PdcSection> {
+    const [updated] = await db.update(pdcSections).set(updates).where(eq(pdcSections.id, id)).returning();
+    return updated;
+  }
+
+  async deletePdcSection(id: number): Promise<void> {
+    await db.delete(pdcSections).where(eq(pdcSections.id, id));
+  }
+
+  async reorderPdcSection(id: number, direction: 'up' | 'down'): Promise<void> {
+    const [section] = await db.select().from(pdcSections).where(eq(pdcSections.id, id));
+    if (!section) return;
+
+    const siblings = await db.select()
+      .from(pdcSections)
+      .where(eq(pdcSections.blockId, section.blockId))
+      .orderBy(asc(pdcSections.order));
+
+    const currentIndex = siblings.findIndex(s => s.id === id);
+    if (currentIndex === -1) return;
+
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (swapIndex < 0 || swapIndex >= siblings.length) return;
+
+    const swapSection = siblings[swapIndex];
+    await db.update(pdcSections).set({ order: swapSection.order }).where(eq(pdcSections.id, section.id));
+    await db.update(pdcSections).set({ order: section.order }).where(eq(pdcSections.id, swapSection.id));
+  }
+
+  // === PDC GROUPS ===
+
+  async createPdcGroup(group: InsertPdcGroup): Promise<PdcGroup> {
+    const existing = await db.select().from(pdcGroups)
+      .where(eq(pdcGroups.sectionId, group.sectionId));
+    const maxOrder = Math.max(...existing.map(g => g.order), -1);
+    
+    const [newGroup] = await db.insert(pdcGroups).values({
+      ...group,
+      order: maxOrder + 1
+    }).returning();
+    return newGroup;
+  }
+
+  async updatePdcGroup(id: number, updates: Partial<InsertPdcGroup>): Promise<PdcGroup> {
+    const [updated] = await db.update(pdcGroups).set(updates).where(eq(pdcGroups.id, id)).returning();
+    return updated;
+  }
+
+  async deletePdcGroup(id: number): Promise<void> {
+    await db.delete(pdcGroups).where(eq(pdcGroups.id, id));
+  }
+
+  async reorderPdcGroup(id: number, direction: 'up' | 'down'): Promise<void> {
+    const [group] = await db.select().from(pdcGroups).where(eq(pdcGroups.id, id));
+    if (!group) return;
+
+    const siblings = await db.select()
+      .from(pdcGroups)
+      .where(eq(pdcGroups.sectionId, group.sectionId))
+      .orderBy(asc(pdcGroups.order));
+
+    const currentIndex = siblings.findIndex(s => s.id === id);
+    if (currentIndex === -1) return;
+
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (swapIndex < 0 || swapIndex >= siblings.length) return;
+
+    const swapGroup = siblings[swapIndex];
+    await db.update(pdcGroups).set({ order: swapGroup.order }).where(eq(pdcGroups.id, group.id));
+    await db.update(pdcGroups).set({ order: group.order }).where(eq(pdcGroups.id, swapGroup.id));
+  }
+
+  // === PDC ELEMENTS ===
+
+  async createPdcElement(element: InsertPdcElement): Promise<PdcElement> {
+    const existing = await db.select().from(pdcElements)
+      .where(eq(pdcElements.groupId, element.groupId));
+    const maxOrder = Math.max(...existing.map(e => e.order), -1);
+    
+    const [newElement] = await db.insert(pdcElements).values({
+      ...element,
+      order: maxOrder + 1
+    }).returning();
+    return newElement;
+  }
+
+  async updatePdcElement(id: number, updates: Partial<InsertPdcElement>): Promise<PdcElement> {
+    const [updated] = await db.update(pdcElements).set(updates).where(eq(pdcElements.id, id)).returning();
+    return updated;
+  }
+
+  async deletePdcElement(id: number): Promise<void> {
+    await db.delete(pdcElements).where(eq(pdcElements.id, id));
+  }
+
+  async reorderPdcElement(id: number, direction: 'up' | 'down'): Promise<void> {
+    const [element] = await db.select().from(pdcElements).where(eq(pdcElements.id, id));
+    if (!element) return;
+
+    const siblings = await db.select()
+      .from(pdcElements)
+      .where(eq(pdcElements.groupId, element.groupId))
+      .orderBy(asc(pdcElements.order));
+
+    const currentIndex = siblings.findIndex(s => s.id === id);
+    if (currentIndex === -1) return;
+
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (swapIndex < 0 || swapIndex >= siblings.length) return;
+
+    const swapElement = siblings[swapIndex];
+    await db.update(pdcElements).set({ order: swapElement.order }).where(eq(pdcElements.id, element.id));
+    await db.update(pdcElements).set({ order: element.order }).where(eq(pdcElements.id, swapElement.id));
   }
 }
 
