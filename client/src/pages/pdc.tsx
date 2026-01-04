@@ -947,7 +947,7 @@ function PDCSectionRow({
           {sectionNumber}
         </div>
         <div 
-          className="w-[170px] shrink-0 flex gap-2 pl-6 pr-3 py-2 cursor-pointer"
+          className="flex-1 min-w-[170px] flex gap-2 pl-6 pr-3 py-2 cursor-pointer border-l border-border"
           onClick={onToggle}
         >
           <div className="w-1 self-stretch bg-primary rounded-sm shrink-0" />
@@ -972,9 +972,9 @@ function PDCSectionRow({
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center min-w-0">
-                <span className="text-sm font-semibold truncate flex-1">{section.name}</span>
-                <div className="flex gap-1 shrink-0 ml-2 invisible group-hover:visible">
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-semibold">{section.name}</span>
+                <div className="flex gap-1 ml-auto shrink-0 invisible group-hover:visible">
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingName(true); setName(section.name); }}>
                     <Pencil className="w-3 h-3" />
                   </Button>
@@ -1033,7 +1033,7 @@ function PDCSectionRow({
               </div>
             ) : (
               <div 
-                className="text-[11px] italic text-muted-foreground cursor-pointer hover:bg-muted/30 rounded px-1 -ml-1 whitespace-pre-wrap break-words max-w-full"
+                className="text-[11px] italic text-muted-foreground cursor-pointer hover:bg-muted/30 rounded px-1 -ml-1 whitespace-pre-wrap break-words"
                 onClick={(e) => { e.stopPropagation(); setEditingDescription(true); setDescription(section.description || ""); }}
               >
                 {section.description || <span className="invisible group-hover:visible">+ добавить пояснение</span>}
