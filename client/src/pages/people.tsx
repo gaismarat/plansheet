@@ -21,7 +21,7 @@ export default function People() {
   
   const [expandedBlocks, setExpandedBlocks] = useState<Set<number>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const todayColumnRef = useRef<HTMLTableCellElement>(null);
   const [hasScrolled, setHasScrolled] = useState(false);
 
   const isLoading = blocksLoading || groupsLoading || peopleLoading;
@@ -103,13 +103,14 @@ export default function People() {
   }, [days, today]);
 
   useEffect(() => {
-    if (!hasScrolled && todayIndex >= 0 && scrollContainerRef.current) {
-      const cellWidth = 50;
-      const scrollTarget = todayIndex * cellWidth - (scrollContainerRef.current.clientWidth / 2) + cellWidth;
-      scrollContainerRef.current.scrollLeft = Math.max(0, scrollTarget);
-      setHasScrolled(true);
+    if (!hasScrolled && !isLoading && todayIndex >= 0 && todayColumnRef.current) {
+      const timer = setTimeout(() => {
+        todayColumnRef.current?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' });
+        setHasScrolled(true);
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [todayIndex, hasScrolled]);
+  }, [hasScrolled, isLoading, todayIndex]);
 
   const toggleBlock = (blockId: number) => {
     const newSet = new Set(expandedBlocks);
@@ -217,7 +218,7 @@ export default function People() {
         </div>
 
         <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full" ref={scrollContainerRef}>
+          <ScrollArea className="h-full">
             <div className="min-w-max">
               <table className="w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-20 bg-card">
@@ -229,7 +230,8 @@ export default function People() {
                       
                       return (
                         <th 
-                          key={idx} 
+                          key={idx}
+                          ref={isToday ? todayColumnRef : undefined}
                           className={`border-b border-r border-border p-1 text-center font-medium min-w-[50px] w-[50px] text-xs h-12 ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/30' : 'bg-muted/50'}`}
                         >
                           {format(day, "dd", { locale: ru })}
