@@ -29,6 +29,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { type WorkGroupResponse, type BlockResponse } from "@shared/schema";
+import logoImage from "@assets/Планшет_1767727492095.png";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -125,9 +126,7 @@ export default function Dashboard() {
       <header className="bg-card border-b border-border sticky top-0 z-10 backdrop-blur-sm bg-card/80">
         <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <div className="bg-primary text-primary-foreground p-2 rounded-lg">
-              <HardHat className="w-5 h-5" />
-            </div>
+            <img src={logoImage} alt="СтройКонтроль" className="h-9 w-auto" />
             <h1 className="text-xl font-bold font-display tracking-tight text-foreground">
               СтройКонтроль <span className="text-primary/60 font-sans font-normal text-sm ml-2 hidden sm:inline-block">v1.0</span>
             </h1>
