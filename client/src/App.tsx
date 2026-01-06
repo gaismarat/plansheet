@@ -10,6 +10,7 @@ import Analytics from "@/pages/analytics";
 import KSP from "@/pages/ksp";
 import Budget from "@/pages/budget";
 import PDC from "@/pages/pdc";
+import People from "@/pages/people";
 import Login from "@/pages/login";
 import Admin from "@/pages/admin";
 import { Loader2 } from "lucide-react";
@@ -80,6 +81,9 @@ function Router() {
       </Route>
       <Route path="/pdc">
         <ProtectedRoute component={PDC} page="pdc" />
+      </Route>
+      <Route path="/people">
+        <ProtectedRoute component={People} page="people" />
       </Route>
       <Route path="/admin">
         <ProtectedRoute component={Admin} />
