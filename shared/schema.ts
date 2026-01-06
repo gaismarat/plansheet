@@ -392,3 +392,28 @@ export type PdcGroupWithElements = PdcGroup & { elements?: PdcElementWithData[] 
 export type PdcSectionWithGroups = PdcSection & { groups?: PdcGroupWithElements[] };
 export type PdcBlockWithSections = PdcBlock & { sections?: PdcSectionWithGroups[] };
 export type PdcDocumentWithData = PdcDocument & { blocks?: PdcBlockWithSections[] };
+
+// === WORK PEOPLE (Люди) TABLE ===
+
+export const workPeople = pgTable("work_people", {
+  id: serial("id").primaryKey(),
+  workId: integer("work_id").notNull().references(() => works.id, { onDelete: "cascade" }),
+  date: varchar("date").notNull(), // Format: YYYY-MM-DD
+  count: integer("count").default(0).notNull(), // Number of people
+});
+
+// === WORK PEOPLE RELATIONS ===
+
+export const workPeopleRelations = relations(workPeople, ({ one }) => ({
+  work: one(works, {
+    fields: [workPeople.workId],
+    references: [works.id],
+  }),
+}));
+
+// === WORK PEOPLE SCHEMAS ===
+
+export const insertWorkPeopleSchema = createInsertSchema(workPeople).omit({ id: true });
+
+export type WorkPeople = typeof workPeople.$inferSelect;
+export type InsertWorkPeople = z.infer<typeof insertWorkPeopleSchema>;
