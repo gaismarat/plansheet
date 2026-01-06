@@ -613,7 +613,11 @@ export async function registerRoutes(
       if (!workId || !date || count === undefined) {
         return res.status(400).json({ message: "workId, date и count обязательны" });
       }
-      const result = await storage.upsertWorkPeople(workId, date, count);
+      const numCount = Number(count);
+      if (!Number.isInteger(numCount) || numCount < 0 || numCount > 9999) {
+        return res.status(400).json({ message: "count должен быть целым числом от 0 до 9999" });
+      }
+      const result = await storage.upsertWorkPeople(Number(workId), date, numCount);
       res.status(200).json(result);
     } catch (err) {
       throw err;
