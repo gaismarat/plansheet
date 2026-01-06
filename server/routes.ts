@@ -595,6 +595,36 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // === Work People (Люди) ===
+
+  app.get('/api/work-people', async (_req, res) => {
+    const data = await storage.getWorkPeople();
+    res.json(data);
+  });
+
+  app.get('/api/work-people/work/:workId', async (req, res) => {
+    const data = await storage.getWorkPeopleByWorkId(Number(req.params.workId));
+    res.json(data);
+  });
+
+  app.post('/api/work-people', async (req, res) => {
+    try {
+      const { workId, date, count } = req.body;
+      if (!workId || !date || count === undefined) {
+        return res.status(400).json({ message: "workId, date и count обязательны" });
+      }
+      const result = await storage.upsertWorkPeople(workId, date, count);
+      res.status(200).json(result);
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  app.delete('/api/work-people/:id', async (req, res) => {
+    await storage.deleteWorkPeople(Number(req.params.id));
+    res.status(204).send();
+  });
+
   // === User Management (Admin only) ===
 
   app.get('/api/users', requireAdmin, async (_req, res) => {

@@ -15,6 +15,7 @@ import {
   pdcSections,
   pdcGroups,
   pdcElements,
+  workPeople,
   type Block,
   type Work,
   type WorkGroup,
@@ -56,7 +57,8 @@ import {
   type PdcDocumentWithData,
   type PdcBlockWithSections,
   type PdcSectionWithGroups,
-  type PdcGroupWithElements
+  type PdcGroupWithElements,
+  type WorkPeople
 } from "@shared/schema";
 import { eq, and, isNull, asc } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -164,6 +166,12 @@ export interface IStorage {
   updatePdcElement(id: number, updates: Partial<InsertPdcElement>): Promise<PdcElement>;
   deletePdcElement(id: number): Promise<void>;
   reorderPdcElement(id: number, direction: 'up' | 'down'): Promise<void>;
+
+  // Work People
+  getWorkPeople(): Promise<WorkPeople[]>;
+  getWorkPeopleByWorkId(workId: number): Promise<WorkPeople[]>;
+  upsertWorkPeople(workId: number, date: string, count: number): Promise<WorkPeople>;
+  deleteWorkPeople(id: number): Promise<void>;
 
   // Admin initialization
   initializeAdmin(): Promise<void>;
@@ -938,6 +946,40 @@ export class DatabaseStorage implements IStorage {
     const swapElement = siblings[swapIndex];
     await db.update(pdcElements).set({ order: swapElement.order }).where(eq(pdcElements.id, element.id));
     await db.update(pdcElements).set({ order: element.order }).where(eq(pdcElements.id, swapElement.id));
+  }
+
+  // === WORK PEOPLE ===
+
+  async getWorkPeople(): Promise<WorkPeople[]> {
+    return await db.select().from(workPeople).orderBy(asc(workPeople.workId), asc(workPeople.date));
+  }
+
+  async getWorkPeopleByWorkId(workId: number): Promise<WorkPeople[]> {
+    return await db.select().from(workPeople)
+      .where(eq(workPeople.workId, workId))
+      .orderBy(asc(workPeople.date));
+  }
+
+  async upsertWorkPeople(workId: number, date: string, count: number): Promise<WorkPeople> {
+    const existing = await db.select().from(workPeople)
+      .where(and(eq(workPeople.workId, workId), eq(workPeople.date, date)));
+    
+    if (existing.length > 0) {
+      const [updated] = await db.update(workPeople)
+        .set({ count })
+        .where(eq(workPeople.id, existing[0].id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(workPeople)
+        .values({ workId, date, count })
+        .returning();
+      return created;
+    }
+  }
+
+  async deleteWorkPeople(id: number): Promise<void> {
+    await db.delete(workPeople).where(eq(workPeople.id, id));
   }
 }
 
