@@ -126,9 +126,9 @@ export default function Dashboard() {
       <header className="bg-card border-b border-border sticky top-0 z-10 backdrop-blur-sm bg-card/80">
         <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <img src={logoImage} alt="СтройКонтроль" className="h-9 w-auto" />
+            <img src={logoImage} alt="ПЛАНШЕТ" className="h-9 w-auto" />
             <h1 className="text-xl font-bold font-display tracking-tight text-foreground">
-              СтройКонтроль <span className="text-primary/60 font-sans font-normal text-sm ml-2 hidden sm:inline-block">v1.0</span>
+              ПЛАНШЕТ <span className="text-primary/60 font-sans font-normal text-sm ml-2 hidden sm:inline-block">v1.0</span>
             </h1>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
