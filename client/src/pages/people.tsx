@@ -232,10 +232,10 @@ export default function People() {
                         <th 
                           key={idx}
                           ref={isToday ? todayColumnRef : undefined}
-                          className={`border-b border-r border-border p-1 text-center font-medium min-w-[50px] w-[50px] text-xs h-12 ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/30' : 'bg-muted/50'}`}
+                          className={`border-b border-r border-border p-0.5 text-center font-medium min-w-[50px] w-[50px] h-12 ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/30' : 'bg-muted/50'}`}
                         >
-                          {format(day, "dd", { locale: ru })}
-                          <div className="text-muted-foreground text-[10px]">
+                          <div className="text-[9px] leading-tight">{format(day, "dd.MM.yy", { locale: ru })}</div>
+                          <div className="text-muted-foreground text-[9px] leading-tight">
                             {format(day, "EEE", { locale: ru })}
                           </div>
                         </th>
