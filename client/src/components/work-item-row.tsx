@@ -4,10 +4,8 @@ import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown } from "@/
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Trash2, Edit2, Check, ArrowUp, ArrowDown, ChevronDown, X } from "lucide-react";
-import { ProgressBar } from "@/components/ui/progress-bar";
+import { Trash2, ArrowUp, ArrowDown, ChevronDown, X, Users } from "lucide-react";
 import { motion } from "framer-motion";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -15,14 +13,20 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+interface PeopleSummary {
+  actualToday: number;
+  averageActual: number;
+}
+
 interface WorkItemRowProps {
   work: Work;
   expandAll?: boolean;
   holidayDates?: Set<string>;
   showCost?: boolean;
+  peopleSummary?: PeopleSummary;
 }
 
-export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), showCost = true }: WorkItemRowProps) {
+export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), showCost = true, peopleSummary }: WorkItemRowProps) {
   const { mutate: updateWork } = useUpdateWork();
   const { mutate: deleteWork, isPending: isDeleting } = useDeleteWork();
   const { mutate: moveUp } = useMoveWorkUp();
@@ -30,10 +34,10 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   
   const [isExpanded, setIsExpanded] = useState(expandAll);
 
-  // Sync expandAll prop changes with local state
   useEffect(() => {
     setIsExpanded(expandAll);
   }, [expandAll]);
+  
   const [localProgress, setLocalProgress] = useState(work.progressPercentage);
   const [isEditingProgress, setIsEditingProgress] = useState(false);
   const [localPlanStartDate, setLocalPlanStartDate] = useState(work.planStartDate || '');
@@ -46,10 +50,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   const [localCostActual, setLocalCostActual] = useState(work.costActual);
   const sliderTimeoutRef = useRef<NodeJS.Timeout>();
   const dateTimeoutRef = useRef<NodeJS.Timeout>();
-  const volumeTimeoutRef = useRef<NodeJS.Timeout>();
-  const costTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Sync local state if external data changes (and we aren't dragging)
   useEffect(() => {
     if (!isEditingProgress) {
       setLocalProgress(work.progressPercentage);
@@ -78,7 +79,6 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
     setLocalProgress(newVal);
     setIsEditingProgress(true);
 
-    // Debounce API call
     if (sliderTimeoutRef.current) clearTimeout(sliderTimeoutRef.current);
     
     sliderTimeoutRef.current = setTimeout(() => {
@@ -146,7 +146,6 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   };
 
   const handleVolumeAmountBlur = () => {
-    if (volumeTimeoutRef.current) clearTimeout(volumeTimeoutRef.current);
     updateWork({ id: work.id, volumeAmount: localVolumeAmount });
   };
 
@@ -158,7 +157,6 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   };
 
   const handleVolumeActualBlur = () => {
-    if (volumeTimeoutRef.current) clearTimeout(volumeTimeoutRef.current);
     updateWork({ id: work.id, volumeActual: localVolumeActual });
   };
 
@@ -170,7 +168,6 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   };
 
   const handleCostPlanBlur = () => {
-    if (costTimeoutRef.current) clearTimeout(costTimeoutRef.current);
     updateWork({ id: work.id, costPlan: localCostPlan });
   };
 
@@ -182,18 +179,15 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   };
 
   const handleCostActualBlur = () => {
-    if (costTimeoutRef.current) clearTimeout(costTimeoutRef.current);
     updateWork({ id: work.id, costActual: localCostActual });
   };
 
-  // Helper function to calculate days between two dates
   const calculateDays = (startDate: string, endDate: string) => {
     if (!startDate || !endDate) return { calendar: 0, working: 0, weekend: 0 };
     
     const start = new Date(startDate);
     const end = new Date(endDate);
     
-    // Ensure start is before end
     if (start > end) {
       return { calendar: 0, working: 0, weekend: 0 };
     }
@@ -207,11 +201,9 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
       const dayOfWeek = current.getDay();
       calendar++;
       
-      // Format current date as YYYY-MM-DD to check against holidays
       const dateStr = current.toISOString().split('T')[0];
       const isHoliday = holidayDates.has(dateStr);
       
-      // 0 = Sunday, 6 = Saturday, or is a holiday
       if (dayOfWeek === 0 || dayOfWeek === 6 || isHoliday) {
         weekend++;
       } else {
@@ -224,446 +216,478 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
     return { calendar, working, weekend };
   };
 
+  // Calculate planned progress based on date proportion
+  const calculatePlannedProgress = () => {
+    if (!localPlanStartDate || !localPlanEndDate) return 0;
+    
+    const planStart = new Date(localPlanStartDate);
+    const planEnd = new Date(localPlanEndDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (today < planStart) return 0;
+    if (today > planEnd) return 100;
+    
+    const totalDuration = planEnd.getTime() - planStart.getTime();
+    if (totalDuration <= 0) return 100;
+    
+    const elapsed = today.getTime() - planStart.getTime();
+    const progress = Math.round((elapsed / totalDuration) * 100);
+    
+    return Math.min(100, Math.max(0, progress));
+  };
+
+  const plannedProgress = calculatePlannedProgress();
+  const deviation = localProgress - plannedProgress;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, height: 0 }}
-      className="group flex flex-col p-4 bg-card rounded-lg border border-border/50 hover:border-primary/20 hover:shadow-md transition-all duration-300 mb-3 cursor-pointer"
+      className="group flex flex-col p-3 bg-card rounded-lg border border-border/50 hover:border-primary/20 hover:shadow-md transition-all duration-300 mb-2 cursor-pointer"
       onClick={() => setIsExpanded(!isExpanded)}
+      data-testid={`work-row-${work.id}`}
     >
       {/* Collapsed View */}
       {!isExpanded && (
         <>
-          {/* Compact Header Row */}
-          <div className="grid grid-cols-12 gap-3 mb-3">
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold flex items-center">
-              <ChevronDown className="w-3 h-3 mr-1" />
-            </div>
-            <div className="col-span-8 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
-            <div className="col-span-3 text-xs text-muted-foreground font-semibold">ПРОГРЕСС</div>
-          </div>
-
-          {/* Compact Data Row */}
-          <div className="grid grid-cols-12 gap-3 items-center">
-            {/* Expand Icon */}
+          <div className="grid grid-cols-12 gap-2 items-center">
             <div className="col-span-1 flex items-center">
               <ChevronDown className="w-4 h-4 text-muted-foreground rotate-0 group-hover:text-primary transition-colors" />
             </div>
 
+            <div className="col-span-5 flex flex-col justify-center">
+              <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
+                {work.name}
+              </span>
+              <span className="text-xs text-muted-foreground font-mono">
+                ID: {work.id.toString().padStart(4, '0')} | {work.responsiblePerson}
+              </span>
+            </div>
+
+            <div className="col-span-2 flex items-center gap-2 text-xs">
+              <Users className="w-3 h-3 text-muted-foreground" />
+              <span className="text-muted-foreground">
+                {work.plannedPeople || 0}/{peopleSummary?.actualToday || 0}
+              </span>
+            </div>
+
+            <div className="col-span-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <div className="flex-1 flex flex-col gap-0.5">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground w-8">План</span>
+                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-500 rounded-full transition-all"
+                      style={{ width: `${plannedProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground w-8 text-right">{plannedProgress}%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground w-8">Факт</span>
+                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        localProgress >= plannedProgress ? "bg-green-500" : "bg-orange-500"
+                      )}
+                      style={{ width: `${localProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground w-8 text-right">{localProgress}%</span>
+                </div>
+              </div>
+              <span className={cn(
+                "text-xs font-medium w-12 text-right",
+                deviation >= 0 ? "text-green-500" : "text-red-500"
+              )}>
+                {deviation >= 0 ? '+' : ''}{deviation}%
+              </span>
+            </div>
+          </div>
+        </>
+      )}
+      
+      {/* Expanded View */}
+      {isExpanded && (
+        <>
+          {/* Header Row with Column Labels */}
+          <div className="grid grid-cols-12 gap-2 mb-2 text-[10px] text-muted-foreground font-semibold uppercase">
+            <div className="col-span-2">Наименование</div>
+            <div className="col-span-1 text-center">Объём</div>
+            {showCost && <div className="col-span-1 text-center">Стоимость</div>}
+            <div className="col-span-1 text-center">Начало</div>
+            <div className="col-span-1 text-center">Конец</div>
+            <div className={cn("text-center", showCost ? "col-span-2" : "col-span-3")}>Трудоёмкость</div>
+            <div className="col-span-1 text-center">Люди, чел</div>
+            <div className="col-span-3 text-center">Прогресс</div>
+          </div>
+
+          {/* Data Row */}
+          <div className="grid grid-cols-12 gap-2 items-start text-xs" onClick={(e) => e.stopPropagation()}>
             {/* Name & ID & Responsible */}
-            <div className="col-span-8 flex flex-col justify-center">
+            <div className="col-span-2 flex flex-col justify-center">
               <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
                 {work.name}
               </span>
               <span className="text-xs text-muted-foreground font-mono mt-0.5">
                 ID: {work.id.toString().padStart(4, '0')}
               </span>
-              <span className="text-xs text-muted-foreground mt-0.5 truncate" title={work.responsiblePerson}>
+              <span className="text-xs text-muted-foreground truncate" title={work.responsiblePerson}>
                 {work.responsiblePerson}
               </span>
             </div>
 
-            {/* Progress Control */}
-            <div className="col-span-3 flex items-center gap-1">
-              <input 
-                type="number"
-                min={0}
-                max={100}
-                value={localProgress}
-                onChange={handleProgressInputChange}
-                onBlur={handleProgressInputBlur}
-                className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-sm"
-                onClick={(e) => e.stopPropagation()}
-              />
-              <span className="text-muted-foreground text-sm">%</span>
+            {/* Volume column */}
+            <div className="col-span-1 flex flex-col gap-0.5">
+              <div className="text-muted-foreground font-medium">План</div>
+              <div className="flex items-center gap-0.5">
+                <input 
+                  type="text"
+                  value={localVolumeAmount.toLocaleString('ru-RU')}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
+                    handleVolumeAmountChange({ target: { value: val.toString() } } as any);
+                  }}
+                  onBlur={handleVolumeAmountBlur}
+                  className="w-14 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-mono"
+                  data-testid={`input-volume-plan-${work.id}`}
+                />
+                <span className="text-muted-foreground text-[10px]">{work.volumeUnit}</span>
+              </div>
+
+              <div className="py-0.5 whitespace-nowrap text-[10px]">
+                {(() => {
+                  if (localVolumeAmount === 0) return null;
+                  const diff = localVolumeActual - localVolumeAmount;
+                  const percent = (Math.abs(diff) / localVolumeAmount) * 100;
+                  
+                  if (diff > 0) {
+                    return <span className="text-red-500">+{percent.toFixed(0)}%</span>;
+                  } else if (diff < 0) {
+                    return <span className="text-green-500">-{percent.toFixed(0)}%</span>;
+                  }
+                  return null;
+                })()}
+              </div>
+
+              <div className="text-muted-foreground font-medium">Факт</div>
+              <div className="flex items-center gap-0.5">
+                <input 
+                  type="text"
+                  value={localVolumeActual.toLocaleString('ru-RU')}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
+                    handleVolumeActualChange({ target: { value: val.toString() } } as any);
+                  }}
+                  onBlur={handleVolumeActualBlur}
+                  className="w-14 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-mono"
+                  data-testid={`input-volume-actual-${work.id}`}
+                />
+                <span className="text-muted-foreground text-[10px]">{work.volumeUnit}</span>
+              </div>
             </div>
-          </div>
-        </>
-      )}
-      {/* Expanded View */}
-      {isExpanded && (
-        <>
-          {/* Header Row with Column Labels */}
-          <div className="grid grid-cols-12 gap-3 mb-3">
-            <div className="col-span-2 text-xs text-muted-foreground font-semibold">НАИМЕНОВАНИЕ</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[30px] mr-[30px]">ОБЪЁМ</div>
+
+            {/* Cost column */}
             {showCost && (
-              <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[60px] mr-[30px]">СТОИМОСТЬ</div>
+              <div className="col-span-1 flex flex-col gap-0.5">
+                <div className="text-muted-foreground font-medium">План</div>
+                <div className="flex items-center gap-0.5">
+                  <input 
+                    type="text"
+                    value={localCostPlan.toLocaleString('ru-RU')}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
+                      handleCostPlanChange({ target: { value: val.toString() } } as any);
+                    }}
+                    onBlur={handleCostPlanBlur}
+                    className="w-16 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-mono"
+                    data-testid={`input-cost-plan-${work.id}`}
+                  />
+                </div>
+
+                <div className="py-0.5 whitespace-nowrap text-[10px]">
+                  {(() => {
+                    if (localCostPlan === 0) return null;
+                    const diff = localCostActual - localCostPlan;
+                    const percent = (Math.abs(diff) / localCostPlan) * 100;
+                    
+                    if (diff > 0) {
+                      return <span className="text-red-500">+{percent.toFixed(0)}%</span>;
+                    } else if (diff < 0) {
+                      return <span className="text-green-500">-{percent.toFixed(0)}%</span>;
+                    }
+                    return null;
+                  })()}
+                </div>
+
+                <div className="text-muted-foreground font-medium">Факт</div>
+                <div className="flex items-center gap-0.5">
+                  <input 
+                    type="text"
+                    value={localCostActual.toLocaleString('ru-RU')}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
+                      handleCostActualChange({ target: { value: val.toString() } } as any);
+                    }}
+                    onBlur={handleCostActualBlur}
+                    className="w-16 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-mono"
+                    data-testid={`input-cost-actual-${work.id}`}
+                  />
+                </div>
+              </div>
             )}
-            <div className={`col-span-1 text-xs text-muted-foreground font-semibold text-center ${showCost ? 'ml-[60px]' : 'ml-[30px]'}`}>НАЧАЛО</div>
-            <div className="col-span-1 text-xs text-muted-foreground font-semibold text-center ml-[110px]">КОНЕЦ</div>
-            <div className={`${showCost ? 'col-span-3' : 'col-span-4'} text-xs text-muted-foreground font-semibold ml-[90px] mr-[50px] text-right`}>ТРУДОЁМКОСТЬ, дни</div>
-            <div className="col-span-3 text-xs text-muted-foreground font-semibold text-center">ПРОГРЕСС</div>
-          </div>
 
-          {/* Data Row */}
-          <div className="grid grid-cols-12 gap-3 items-center" onClick={(e) => e.stopPropagation()}>
-        {/* Name & ID & Responsible */}
-        <div className="col-span-2 flex flex-col justify-center">
-          <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
-            {work.name}
-          </span>
-          <span className="text-xs text-muted-foreground font-mono mt-0.5">
-            ID: {work.id.toString().padStart(4, '0')}
-          </span>
-          <span className="text-xs text-muted-foreground mt-0.5 truncate" title={work.responsiblePerson}>
-            {work.responsiblePerson}
-          </span>
-        </div>
-
-        {/* Volume column */}
-        <div className="col-span-1 flex flex-col gap-1 text-xs mr-[30px]">
-          {/* Plan Volume */}
-          <div className="text-muted-foreground font-medium">План</div>
-          <div className="flex items-center gap-1">
-            <input 
-              type="text"
-              value={localVolumeAmount.toLocaleString('ru-RU')}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
-                handleVolumeAmountChange({ target: { value: val.toString() } } as any);
-              }}
-              onBlur={handleVolumeAmountBlur}
-              className="w-20 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
-            />
-            <span className="text-muted-foreground">{work.volumeUnit}</span>
-          </div>
-
-          {/* Comparison */}
-          <div className="py-0.5 whitespace-nowrap">
-            {(() => {
-              if (localVolumeAmount === 0) return null;
-              const diff = localVolumeActual - localVolumeAmount;
-              const percent = (Math.abs(diff) / localVolumeAmount) * 100;
+            {/* Start Date */}
+            <div className="col-span-1 flex flex-col gap-0.5">
+              <div className="text-muted-foreground font-medium">План</div>
+              <div className="flex items-center gap-0.5">
+                <input 
+                  type="date"
+                  value={localPlanStartDate}
+                  onChange={handlePlanStartDateChange}
+                  className="w-full bg-transparent border-b border-border text-foreground text-[10px] px-0 py-0 focus:outline-none focus:border-primary"
+                  style={{color: localPlanStartDate ? 'inherit' : 'transparent'}}
+                  data-testid={`input-plan-start-${work.id}`}
+                />
+                {localPlanStartDate && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLocalPlanStartDate('');
+                      updateWork({ id: work.id, planStartDate: '' });
+                    }}
+                    className="p-0 hover:text-destructive text-muted-foreground transition-colors"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
               
-              if (diff > 0) {
-                return <span className="text-red-500 font-medium">Превышение {percent.toFixed(1)}%</span>;
-              } else if (diff < 0) {
-                return <span className="text-green-500 font-medium">Экономия {percent.toFixed(1)}%</span>;
-              } else {
-                return <span className="text-green-500 font-medium">Плановый объём</span>;
-              }
-            })()}
-          </div>
+              <div className="py-0.5 whitespace-nowrap text-[10px]">
+                {(() => {
+                  if (!localPlanStartDate || !localActualStartDate) return null;
+                  const planDate = new Date(localPlanStartDate);
+                  const actualDate = new Date(localActualStartDate);
+                  const diffTime = planDate.getTime() - actualDate.getTime();
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-          {/* Actual Volume */}
-          <div className="text-muted-foreground font-medium">Факт</div>
-          <div className="flex items-center gap-1">
-            <input 
-              type="text"
-              value={localVolumeActual.toLocaleString('ru-RU')}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
-                handleVolumeActualChange({ target: { value: val.toString() } } as any);
-              }}
-              onBlur={handleVolumeActualBlur}
-              className="w-20 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
-            />
-            <span className="text-muted-foreground">{work.volumeUnit}</span>
-          </div>
-        </div>
+                  if (diffDays > 0) {
+                    return <span className="text-green-500">+{diffDays}д</span>;
+                  } else if (diffDays < 0) {
+                    return <span className="text-red-500">{diffDays}д</span>;
+                  }
+                  return null;
+                })()}
+              </div>
 
-        {/* Cost column */}
-        {showCost && (
-          <div className="col-span-1 flex flex-col gap-1 text-xs ml-[30px] mr-[30px]">
-            {/* Plan Cost */}
-            <div className="text-muted-foreground font-medium">План</div>
-            <div className="flex items-center gap-1">
-              <input 
-                type="text"
-                value={localCostPlan.toLocaleString('ru-RU')}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
-                  handleCostPlanChange({ target: { value: val.toString() } } as any);
-                }}
-                onBlur={handleCostPlanBlur}
-                className="w-24 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
-              />
-              <span className="text-muted-foreground">руб.</span>
+              <div className="text-muted-foreground font-medium">Факт</div>
+              <div className="flex items-center gap-0.5">
+                <input 
+                  type="date"
+                  value={localActualStartDate}
+                  onChange={handleActualStartDateChange}
+                  className="w-full bg-transparent border-b border-border text-foreground text-[10px] px-0 py-0 focus:outline-none focus:border-primary"
+                  style={{color: localActualStartDate ? 'inherit' : 'transparent'}}
+                  data-testid={`input-actual-start-${work.id}`}
+                />
+                {localActualStartDate && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLocalActualStartDate('');
+                      updateWork({ id: work.id, actualStartDate: '' });
+                    }}
+                    className="p-0 hover:text-destructive text-muted-foreground transition-colors"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Comparison */}
-            <div className="py-0.5 whitespace-nowrap">
-              {(() => {
-                if (localCostPlan === 0) return null;
-                const diff = localCostActual - localCostPlan;
-                const percent = (Math.abs(diff) / localCostPlan) * 100;
-                
-                if (diff > 0) {
-                  return <span className="text-red-500 font-medium">Превышение {percent.toFixed(1)}%</span>;
-                } else if (diff < 0) {
-                  return <span className="text-green-500 font-medium">Экономия {percent.toFixed(1)}%</span>;
-                } else {
-                  return <span className="text-green-500 font-medium">Плановая стоимость</span>;
-                }
-              })()}
+            {/* End Date */}
+            <div className="col-span-1 flex flex-col gap-0.5">
+              <div className="text-muted-foreground font-medium">План</div>
+              <div className="flex items-center gap-0.5">
+                <input 
+                  type="date"
+                  value={localPlanEndDate}
+                  onChange={handlePlanEndDateChange}
+                  className="w-full bg-transparent border-b border-border text-foreground text-[10px] px-0 py-0 focus:outline-none focus:border-primary"
+                  style={{color: localPlanEndDate ? 'inherit' : 'transparent'}}
+                  data-testid={`input-plan-end-${work.id}`}
+                />
+                {localPlanEndDate && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLocalPlanEndDate('');
+                      updateWork({ id: work.id, planEndDate: '' });
+                    }}
+                    className="p-0 hover:text-destructive text-muted-foreground transition-colors"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
+              
+              <div className="py-0.5 whitespace-nowrap text-[10px]">
+                {(() => {
+                  if (!localPlanEndDate || !localActualEndDate) return null;
+                  const planDate = new Date(localPlanEndDate);
+                  const actualDate = new Date(localActualEndDate);
+                  const diffTime = planDate.getTime() - actualDate.getTime();
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                  if (diffDays > 0) {
+                    return <span className="text-green-500">+{diffDays}д</span>;
+                  } else if (diffDays < 0) {
+                    return <span className="text-red-500">{diffDays}д</span>;
+                  }
+                  return null;
+                })()}
+              </div>
+
+              <div className="text-muted-foreground font-medium">Факт</div>
+              <div className="flex items-center gap-0.5">
+                <input 
+                  type="date"
+                  value={localActualEndDate}
+                  onChange={handleActualEndDateChange}
+                  className="w-full bg-transparent border-b border-border text-foreground text-[10px] px-0 py-0 focus:outline-none focus:border-primary"
+                  style={{color: localActualEndDate ? 'inherit' : 'transparent'}}
+                  data-testid={`input-actual-end-${work.id}`}
+                />
+                {localActualEndDate && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLocalActualEndDate('');
+                      updateWork({ id: work.id, actualEndDate: '' });
+                    }}
+                    className="p-0 hover:text-destructive text-muted-foreground transition-colors"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Actual Cost */}
-            <div className="text-muted-foreground font-medium">Факт</div>
-            <div className="flex items-center gap-1">
-              <input 
-                type="text"
-                value={localCostActual.toLocaleString('ru-RU')}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
-                  handleCostActualChange({ target: { value: val.toString() } } as any);
-                }}
-                onBlur={handleCostActualBlur}
-                className="w-24 bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary font-mono"
-              />
-              <span className="text-muted-foreground">руб.</span>
+            {/* Labor Intensity */}
+            <div className={cn("grid grid-cols-3 gap-1 text-center", showCost ? "col-span-2" : "col-span-3")}>
+              <div className="flex flex-col items-center">
+                <div className="text-muted-foreground font-medium text-[10px] mb-0.5">Календ.</div>
+                <div className="text-[9px] text-muted-foreground">П</div>
+                <span className="font-mono text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).calendar}</span>
+                <div className="text-[9px] text-muted-foreground mt-0.5">Ф</div>
+                <span className="font-mono text-foreground text-xs">{calculateDays(localActualStartDate, localActualEndDate).calendar}</span>
+              </div>
+              
+              <div className="flex flex-col items-center">
+                <div className="text-muted-foreground font-medium text-[10px] mb-0.5">Рабочие</div>
+                <div className="text-[9px] text-muted-foreground">П</div>
+                <span className="font-mono text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).working}</span>
+                <div className="text-[9px] text-muted-foreground mt-0.5">Ф</div>
+                <span className="font-mono text-foreground text-xs">{calculateDays(localActualStartDate, localActualEndDate).working}</span>
+              </div>
+              
+              <div className="flex flex-col items-center">
+                <div className="text-muted-foreground font-medium text-[10px] mb-0.5">Выходн.</div>
+                <div className="text-[9px] text-muted-foreground">П</div>
+                <span className="font-mono text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).weekend}</span>
+                <div className="text-[9px] text-muted-foreground mt-0.5">Ф</div>
+                <span className="font-mono text-foreground text-xs">{calculateDays(localActualStartDate, localActualEndDate).weekend}</span>
+              </div>
+            </div>
+
+            {/* People Resources */}
+            <div className="col-span-1 flex flex-col gap-0.5 items-center">
+              <div className="flex flex-col items-center">
+                <div className="text-muted-foreground font-medium text-[10px]">Сегодня</div>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-[9px] text-muted-foreground">П</span>
+                  <span className="font-mono text-foreground text-xs">{work.plannedPeople || 0}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px] text-muted-foreground">Ф</span>
+                  <span className="font-mono text-foreground text-xs">{peopleSummary?.actualToday || 0}</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-center mt-1">
+                <div className="text-muted-foreground font-medium text-[10px]">Среднее</div>
+                <span className="font-mono text-foreground text-xs">{peopleSummary?.averageActual?.toFixed(1) || '0.0'}</span>
+              </div>
+            </div>
+
+            {/* Progress Control */}
+            <div className="col-span-3 flex flex-col gap-1">
+              {/* Plan Progress */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground w-8 shrink-0">План</span>
+                <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-blue-500 rounded-full transition-all"
+                    style={{ width: `${plannedProgress}%` }}
+                  />
+                </div>
+                <span className="text-xs font-mono w-10 text-right">{plannedProgress}%</span>
+              </div>
+
+              {/* Fact Progress with Slider */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground w-8 shrink-0">Факт</span>
+                <div className="flex-1">
+                  <Slider
+                    defaultValue={[work.progressPercentage]}
+                    value={[localProgress]}
+                    max={100}
+                    step={1}
+                    onValueChange={handleSliderChange}
+                    className="cursor-pointer"
+                    data-testid={`slider-progress-${work.id}`}
+                  />
+                </div>
+                <input 
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={localProgress}
+                  onChange={handleProgressInputChange}
+                  onBlur={handleProgressInputBlur}
+                  className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-xs"
+                  data-testid={`input-progress-${work.id}`}
+                />
+                <span className="text-muted-foreground text-xs">%</span>
+              </div>
+
+              {/* Deviation */}
+              <div className="flex items-center justify-end gap-1">
+                <span className="text-[10px] text-muted-foreground">Отклонение:</span>
+                <span className={cn(
+                  "text-xs font-medium",
+                  deviation >= 0 ? "text-green-500" : "text-red-500"
+                )}>
+                  {deviation >= 0 ? '+' : ''}{deviation}%
+                </span>
+              </div>
             </div>
           </div>
-        )}
 
-        {/* Plan Start Date */}
-        <div className={`col-span-1 flex flex-col gap-1 text-xs ${showCost ? 'ml-[60px]' : 'ml-[30px]'}`}>
-          <div className="text-muted-foreground font-medium">План</div>
-          <div className="flex items-center gap-1">
-            <input 
-              type="date"
-              value={localPlanStartDate}
-              onChange={handlePlanStartDateChange}
-              className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary flex-1"
-              style={{color: localPlanStartDate ? 'inherit' : 'transparent'}}
-            />
-            {!localPlanStartDate && <span className="text-muted-foreground text-xs absolute ml-1">дд.мм.гггг</span>}
-            {localPlanStartDate && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLocalPlanStartDate('');
-                  updateWork({ id: work.id, planStartDate: '' });
-                }}
-                className="p-0.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-          
-          {/* Comparison between Plan and Actual Start Dates */}
-          <div className="py-0.5 whitespace-nowrap">
-            {(() => {
-              if (!localPlanStartDate || !localActualStartDate) return null;
-
-              const planDate = new Date(localPlanStartDate);
-              const actualDate = new Date(localActualStartDate);
-              const diffTime = planDate.getTime() - actualDate.getTime();
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-              if (diffDays > 0) {
-                return <span className="text-green-500 font-medium">Опережение {diffDays} дн.</span>;
-              } else if (diffDays < 0) {
-                return <span className="text-red-500 font-medium">Отставание {Math.abs(diffDays)} дн.</span>;
-              } else {
-                return <span className="text-green-500 font-medium">Плановый срок</span>;
-              }
-            })()}
-          </div>
-
-          <div className="text-muted-foreground font-medium">Факт</div>
-          <div className="flex items-center gap-1">
-            <input 
-              type="date"
-              value={localActualStartDate}
-              onChange={handleActualStartDateChange}
-              className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary flex-1"
-              style={{color: localActualStartDate ? 'inherit' : 'transparent'}}
-            />
-            {!localActualStartDate && <span className="text-muted-foreground text-xs absolute ml-1">дд.мм.гггг</span>}
-            {localActualStartDate && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLocalActualStartDate('');
-                  updateWork({ id: work.id, actualStartDate: '' });
-                }}
-                className="p-0.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Plan End Date */}
-        <div className="col-span-1 flex flex-col gap-1 text-xs ml-[90px]">
-          <div className="text-muted-foreground font-medium">План</div>
-          <div className="flex items-center gap-1">
-            <input 
-              type="date"
-              value={localPlanEndDate}
-              onChange={handlePlanEndDateChange}
-              className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary flex-1"
-              style={{color: localPlanEndDate ? 'inherit' : 'transparent'}}
-            />
-            {!localPlanEndDate && <span className="text-muted-foreground text-xs absolute ml-1">дд.мм.гггг</span>}
-            {localPlanEndDate && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLocalPlanEndDate('');
-                  updateWork({ id: work.id, planEndDate: '' });
-                }}
-                className="p-0.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-          
-          {/* Comparison between Plan and Actual End Dates */}
-          <div className="py-0.5 whitespace-nowrap">
-            {(() => {
-              if (!localPlanEndDate || !localActualEndDate) return null;
-
-              const planDate = new Date(localPlanEndDate);
-              const actualDate = new Date(localActualEndDate);
-              const diffTime = planDate.getTime() - actualDate.getTime();
-              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-              if (diffDays > 0) {
-                return <span className="text-green-500 font-medium">Опережение {diffDays} дн.</span>;
-              } else if (diffDays < 0) {
-                return <span className="text-red-500 font-medium">Отставание {Math.abs(diffDays)} дн.</span>;
-              } else {
-                return <span className="text-green-500 font-medium">Плановый срок</span>;
-              }
-            })()}
-          </div>
-
-          <div className="text-muted-foreground font-medium">Факт</div>
-          <div className="flex items-center gap-1">
-            <input 
-              type="date"
-              value={localActualEndDate}
-              onChange={handleActualEndDateChange}
-              className="bg-transparent border-b border-border text-foreground text-xs px-0 py-0.5 focus:outline-none focus:border-primary flex-1"
-              style={{color: localActualEndDate ? 'inherit' : 'transparent'}}
-            />
-            {!localActualEndDate && <span className="text-muted-foreground text-xs absolute ml-1">дд.мм.гггг</span>}
-            {localActualEndDate && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLocalActualEndDate('');
-                  updateWork({ id: work.id, actualEndDate: '' });
-                }}
-                className="p-0.5 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Labor Intensity (ТРУДОЁМКОСТЬ) - Three columns */}
-        <div className={`${showCost ? 'col-span-3' : 'col-span-4'} grid grid-cols-3 gap-0 text-xs ml-[120px]`}>
-          {/* Calendar Days */}
-          <div className="flex flex-col justify-center items-center ml-[50px] mr-[50px]">
-            <div className="text-muted-foreground font-medium text-center leading-tight mb-1">
-              <div>Календарные</div>
-            </div>
-            <div className="text-muted-foreground text-[10px] mb-0.5">План</div>
-            <span className="font-mono text-foreground font-medium">
-              {(() => {
-                const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
-                return planDays.calendar;
-              })()}
-            </span>
-            <div className="text-muted-foreground text-[10px] mt-1 mb-0.5">Факт</div>
-            <span className="font-mono text-foreground font-medium">
-              {(() => {
-                const actualDays = calculateDays(localActualStartDate, localActualEndDate);
-                return actualDays.calendar;
-              })()}
-            </span>
-          </div>
-          
-          {/* Working Days */}
-          <div className="flex flex-col justify-center items-center ml-[25px]">
-            <div className="text-muted-foreground font-medium text-center leading-tight mb-1">
-              <div>Рабочие</div>
-            </div>
-            <div className="text-muted-foreground text-[10px] mb-0.5">План</div>
-            <span className="font-mono text-foreground font-medium">
-              {(() => {
-                const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
-                return planDays.working;
-              })()}
-            </span>
-            <div className="text-muted-foreground text-[10px] mt-1 mb-0.5">Факт</div>
-            <span className="font-mono text-foreground font-medium">
-              {(() => {
-                const actualDays = calculateDays(localActualStartDate, localActualEndDate);
-                return actualDays.working;
-              })()}
-            </span>
-          </div>
-          
-          {/* Weekend Days */}
-          <div className="flex flex-col justify-center items-center ml-[5px]">
-            <div className="text-muted-foreground font-medium text-center leading-tight mb-1">
-              <div>Выходные</div>
-            </div>
-            <div className="text-muted-foreground text-[10px] mb-0.5">План</div>
-            <span className="font-mono text-foreground font-medium">
-              {(() => {
-                const planDays = calculateDays(localPlanStartDate, localPlanEndDate);
-                return planDays.weekend;
-              })()}
-            </span>
-            <div className="text-muted-foreground text-[10px] mt-1 mb-0.5">Факт</div>
-            <span className="font-mono text-foreground font-medium">
-              {(() => {
-                const actualDays = calculateDays(localActualStartDate, localActualEndDate);
-                return actualDays.weekend;
-              })()}
-            </span>
-          </div>
-        </div>
-
-        {/* Progress Control - Percentage Input and Slider */}
-        <div className="col-span-3 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-1 shrink-0">
-            <input 
-              type="number"
-              min={0}
-              max={100}
-              value={localProgress}
-              onChange={handleProgressInputChange}
-              onBlur={handleProgressInputBlur}
-              className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-sm"
-            />
-            <span className="text-muted-foreground text-sm">%</span>
-          </div>
-          <div className="relative group/slider flex-1">
-            <Slider
-              defaultValue={[work.progressPercentage]}
-              value={[localProgress]}
-              max={100}
-              step={1}
-              onValueChange={handleSliderChange}
-              className="cursor-pointer"
-            />
-          </div>
-        </div>
-      </div>
-
-              {/* Actions Row */}
-          <div className="mt-12 flex justify-end gap-1">
+          {/* Actions Row */}
+          <div className="mt-2 flex justify-end gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={(e) => { e.stopPropagation(); moveUp(work.id); }}
+                  data-testid={`button-move-up-${work.id}`}
                 >
-                  <ArrowUp className="w-4 h-4" />
+                  <ArrowUp className="w-3.5 h-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Переместить вверх</TooltipContent>
@@ -673,10 +697,11 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={(e) => { e.stopPropagation(); moveDown(work.id); }}
+                  data-testid={`button-move-down-${work.id}`}
                 >
-                  <ArrowDown className="w-4 h-4" />
+                  <ArrowDown className="w-3.5 h-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Переместить вниз</TooltipContent>
@@ -689,11 +714,12 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={(e) => { e.stopPropagation(); deleteWork(work.id); }}
                   disabled={isDeleting}
+                  data-testid={`button-delete-${work.id}`}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Удалить работу</TooltipContent>

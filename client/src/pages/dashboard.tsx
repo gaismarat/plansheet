@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useBlocks, useUnassignedGroups, useDeleteWorkGroup, useDeleteBlock, useHolidays } from "@/hooks/use-construction";
+import { useBlocks, useUnassignedGroups, useDeleteWorkGroup, useDeleteBlock, useHolidays, useWorkPeopleSummary } from "@/hooks/use-construction";
 import { CreateWorkGroupDialog } from "@/components/forms/create-work-group-dialog";
 import { CreateBlockDialog } from "@/components/forms/create-block-dialog";
 import { EditGroupDialog } from "@/components/forms/edit-group-dialog";
@@ -46,6 +46,7 @@ export default function Dashboard() {
   const { data: blocksData, isLoading: blocksLoading } = useBlocks();
   const { data: unassignedGroups, isLoading: groupsLoading } = useUnassignedGroups();
   const { data: holidays = [] } = useHolidays();
+  const { data: peopleSummary = {} } = useWorkPeopleSummary();
   const holidayDates = new Set(holidays.map(h => h.date));
   const { user, logout, canViewField } = useAuth();
   const showCostColumn = canViewField("cost");
@@ -225,7 +226,7 @@ export default function Dashboard() {
               {blocks.length > 0 && (
                 <Accordion type="multiple" defaultValue={blocks.map(b => `block-${b.id}`)} className="space-y-4">
                   {blocks.map((block) => (
-                    <BlockAccordionItem key={block.id} block={block} holidayDates={holidayDates} showCost={showCostColumn} />
+                    <BlockAccordionItem key={block.id} block={block} holidayDates={holidayDates} showCost={showCostColumn} peopleSummary={peopleSummary} />
                   ))}
                 </Accordion>
               )}
@@ -239,7 +240,7 @@ export default function Dashboard() {
                   )}
                   <Accordion type="multiple" defaultValue={groups.map(g => `group-${g.id}`)} className="space-y-4">
                     {groups.map((group) => (
-                      <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} showCost={showCostColumn} />
+                      <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} showCost={showCostColumn} peopleSummary={peopleSummary} />
                     ))}
                   </Accordion>
                 </div>
@@ -252,7 +253,7 @@ export default function Dashboard() {
   );
 }
 
-function BlockAccordionItem({ block, holidayDates, showCost = true }: { block: BlockResponse; holidayDates: Set<string>; showCost?: boolean }) {
+function BlockAccordionItem({ block, holidayDates, showCost = true, peopleSummary = {} }: { block: BlockResponse; holidayDates: Set<string>; showCost?: boolean; peopleSummary?: Record<number, { actualToday: number; averageActual: number }> }) {
   const { mutate: deleteBlock } = useDeleteBlock();
   const [showAllGroups, setShowAllGroups] = useState(true);
   
@@ -345,7 +346,7 @@ function BlockAccordionItem({ block, holidayDates, showCost = true }: { block: B
         ) : (
           <Accordion type="multiple" defaultValue={showAllGroups ? block.groups?.map(g => `group-${g.id}`) : []} className="space-y-3">
             {block.groups?.map((group) => (
-              <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} isNested forceHideWorks={!showAllGroups} showCost={showCost} />
+              <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} isNested forceHideWorks={!showAllGroups} showCost={showCost} peopleSummary={peopleSummary} />
             ))}
           </Accordion>
         )}
@@ -354,7 +355,7 @@ function BlockAccordionItem({ block, holidayDates, showCost = true }: { block: B
   );
 }
 
-function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWorks = false, showCost = true }: { group: WorkGroupResponse; holidayDates: Set<string>; isNested?: boolean; forceHideWorks?: boolean; showCost?: boolean }) {
+function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWorks = false, showCost = true, peopleSummary = {} }: { group: WorkGroupResponse; holidayDates: Set<string>; isNested?: boolean; forceHideWorks?: boolean; showCost?: boolean; peopleSummary?: Record<number, { actualToday: number; averageActual: number }> }) {
   const { mutate: deleteGroup } = useDeleteWorkGroup();
   const [showAllWorks, setShowAllWorks] = useState(!isNested);
   const effectiveShowWorks = forceHideWorks ? false : showAllWorks;
@@ -483,7 +484,7 @@ function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWo
         ) : (
           <div className="space-y-1">
             {group.works?.map((work) => (
-              <WorkItemRow key={work.id} work={work} expandAll={effectiveShowWorks} holidayDates={holidayDates} showCost={showCost} />
+              <WorkItemRow key={work.id} work={work} expandAll={effectiveShowWorks} holidayDates={holidayDates} showCost={showCost} peopleSummary={peopleSummary[work.id]} />
             ))}
           </div>
         )}

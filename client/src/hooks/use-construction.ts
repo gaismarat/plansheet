@@ -336,3 +336,18 @@ export function useToggleHoliday() {
     },
   });
 }
+
+// ============================================
+// WORK PEOPLE HOOKS
+// ============================================
+
+export function useWorkPeopleSummary() {
+  return useQuery<Record<number, { actualToday: number; averageActual: number }>>({
+    queryKey: ['/api/work-people/summary'],
+    queryFn: async () => {
+      const res = await fetch('/api/work-people/summary');
+      if (!res.ok) throw new Error("Failed to fetch work people summary");
+      return res.json();
+    },
+  });
+}
