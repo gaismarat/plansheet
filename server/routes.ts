@@ -629,6 +629,87 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // API for work people summary (today count and average)
+  app.get('/api/work-people/summary', async (_req, res) => {
+    try {
+      const allWorkPeople = await storage.getWorkPeople();
+      const holidays = await storage.getHolidays();
+      const holidaySet = new Set(holidays.map(h => h.date));
+      
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      
+      // Group by workId
+      const workPeopleByWork = new Map<number, { date: string; count: number }[]>();
+      allWorkPeople.forEach(wp => {
+        if (!workPeopleByWork.has(wp.workId)) {
+          workPeopleByWork.set(wp.workId, []);
+        }
+        workPeopleByWork.get(wp.workId)!.push({ date: wp.date, count: wp.count });
+      });
+      
+      const result: Record<number, { actualToday: number; averageActual: number }> = {};
+      
+      workPeopleByWork.forEach((entries, workId) => {
+        // Get today's actual count
+        const todayEntry = entries.find(e => e.date === todayStr);
+        const actualToday = todayEntry ? todayEntry.count : 0;
+        
+        // Calculate average
+        // Rules:
+        // - Include all days with entries (even weekends/holidays)
+        // - For weekdays without entries, count as 0
+        // - Skip weekends/holidays without entries
+        
+        if (entries.length === 0) {
+          result[workId] = { actualToday: 0, averageActual: 0 };
+          return;
+        }
+        
+        // Find date range from entries
+        const dates = entries.map(e => new Date(e.date));
+        const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
+        const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+        
+        // Create a map for quick lookup
+        const entryMap = new Map<string, number>();
+        entries.forEach(e => entryMap.set(e.date, e.count));
+        
+        let totalCount = 0;
+        let countableDays = 0;
+        
+        // Iterate through date range
+        const currentDate = new Date(minDate);
+        while (currentDate <= maxDate) {
+          const dateStr = currentDate.toISOString().split('T')[0];
+          const dayOfWeek = currentDate.getDay();
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+          const isHoliday = holidaySet.has(dateStr);
+          const hasEntry = entryMap.has(dateStr);
+          
+          if (hasEntry) {
+            // Include days with entries
+            totalCount += entryMap.get(dateStr)!;
+            countableDays++;
+          } else if (!isWeekend && !isHoliday) {
+            // Weekdays without entries count as 0
+            countableDays++;
+          }
+          // Skip weekends/holidays without entries
+          
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        
+        const averageActual = countableDays > 0 ? Math.round((totalCount / countableDays) * 10) / 10 : 0;
+        result[workId] = { actualToday, averageActual };
+      });
+      
+      res.json(result);
+    } catch (err) {
+      throw err;
+    }
+  });
+
   // === User Management (Admin only) ===
 
   app.get('/api/users', requireAdmin, async (_req, res) => {
@@ -752,7 +833,12 @@ async function seedDatabase() {
       daysEstimated: 5,
       volumeAmount: 150,
       volumeUnit: "п.м",
+      daysActual: 0,
+      volumeActual: 0,
+      costPlan: 0,
+      costActual: 0,
       progressPercentage: 100,
+      plannedPeople: 5,
       responsiblePerson: "Иванов И.И."
     });
     await storage.createWork({
@@ -761,7 +847,12 @@ async function seedDatabase() {
       daysEstimated: 3,
       volumeAmount: 1,
       volumeUnit: "компл",
+      daysActual: 0,
+      volumeActual: 0,
+      costPlan: 0,
+      costActual: 0,
       progressPercentage: 80,
+      plannedPeople: 3,
       responsiblePerson: "Петров П.П."
     });
 
@@ -772,7 +863,12 @@ async function seedDatabase() {
       daysEstimated: 10,
       volumeAmount: 500,
       volumeUnit: "м3",
+      daysActual: 0,
+      volumeActual: 0,
+      costPlan: 0,
+      costActual: 0,
       progressPercentage: 45,
+      plannedPeople: 8,
       responsiblePerson: "Сидоров С.С."
     });
     await storage.createWork({
@@ -781,7 +877,12 @@ async function seedDatabase() {
       daysEstimated: 4,
       volumeAmount: 50,
       volumeUnit: "м3",
+      daysActual: 0,
+      volumeActual: 0,
+      costPlan: 0,
+      costActual: 0,
       progressPercentage: 10,
+      plannedPeople: 4,
       responsiblePerson: "Сидоров С.С."
     });
 
@@ -792,7 +893,12 @@ async function seedDatabase() {
       daysEstimated: 6,
       volumeAmount: 120,
       volumeUnit: "м2",
+      daysActual: 0,
+      volumeActual: 0,
+      costPlan: 0,
+      costActual: 0,
       progressPercentage: 0,
+      plannedPeople: 6,
       responsiblePerson: "Козлов К.К."
     });
 
