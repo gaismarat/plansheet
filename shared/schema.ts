@@ -55,6 +55,7 @@ export const works = pgTable("works", {
   planEndDate: varchar("plan_end_date"), // Плановая дата окончания
   actualEndDate: varchar("actual_end_date"), // Фактическая дата окончания
   progressPercentage: integer("progress_percentage").default(0).notNull(), // Шкала выполнения 0-100%
+  plannedPeople: integer("planned_people").default(0).notNull(), // Плановое количество людей
   responsiblePerson: text("responsible_person").notNull(), // Ответственный
   order: integer("order").default(0).notNull(), // Порядок в группе
   createdAt: timestamp("created_at").defaultNow(),
@@ -174,6 +175,7 @@ export const insertWorkSchema = createInsertSchema(works).omit({ id: true, creat
   volumeActual: z.coerce.number().min(0).default(0),
   costPlan: z.coerce.number().min(0).default(0),
   costActual: z.coerce.number().min(0).default(0),
+  plannedPeople: z.coerce.number().min(0).max(9999).default(0),
   planStartDate: z.string().optional(),
   actualStartDate: z.string().optional(),
   planEndDate: z.string().optional(),

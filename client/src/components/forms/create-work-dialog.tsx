@@ -48,6 +48,7 @@ export function CreateWorkDialog({ groupId }: CreateWorkDialogProps) {
       volumeAmount: 0,
       volumeUnit: "м3",
       progressPercentage: 0,
+      plannedPeople: 0,
     },
   });
 
@@ -92,7 +93,7 @@ export function CreateWorkDialog({ groupId }: CreateWorkDialogProps) {
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="daysEstimated"
@@ -100,7 +101,7 @@ export function CreateWorkDialog({ groupId }: CreateWorkDialogProps) {
                   <FormItem>
                     <FormLabel>Дней (оценка)</FormLabel>
                     <FormControl>
-                      <Input type="number" min="0" {...field} />
+                      <Input type="number" min="0" {...field} data-testid="input-days-estimated" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -114,7 +115,21 @@ export function CreateWorkDialog({ groupId }: CreateWorkDialogProps) {
                   <FormItem>
                     <FormLabel>Ответственный</FormLabel>
                     <FormControl>
-                      <Input placeholder="Иванов И.И." {...field} />
+                      <Input placeholder="Иванов И.И." {...field} data-testid="input-responsible-person" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="plannedPeople"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Людей (план)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" max="9999" {...field} data-testid="input-planned-people" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

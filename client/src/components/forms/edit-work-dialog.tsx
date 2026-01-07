@@ -49,6 +49,7 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
       daysActual: work.daysActual,
       volumeActual: work.volumeActual,
       progressPercentage: work.progressPercentage,
+      plannedPeople: work.plannedPeople ?? 0,
       planStartDate: work.planStartDate || '',
       planEndDate: work.planEndDate || '',
       actualStartDate: work.actualStartDate || '',
@@ -100,7 +101,7 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="daysEstimated"
@@ -108,7 +109,7 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
                   <FormItem>
                     <FormLabel>Дней (оценка)</FormLabel>
                     <FormControl>
-                      <Input type="number" min="0" {...field} />
+                      <Input type="number" min="0" {...field} data-testid="input-days-estimated" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -122,7 +123,21 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
                   <FormItem>
                     <FormLabel>Ответственный</FormLabel>
                     <FormControl>
-                      <Input placeholder="Иванов И.И." {...field} />
+                      <Input placeholder="Иванов И.И." {...field} data-testid="input-responsible-person" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="plannedPeople"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Людей (план)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" max="9999" {...field} data-testid="input-planned-people" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
