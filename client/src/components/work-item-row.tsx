@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { type Work } from "@shared/schema";
-import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown } from "@/hooks/use-construction";
+import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress } from "@/hooks/use-construction";
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
+import { ProgressHistoryDialog } from "@/components/progress-history-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Trash2, ArrowUp, ArrowDown, ChevronDown, X, Users } from "lucide-react";
+import { Trash2, ArrowUp, ArrowDown, ChevronDown, X, Users, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -18,12 +19,23 @@ interface PeopleSummary {
   averageActual: number;
 }
 
+interface ProgressSubmissionStatus {
+  id: number;
+  workId: number;
+  percent: number;
+  status: string;
+  submitterId: number;
+}
+
 interface WorkItemRowProps {
   work: Work;
   expandAll?: boolean;
   holidayDates?: Set<string>;
   showCost?: boolean;
   peopleSummary?: PeopleSummary;
+  isAdmin?: boolean;
+  progressSubmission?: ProgressSubmissionStatus | null;
+  canSetProgress?: boolean;
 }
 
 function getPeopleColor(actual: number, plan: number): string {
@@ -34,13 +46,18 @@ function getPeopleColor(actual: number, plan: number): string {
   return "text-red-500";
 }
 
-export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), showCost = true, peopleSummary }: WorkItemRowProps) {
+export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), showCost = true, peopleSummary, isAdmin = false, progressSubmission, canSetProgress = false }: WorkItemRowProps) {
   const { mutate: updateWork } = useUpdateWork();
   const { mutate: deleteWork, isPending: isDeleting } = useDeleteWork();
   const { mutate: moveUp } = useMoveWorkUp();
   const { mutate: moveDown } = useMoveWorkDown();
+  const { mutate: submitProgress, isPending: isSubmitting } = useSubmitProgress();
+  const { mutate: approveProgress, isPending: isApproving } = useApproveProgress();
+  const { mutate: rejectProgress, isPending: isRejecting } = useRejectProgress();
   
   const [isExpanded, setIsExpanded] = useState(expandAll);
+  const [isEditingProgress, setIsEditingProgress] = useState(false);
+  const [originalProgress, setOriginalProgress] = useState(work.progressPercentage);
 
   useEffect(() => {
     setIsExpanded(expandAll);
@@ -85,27 +102,48 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   }, [work.costPlan, work.costActual]);
 
   const handleSliderChange = (value: number[]) => {
+    if (!canSetProgress) return;
     const newVal = value[0];
     setLocalProgress(newVal);
-    pendingProgressRef.current = newVal;
-
-    if (sliderTimeoutRef.current) clearTimeout(sliderTimeoutRef.current);
-    
-    sliderTimeoutRef.current = setTimeout(() => {
-      updateWork({ id: work.id, progressPercentage: newVal });
-    }, 600);
-  };
-
-  const handleProgressInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseInt(e.target.value);
-    if (!isNaN(val)) {
-      setLocalProgress(Math.min(100, Math.max(0, val)));
+    if (!isEditingProgress) {
+      setOriginalProgress(work.progressPercentage);
+      setIsEditingProgress(true);
     }
   };
 
-  const handleProgressInputBlur = () => {
-    pendingProgressRef.current = localProgress;
-    updateWork({ id: work.id, progressPercentage: localProgress });
+  const handleProgressInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canSetProgress) return;
+    const val = parseInt(e.target.value);
+    if (!isNaN(val)) {
+      setLocalProgress(Math.min(100, Math.max(0, val)));
+      if (!isEditingProgress) {
+        setOriginalProgress(work.progressPercentage);
+        setIsEditingProgress(true);
+      }
+    }
+  };
+
+  const handleProgressSubmit = () => {
+    if (!canSetProgress) return;
+    submitProgress({ workId: work.id, percent: localProgress });
+    setIsEditingProgress(false);
+  };
+
+  const handleProgressCancel = () => {
+    setLocalProgress(originalProgress);
+    setIsEditingProgress(false);
+  };
+
+  const handleProgressApprove = () => {
+    if (progressSubmission?.id) {
+      approveProgress(progressSubmission.id);
+    }
+  };
+
+  const handleProgressReject = () => {
+    if (progressSubmission?.id) {
+      rejectProgress(progressSubmission.id);
+    }
   };
 
   const handlePlanStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -664,7 +702,11 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
               </div>
 
               {/* Fact Progress with Slider */}
-              <div className="flex items-center gap-2">
+              <div className={cn(
+                "flex items-center gap-2 p-1 rounded transition-all",
+                progressSubmission?.status === "submitted" && "border border-dashed border-gray-400",
+                progressSubmission?.status === "rejected" && "border border-dashed border-red-500"
+              )}>
                 <span className="text-[10px] text-muted-foreground w-8 shrink-0">Факт</span>
                 <div className="flex-1 h-2">
                   <Slider
@@ -672,8 +714,9 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                     value={[localProgress]}
                     max={100}
                     step={1}
-                    onValueChange={handleSliderChange}
-                    className="cursor-pointer h-2"
+                    onValueChange={canSetProgress ? handleSliderChange : undefined}
+                    disabled={!canSetProgress}
+                    className={cn("h-2", canSetProgress ? "cursor-pointer" : "cursor-not-allowed opacity-60")}
                     data-testid={`slider-progress-${work.id}`}
                   />
                 </div>
@@ -682,12 +725,93 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                   min={0}
                   max={100}
                   value={localProgress}
-                  onChange={handleProgressInputChange}
-                  onBlur={handleProgressInputBlur}
-                  className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-xs"
+                  onChange={canSetProgress ? handleProgressInputChange : undefined}
+                  disabled={!canSetProgress}
+                  readOnly={!canSetProgress}
+                  className={cn(
+                    "w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-xs",
+                    !canSetProgress && "cursor-not-allowed opacity-60"
+                  )}
                   data-testid={`input-progress-${work.id}`}
                 />
                 <span className="text-muted-foreground text-xs w-2">%</span>
+              </div>
+
+              {/* Progress Approval Buttons */}
+              <div className="flex items-center justify-end gap-1 mt-1">
+                {/* User submit/cancel buttons - shown when editing and has permission */}
+                {canSetProgress && isEditingProgress && (
+                  <>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-100"
+                          onClick={handleProgressSubmit}
+                          disabled={isSubmitting}
+                          data-testid={`button-progress-submit-${work.id}`}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Отправить на согласование</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-100"
+                          onClick={handleProgressCancel}
+                          data-testid={`button-progress-cancel-${work.id}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Отменить</TooltipContent>
+                    </Tooltip>
+                  </>
+                )}
+
+                {/* Admin approve/reject buttons - shown for pending submissions */}
+                {!isEditingProgress && isAdmin && progressSubmission?.status === "submitted" && (
+                  <>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-100"
+                          onClick={handleProgressApprove}
+                          disabled={isApproving}
+                          data-testid={`button-progress-approve-${work.id}`}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Согласовать</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-100"
+                          onClick={handleProgressReject}
+                          disabled={isRejecting}
+                          data-testid={`button-progress-reject-${work.id}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Отклонить</TooltipContent>
+                    </Tooltip>
+                  </>
+                )}
+
+                {/* History button */}
+                <ProgressHistoryDialog workId={work.id} workName={work.name} />
               </div>
 
               {/* Deviation */}

@@ -730,6 +730,103 @@ export async function registerRoutes(
     }
   });
 
+  // === Progress Submissions (Согласование прогресса) ===
+
+  // Submit progress for approval (requires can_set_progress permission or admin)
+  app.post('/api/progress/submit', async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Не авторизован" });
+      }
+      const user = req.user as any;
+      const userId = user.id;
+      
+      // Check if user is admin or has can_set_progress permission
+      if (!user.isAdmin) {
+        const canSetProgress = await storage.hasPermission(userId, "edit_data", "progress");
+        if (!canSetProgress) {
+          return res.status(403).json({ message: "Нет прав на изменение прогресса" });
+        }
+      }
+      
+      const { workId, percent } = req.body;
+      if (typeof workId !== 'number' || typeof percent !== 'number') {
+        return res.status(400).json({ message: "workId и percent обязательны" });
+      }
+      const submission = await storage.submitProgress(workId, percent, userId);
+      res.status(201).json(submission);
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  // Approve progress (admin only)
+  app.post('/api/progress/:id/approve', requireAdmin, async (req, res) => {
+    try {
+      const submissionId = Number(req.params.id);
+      const approverId = (req.user as any).id;
+      const submission = await storage.approveProgress(submissionId, approverId);
+      res.json(submission);
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  // Reject progress (admin only)
+  app.post('/api/progress/:id/reject', requireAdmin, async (req, res) => {
+    try {
+      const submissionId = Number(req.params.id);
+      const approverId = (req.user as any).id;
+      const submission = await storage.rejectProgress(submissionId, approverId);
+      res.json(submission);
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  // Get progress history for a work
+  app.get('/api/progress/history/:workId', async (req, res) => {
+    try {
+      const workId = Number(req.params.workId);
+      const history = await storage.getProgressHistory(workId);
+      res.json(history);
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  // Get latest submission for a work
+  app.get('/api/progress/latest/:workId', async (req, res) => {
+    try {
+      const workId = Number(req.params.workId);
+      const submission = await storage.getLatestSubmission(workId);
+      res.json(submission || null);
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  // Get all latest submissions for works (for batch fetching)
+  app.get('/api/progress/latest-all', async (_req, res) => {
+    try {
+      const workGroupsWithWorks = await storage.getWorkGroupsWithWorks();
+      const result: Record<number, any> = {};
+      
+      for (const group of workGroupsWithWorks) {
+        for (const work of group.works) {
+          const submission = await storage.getLatestSubmission(work.id);
+          if (submission) {
+            result[work.id] = submission;
+          }
+        }
+      }
+      
+      res.json(result);
+    } catch (err) {
+      throw err;
+    }
+  });
+
   // === User Management (Admin only) ===
 
   app.get('/api/users', requireAdmin, async (_req, res) => {

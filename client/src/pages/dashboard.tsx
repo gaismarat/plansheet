@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useBlocks, useUnassignedGroups, useDeleteWorkGroup, useDeleteBlock, useHolidays, useWorkPeopleSummary } from "@/hooks/use-construction";
+import { useBlocks, useUnassignedGroups, useDeleteWorkGroup, useDeleteBlock, useHolidays, useWorkPeopleSummary, useLatestProgressSubmissions } from "@/hooks/use-construction";
 import { CreateWorkGroupDialog } from "@/components/forms/create-work-group-dialog";
 import { CreateBlockDialog } from "@/components/forms/create-block-dialog";
 import { EditGroupDialog } from "@/components/forms/edit-group-dialog";
@@ -47,9 +47,12 @@ export default function Dashboard() {
   const { data: unassignedGroups, isLoading: groupsLoading } = useUnassignedGroups();
   const { data: holidays = [] } = useHolidays();
   const { data: peopleSummary = {} } = useWorkPeopleSummary();
+  const { data: progressSubmissions = {} } = useLatestProgressSubmissions();
   const holidayDates = new Set(holidays.map(h => h.date));
-  const { user, logout, canViewField } = useAuth();
+  const { user, logout, canViewField, hasPermission } = useAuth();
   const showCostColumn = canViewField("cost");
+  const isAdmin = user?.isAdmin ?? false;
+  const canSetProgress = isAdmin || hasPermission("edit_data", "progress");
 
   const isLoading = blocksLoading || groupsLoading;
   const blocks = blocksData || [];
@@ -226,7 +229,7 @@ export default function Dashboard() {
               {blocks.length > 0 && (
                 <Accordion type="multiple" defaultValue={blocks.map(b => `block-${b.id}`)} className="space-y-4">
                   {blocks.map((block) => (
-                    <BlockAccordionItem key={block.id} block={block} holidayDates={holidayDates} showCost={showCostColumn} peopleSummary={peopleSummary} />
+                    <BlockAccordionItem key={block.id} block={block} holidayDates={holidayDates} showCost={showCostColumn} peopleSummary={peopleSummary} isAdmin={isAdmin} progressSubmissions={progressSubmissions} canSetProgress={canSetProgress} />
                   ))}
                 </Accordion>
               )}
@@ -240,7 +243,7 @@ export default function Dashboard() {
                   )}
                   <Accordion type="multiple" defaultValue={groups.map(g => `group-${g.id}`)} className="space-y-4">
                     {groups.map((group) => (
-                      <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} showCost={showCostColumn} peopleSummary={peopleSummary} />
+                      <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} showCost={showCostColumn} peopleSummary={peopleSummary} isAdmin={isAdmin} progressSubmissions={progressSubmissions} canSetProgress={canSetProgress} />
                     ))}
                   </Accordion>
                 </div>
@@ -253,7 +256,7 @@ export default function Dashboard() {
   );
 }
 
-function BlockAccordionItem({ block, holidayDates, showCost = true, peopleSummary = {} }: { block: BlockResponse; holidayDates: Set<string>; showCost?: boolean; peopleSummary?: Record<number, { actualToday: number; averageActual: number }> }) {
+function BlockAccordionItem({ block, holidayDates, showCost = true, peopleSummary = {}, isAdmin = false, progressSubmissions = {}, canSetProgress = false }: { block: BlockResponse; holidayDates: Set<string>; showCost?: boolean; peopleSummary?: Record<number, { actualToday: number; averageActual: number }>; isAdmin?: boolean; progressSubmissions?: Record<number, any>; canSetProgress?: boolean }) {
   const { mutate: deleteBlock } = useDeleteBlock();
   const [showAllGroups, setShowAllGroups] = useState(true);
   
@@ -346,7 +349,7 @@ function BlockAccordionItem({ block, holidayDates, showCost = true, peopleSummar
         ) : (
           <Accordion type="multiple" defaultValue={showAllGroups ? block.groups?.map(g => `group-${g.id}`) : []} className="space-y-3">
             {block.groups?.map((group) => (
-              <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} isNested forceHideWorks={!showAllGroups} showCost={showCost} peopleSummary={peopleSummary} />
+              <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} isNested forceHideWorks={!showAllGroups} showCost={showCost} peopleSummary={peopleSummary} isAdmin={isAdmin} progressSubmissions={progressSubmissions} canSetProgress={canSetProgress} />
             ))}
           </Accordion>
         )}
@@ -355,7 +358,7 @@ function BlockAccordionItem({ block, holidayDates, showCost = true, peopleSummar
   );
 }
 
-function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWorks = false, showCost = true, peopleSummary = {} }: { group: WorkGroupResponse; holidayDates: Set<string>; isNested?: boolean; forceHideWorks?: boolean; showCost?: boolean; peopleSummary?: Record<number, { actualToday: number; averageActual: number }> }) {
+function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWorks = false, showCost = true, peopleSummary = {}, isAdmin = false, progressSubmissions = {}, canSetProgress = false }: { group: WorkGroupResponse; holidayDates: Set<string>; isNested?: boolean; forceHideWorks?: boolean; showCost?: boolean; peopleSummary?: Record<number, { actualToday: number; averageActual: number }>; isAdmin?: boolean; progressSubmissions?: Record<number, any>; canSetProgress?: boolean }) {
   const { mutate: deleteGroup } = useDeleteWorkGroup();
   const [showAllWorks, setShowAllWorks] = useState(!isNested);
   const effectiveShowWorks = forceHideWorks ? false : showAllWorks;
@@ -484,7 +487,7 @@ function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWo
         ) : (
           <div className="space-y-1">
             {group.works?.map((work) => (
-              <WorkItemRow key={work.id} work={work} expandAll={effectiveShowWorks} holidayDates={holidayDates} showCost={showCost} peopleSummary={peopleSummary[work.id]} />
+              <WorkItemRow key={work.id} work={work} expandAll={effectiveShowWorks} holidayDates={holidayDates} showCost={showCost} peopleSummary={peopleSummary[work.id]} isAdmin={isAdmin} progressSubmission={progressSubmissions[work.id]} canSetProgress={canSetProgress} />
             ))}
           </div>
         )}

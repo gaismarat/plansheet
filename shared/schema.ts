@@ -395,6 +395,19 @@ export type PdcSectionWithGroups = PdcSection & { groups?: PdcGroupWithElements[
 export type PdcBlockWithSections = PdcBlock & { sections?: PdcSectionWithGroups[] };
 export type PdcDocumentWithData = PdcDocument & { blocks?: PdcBlockWithSections[] };
 
+// === PROGRESS SUBMISSIONS (Согласование прогресса) TABLE ===
+
+export const progressSubmissions = pgTable("progress_submissions", {
+  id: serial("id").primaryKey(),
+  workId: integer("work_id").notNull().references(() => works.id, { onDelete: "cascade" }),
+  percent: integer("percent").notNull(), // Процент прогресса 0-100
+  submitterId: integer("submitter_id").notNull().references(() => users.id), // Кто отправил
+  approverId: integer("approver_id").references(() => users.id), // Кто согласовал/отклонил
+  status: text("status").notNull().default("submitted"), // submitted | approved | rejected
+  createdAt: timestamp("created_at").defaultNow(),
+  resolvedAt: timestamp("resolved_at"), // Когда согласовали/отклонили
+});
+
 // === WORK PEOPLE (Люди) TABLE ===
 
 export const workPeople = pgTable("work_people", {
@@ -403,6 +416,39 @@ export const workPeople = pgTable("work_people", {
   date: varchar("date").notNull(), // Format: YYYY-MM-DD
   count: integer("count").default(0).notNull(), // Number of people
 });
+
+// === PROGRESS SUBMISSIONS RELATIONS ===
+
+export const progressSubmissionsRelations = relations(progressSubmissions, ({ one }) => ({
+  work: one(works, {
+    fields: [progressSubmissions.workId],
+    references: [works.id],
+  }),
+  submitter: one(users, {
+    fields: [progressSubmissions.submitterId],
+    references: [users.id],
+  }),
+  approver: one(users, {
+    fields: [progressSubmissions.approverId],
+    references: [users.id],
+  }),
+}));
+
+// === PROGRESS SUBMISSIONS SCHEMAS ===
+
+export const insertProgressSubmissionSchema = createInsertSchema(progressSubmissions).omit({ id: true, createdAt: true, resolvedAt: true }).extend({
+  percent: z.coerce.number().min(0).max(100),
+  status: z.enum(["submitted", "approved", "rejected"]).default("submitted"),
+});
+
+export type ProgressSubmission = typeof progressSubmissions.$inferSelect;
+export type InsertProgressSubmission = z.infer<typeof insertProgressSubmissionSchema>;
+
+// Progress submission with user info for display
+export type ProgressSubmissionWithUsers = ProgressSubmission & {
+  submitterName?: string;
+  approverName?: string;
+};
 
 // === WORK PEOPLE RELATIONS ===
 

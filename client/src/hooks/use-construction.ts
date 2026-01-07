@@ -351,3 +351,87 @@ export function useWorkPeopleSummary() {
     },
   });
 }
+
+// ============================================
+// PROGRESS SUBMISSIONS HOOKS
+// ============================================
+
+export function useLatestProgressSubmissions() {
+  return useQuery<Record<number, { id: number; workId: number; percent: number; status: string; submitterId: number }>>({
+    queryKey: ['/api/progress/latest-all'],
+    queryFn: async () => {
+      const res = await fetch('/api/progress/latest-all');
+      if (!res.ok) throw new Error("Failed to fetch progress submissions");
+      return res.json();
+    },
+  });
+}
+
+export function useSubmitProgress() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ workId, percent }: { workId: number; percent: number }) => {
+      const res = await fetch('/api/progress/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workId, percent }),
+      });
+      if (!res.ok) throw new Error("Failed to submit progress");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/progress/latest-all'] });
+      toast({ title: "Прогресс отправлен", description: "Ожидает согласования" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useApproveProgress() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (submissionId: number) => {
+      const res = await fetch(`/api/progress/${submissionId}/approve`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error("Failed to approve progress");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/progress/latest-all'] });
+      queryClient.invalidateQueries({ queryKey: [api.workGroups.list.path] });
+      toast({ title: "Прогресс согласован" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useRejectProgress() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (submissionId: number) => {
+      const res = await fetch(`/api/progress/${submissionId}/reject`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error("Failed to reject progress");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/progress/latest-all'] });
+      toast({ title: "Прогресс отклонён" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}

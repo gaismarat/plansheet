@@ -16,6 +16,7 @@ import {
   pdcGroups,
   pdcElements,
   workPeople,
+  progressSubmissions,
   type Block,
   type Work,
   type WorkGroup,
@@ -58,7 +59,9 @@ import {
   type PdcBlockWithSections,
   type PdcSectionWithGroups,
   type PdcGroupWithElements,
-  type WorkPeople
+  type WorkPeople,
+  type ProgressSubmission,
+  type ProgressSubmissionWithUsers
 } from "@shared/schema";
 import { eq, and, isNull, asc } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -172,6 +175,13 @@ export interface IStorage {
   getWorkPeopleByWorkId(workId: number): Promise<WorkPeople[]>;
   upsertWorkPeople(workId: number, date: string, count: number): Promise<WorkPeople>;
   deleteWorkPeople(id: number): Promise<void>;
+
+  // Progress Submissions
+  submitProgress(workId: number, percent: number, submitterId: number): Promise<ProgressSubmission>;
+  approveProgress(submissionId: number, approverId: number): Promise<ProgressSubmission>;
+  rejectProgress(submissionId: number, approverId: number): Promise<ProgressSubmission>;
+  getProgressHistory(workId: number): Promise<ProgressSubmissionWithUsers[]>;
+  getLatestSubmission(workId: number): Promise<ProgressSubmission | undefined>;
 
   // Admin initialization
   initializeAdmin(): Promise<void>;
@@ -980,6 +990,81 @@ export class DatabaseStorage implements IStorage {
 
   async deleteWorkPeople(id: number): Promise<void> {
     await db.delete(workPeople).where(eq(workPeople.id, id));
+  }
+
+  // === PROGRESS SUBMISSIONS ===
+
+  async submitProgress(workId: number, percent: number, submitterId: number): Promise<ProgressSubmission> {
+    const [submission] = await db.insert(progressSubmissions).values({
+      workId,
+      percent,
+      submitterId,
+      status: "submitted"
+    }).returning();
+    return submission;
+  }
+
+  async approveProgress(submissionId: number, approverId: number): Promise<ProgressSubmission> {
+    const [submission] = await db.select().from(progressSubmissions).where(eq(progressSubmissions.id, submissionId));
+    if (!submission) throw new Error("Submission not found");
+
+    const [updated] = await db.update(progressSubmissions)
+      .set({ 
+        status: "approved", 
+        approverId, 
+        resolvedAt: new Date() 
+      })
+      .where(eq(progressSubmissions.id, submissionId))
+      .returning();
+    
+    await db.update(works)
+      .set({ progressPercentage: submission.percent })
+      .where(eq(works.id, submission.workId));
+    
+    return updated;
+  }
+
+  async rejectProgress(submissionId: number, approverId: number): Promise<ProgressSubmission> {
+    const [updated] = await db.update(progressSubmissions)
+      .set({ 
+        status: "rejected", 
+        approverId, 
+        resolvedAt: new Date() 
+      })
+      .where(eq(progressSubmissions.id, submissionId))
+      .returning();
+    return updated;
+  }
+
+  async getProgressHistory(workId: number): Promise<ProgressSubmissionWithUsers[]> {
+    const submissions = await db.select().from(progressSubmissions)
+      .where(eq(progressSubmissions.workId, workId))
+      .orderBy(asc(progressSubmissions.id));
+    
+    const result: ProgressSubmissionWithUsers[] = [];
+    for (const sub of submissions) {
+      const [submitter] = await db.select().from(users).where(eq(users.id, sub.submitterId));
+      let approverName: string | undefined;
+      if (sub.approverId) {
+        const [approver] = await db.select().from(users).where(eq(users.id, sub.approverId));
+        approverName = approver?.username;
+      }
+      result.push({
+        ...sub,
+        submitterName: submitter?.username,
+        approverName
+      });
+    }
+    return result;
+  }
+
+  async getLatestSubmission(workId: number): Promise<ProgressSubmission | undefined> {
+    const submissions = await db.select().from(progressSubmissions)
+      .where(eq(progressSubmissions.workId, workId))
+      .orderBy(asc(progressSubmissions.id));
+    
+    if (submissions.length === 0) return undefined;
+    return submissions[submissions.length - 1];
   }
 }
 
