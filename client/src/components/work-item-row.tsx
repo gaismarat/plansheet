@@ -238,7 +238,19 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   };
 
   const plannedProgress = calculatePlannedProgress();
-  const deviation = localProgress - plannedProgress;
+  
+  // Auto-set to 100% if actual end date has passed
+  const isWorkCompleted = (() => {
+    if (!localActualEndDate) return false;
+    const actualEnd = new Date(localActualEndDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    actualEnd.setHours(0, 0, 0, 0);
+    return actualEnd < today;
+  })();
+  
+  const effectiveProgress = isWorkCompleted ? 100 : localProgress;
+  const deviation = effectiveProgress - plannedProgress;
 
   return (
     <motion.div
@@ -291,12 +303,12 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                     <div 
                       className={cn(
                         "h-full rounded-full transition-all",
-                        localProgress >= plannedProgress ? "bg-green-500" : "bg-orange-500"
+                        effectiveProgress >= plannedProgress ? "bg-green-500" : "bg-orange-500"
                       )}
-                      style={{ width: `${localProgress}%` }}
+                      style={{ width: `${effectiveProgress}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-muted-foreground w-8 text-right">{localProgress}%</span>
+                  <span className="text-[10px] text-muted-foreground w-8 text-right">{effectiveProgress}%</span>
                 </div>
               </div>
               <span className={cn(
@@ -321,7 +333,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
             <div className="col-span-1 text-center">Начало</div>
             <div className="col-span-1 text-center">Конец</div>
             <div className={cn("text-center", showCost ? "col-span-2" : "col-span-3")}>Трудоёмкость</div>
-            <div className="col-span-1 text-center">Люди, чел</div>
+            <div className="col-span-1 text-center">ЛЮДИ</div>
             <div className="col-span-3 text-center">Прогресс</div>
           </div>
 
@@ -580,25 +592,25 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
             <div className={cn("grid grid-cols-3 gap-1 text-center", showCost ? "col-span-2" : "col-span-3")}>
               <div className="flex flex-col items-center">
                 <div className="text-muted-foreground font-medium text-[10px] mb-0.5">Календ.</div>
-                <div className="text-[9px] text-muted-foreground">П</div>
+                <div className="text-[9px] text-muted-foreground">План</div>
                 <span className="font-mono text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).calendar}</span>
-                <div className="text-[9px] text-muted-foreground mt-0.5">Ф</div>
+                <div className="text-[9px] text-muted-foreground mt-0.5">Факт</div>
                 <span className="font-mono text-foreground text-xs">{calculateDays(localActualStartDate, localActualEndDate).calendar}</span>
               </div>
               
               <div className="flex flex-col items-center">
                 <div className="text-muted-foreground font-medium text-[10px] mb-0.5">Рабочие</div>
-                <div className="text-[9px] text-muted-foreground">П</div>
+                <div className="text-[9px] text-muted-foreground">План</div>
                 <span className="font-mono text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).working}</span>
-                <div className="text-[9px] text-muted-foreground mt-0.5">Ф</div>
+                <div className="text-[9px] text-muted-foreground mt-0.5">Факт</div>
                 <span className="font-mono text-foreground text-xs">{calculateDays(localActualStartDate, localActualEndDate).working}</span>
               </div>
               
               <div className="flex flex-col items-center">
                 <div className="text-muted-foreground font-medium text-[10px] mb-0.5">Выходн.</div>
-                <div className="text-[9px] text-muted-foreground">П</div>
+                <div className="text-[9px] text-muted-foreground">План</div>
                 <span className="font-mono text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).weekend}</span>
-                <div className="text-[9px] text-muted-foreground mt-0.5">Ф</div>
+                <div className="text-[9px] text-muted-foreground mt-0.5">Факт</div>
                 <span className="font-mono text-foreground text-xs">{calculateDays(localActualStartDate, localActualEndDate).weekend}</span>
               </div>
             </div>
@@ -608,11 +620,11 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
               <div className="flex flex-col items-center">
                 <div className="text-muted-foreground font-medium text-[10px]">Сегодня</div>
                 <div className="flex items-center gap-1 mt-0.5">
-                  <span className="text-[9px] text-muted-foreground">П</span>
+                  <span className="text-[9px] text-muted-foreground">План</span>
                   <span className="font-mono text-foreground text-xs">{work.plannedPeople || 0}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <span className="text-[9px] text-muted-foreground">Ф</span>
+                  <span className="text-[9px] text-muted-foreground">Факт</span>
                   <span className="font-mono text-foreground text-xs">{peopleSummary?.actualToday || 0}</span>
                 </div>
               </div>
@@ -633,20 +645,20 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                     style={{ width: `${plannedProgress}%` }}
                   />
                 </div>
-                <span className="text-xs font-mono w-10 text-right">{plannedProgress}%</span>
+                <span className="text-xs font-mono w-16 text-right">{plannedProgress}%</span>
               </div>
 
               {/* Fact Progress with Slider */}
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-muted-foreground w-8 shrink-0">Факт</span>
-                <div className="flex-1">
+                <div className="flex-1 h-2">
                   <Slider
                     defaultValue={[work.progressPercentage]}
                     value={[localProgress]}
                     max={100}
                     step={1}
                     onValueChange={handleSliderChange}
-                    className="cursor-pointer"
+                    className="cursor-pointer h-2"
                     data-testid={`slider-progress-${work.id}`}
                   />
                 </div>
@@ -660,7 +672,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                   className="w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-xs"
                   data-testid={`input-progress-${work.id}`}
                 />
-                <span className="text-muted-foreground text-xs">%</span>
+                <span className="text-muted-foreground text-xs w-2">%</span>
               </div>
 
               {/* Deviation */}
