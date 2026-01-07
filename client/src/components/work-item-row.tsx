@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { type Work } from "@shared/schema";
 import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown } from "@/hooks/use-construction";
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
@@ -26,6 +26,14 @@ interface WorkItemRowProps {
   peopleSummary?: PeopleSummary;
 }
 
+function getPeopleColor(actual: number, plan: number): string {
+  if (plan <= 0) return "text-muted-foreground";
+  const ratio = actual / plan;
+  if (ratio >= 1) return "text-green-500";
+  if (ratio >= 0.8) return "text-yellow-500";
+  return "text-red-500";
+}
+
 export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), showCost = true, peopleSummary }: WorkItemRowProps) {
   const { mutate: updateWork } = useUpdateWork();
   const { mutate: deleteWork, isPending: isDeleting } = useDeleteWork();
@@ -39,7 +47,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   }, [expandAll]);
   
   const [localProgress, setLocalProgress] = useState(work.progressPercentage);
-  const [isEditingProgress, setIsEditingProgress] = useState(false);
+  const pendingProgressRef = useRef<number | null>(null);
   const [localPlanStartDate, setLocalPlanStartDate] = useState(work.planStartDate || '');
   const [localPlanEndDate, setLocalPlanEndDate] = useState(work.planEndDate || '');
   const [localActualStartDate, setLocalActualStartDate] = useState(work.actualStartDate || '');
@@ -52,10 +60,12 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   const dateTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    if (!isEditingProgress) {
+    if (pendingProgressRef.current === null) {
       setLocalProgress(work.progressPercentage);
+    } else if (work.progressPercentage === pendingProgressRef.current) {
+      pendingProgressRef.current = null;
     }
-  }, [work.progressPercentage, isEditingProgress]);
+  }, [work.progressPercentage]);
 
   useEffect(() => {
     setLocalPlanStartDate(work.planStartDate || '');
@@ -77,13 +87,12 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   const handleSliderChange = (value: number[]) => {
     const newVal = value[0];
     setLocalProgress(newVal);
-    setIsEditingProgress(true);
+    pendingProgressRef.current = newVal;
 
     if (sliderTimeoutRef.current) clearTimeout(sliderTimeoutRef.current);
     
     sliderTimeoutRef.current = setTimeout(() => {
       updateWork({ id: work.id, progressPercentage: newVal });
-      setIsEditingProgress(false);
     }, 600);
   };
 
@@ -95,6 +104,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   };
 
   const handleProgressInputBlur = () => {
+    pendingProgressRef.current = localProgress;
     updateWork({ id: work.id, progressPercentage: localProgress });
   };
 
@@ -280,8 +290,9 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
 
             <div className="col-span-2 flex items-center gap-2 text-xs">
               <Users className="w-3 h-3 text-muted-foreground" />
-              <span className="text-muted-foreground">
-                {work.plannedPeople || 0}/{peopleSummary?.actualToday || 0}
+              <span className="text-muted-foreground">{work.plannedPeople || 0}/</span>
+              <span className={getPeopleColor(peopleSummary?.actualToday || 0, work.plannedPeople || 0)}>
+                {peopleSummary?.actualToday || 0}
               </span>
             </div>
 
@@ -625,12 +636,16 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-[9px] text-muted-foreground">Факт</span>
-                  <span className="font-mono text-foreground text-xs">{peopleSummary?.actualToday || 0}</span>
+                  <span className={cn("font-mono text-xs", getPeopleColor(peopleSummary?.actualToday || 0, work.plannedPeople || 0))}>
+                    {peopleSummary?.actualToday || 0}
+                  </span>
                 </div>
               </div>
               <div className="flex flex-col items-center mt-1">
                 <div className="text-muted-foreground font-medium text-[10px]">Среднее</div>
-                <span className="font-mono text-foreground text-xs">{peopleSummary?.averageActual?.toFixed(1) || '0.0'}</span>
+                <span className={cn("font-mono text-xs", getPeopleColor(peopleSummary?.averageActual || 0, work.plannedPeople || 0))}>
+                  {peopleSummary?.averageActual?.toFixed(1) || '0.0'}
+                </span>
               </div>
             </div>
 

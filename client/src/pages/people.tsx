@@ -449,6 +449,65 @@ function GroupDataRows({
   );
 }
 
+function PeopleInput({
+  workId,
+  dateStr,
+  initialValue,
+  isToday,
+  isWeekend
+}: {
+  workId: number;
+  dateStr: string;
+  initialValue: number | undefined;
+  isToday: boolean;
+  isWeekend: boolean;
+}) {
+  const [localValue, setLocalValue] = useState(initialValue !== undefined ? String(initialValue) : "");
+  const timeoutRef = useRef<NodeJS.Timeout>();
+  
+  useEffect(() => {
+    setLocalValue(initialValue !== undefined ? String(initialValue) : "");
+  }, [initialValue]);
+
+  const mutation = useMutation({
+    mutationFn: async ({ workId, date, count }: { workId: number; date: string; count: number }) => {
+      await apiRequest("POST", "/api/work-people", { workId, date, count });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/work-people"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-people/summary"] });
+    }
+  });
+
+  const handleChange = (value: string) => {
+    setLocalValue(value);
+    
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    
+    timeoutRef.current = setTimeout(() => {
+      const numValue = parseInt(value, 10);
+      if (value === "" || (!isNaN(numValue) && numValue >= 0)) {
+        mutation.mutate({ workId, date: dateStr, count: numValue || 0 });
+      }
+    }, 400);
+  };
+
+  return (
+    <td 
+      className={`border-b border-r border-border p-0 h-10 ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/10' : ''}`}
+    >
+      <Input
+        type="number"
+        min="0"
+        value={localValue}
+        onChange={(e) => handleChange(e.target.value)}
+        className="w-full h-full border-0 text-center text-sm p-1 rounded-none bg-transparent focus-visible:ring-1 focus-visible:ring-inset"
+        data-testid={`input-people-${workId}-${dateStr}`}
+      />
+    </td>
+  );
+}
+
 function WorkDataRow({
   work,
   days,
@@ -460,23 +519,6 @@ function WorkDataRow({
   today: Date;
   workPeopleMap: Map<string, number>;
 }) {
-  const mutation = useMutation({
-    mutationFn: async ({ workId, date, count }: { workId: number; date: string; count: number }) => {
-      await apiRequest("POST", "/api/work-people", { workId, date, count });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/work-people"] });
-    }
-  });
-
-  const handleChange = (day: Date, value: string) => {
-    const numValue = parseInt(value, 10);
-    if (value === "" || (!isNaN(numValue) && numValue >= 0)) {
-      const dateStr = format(day, "yyyy-MM-dd");
-      mutation.mutate({ workId: work.id, date: dateStr, count: numValue || 0 });
-    }
-  };
-
   return (
     <tr className="hover:bg-muted/20 transition-colors">
       {days.map((day, idx) => {
@@ -487,19 +529,14 @@ function WorkDataRow({
         const value = workPeopleMap.get(key);
 
         return (
-          <td 
-            key={idx} 
-            className={`border-b border-r border-border p-0 h-10 ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/10' : ''}`}
-          >
-            <Input
-              type="number"
-              min="0"
-              value={value !== undefined ? value : ""}
-              onChange={(e) => handleChange(day, e.target.value)}
-              className="w-full h-full border-0 text-center text-sm p-1 rounded-none bg-transparent focus-visible:ring-1 focus-visible:ring-inset"
-              data-testid={`input-people-${work.id}-${dateStr}`}
-            />
-          </td>
+          <PeopleInput
+            key={idx}
+            workId={work.id}
+            dateStr={dateStr}
+            initialValue={value}
+            isToday={isToday}
+            isWeekend={isWeekend}
+          />
         );
       })}
     </tr>

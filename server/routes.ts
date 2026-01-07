@@ -633,11 +633,21 @@ export async function registerRoutes(
   app.get('/api/work-people/summary', async (_req, res) => {
     try {
       const allWorkPeople = await storage.getWorkPeople();
+      const workGroupsWithWorks = await storage.getWorkGroupsWithWorks();
       const holidays = await storage.getHolidays();
       const holidaySet = new Set(holidays.map(h => h.date));
       
       const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const todayStr = today.toISOString().split('T')[0];
+      
+      // Create work map for planStartDate lookup from all work groups
+      const workMap = new Map<number, { planStartDate: string | null }>();
+      workGroupsWithWorks.forEach(group => {
+        group.works.forEach(w => {
+          workMap.set(w.id, { planStartDate: w.planStartDate });
+        });
+      });
       
       // Group by workId
       const workPeopleByWork = new Map<number, { date: string; count: number }[]>();
@@ -655,32 +665,42 @@ export async function registerRoutes(
         const todayEntry = entries.find(e => e.date === todayStr);
         const actualToday = todayEntry ? todayEntry.count : 0;
         
-        // Calculate average
-        // Rules:
-        // - Include all days with entries (even weekends/holidays)
-        // - For weekdays without entries, count as 0
-        // - Skip weekends/holidays without entries
+        // Get work's plannedStartDate
+        const workInfo = workMap.get(workId);
+        const planStartDateStr = workInfo?.planStartDate;
         
-        if (entries.length === 0) {
-          result[workId] = { actualToday: 0, averageActual: 0 };
+        if (!planStartDateStr) {
+          // No planned start date - use entries only if they exist
+          if (entries.length === 0) {
+            result[workId] = { actualToday, averageActual: 0 };
+          } else {
+            const totalCount = entries.reduce((sum, e) => sum + e.count, 0);
+            const averageActual = Math.round((totalCount / entries.length) * 10) / 10;
+            result[workId] = { actualToday, averageActual };
+          }
           return;
         }
-        
-        // Find date range from entries
-        const dates = entries.map(e => new Date(e.date));
-        const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
-        const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
         
         // Create a map for quick lookup
         const entryMap = new Map<string, number>();
         entries.forEach(e => entryMap.set(e.date, e.count));
         
+        // Calculate from plannedStartDate to today
+        const startDate = new Date(planStartDateStr);
+        startDate.setHours(0, 0, 0, 0);
+        
+        // If today is before start date, average is 0
+        if (today < startDate) {
+          result[workId] = { actualToday, averageActual: 0 };
+          return;
+        }
+        
         let totalCount = 0;
         let countableDays = 0;
         
-        // Iterate through date range
-        const currentDate = new Date(minDate);
-        while (currentDate <= maxDate) {
+        // Iterate from plannedStartDate to today
+        const currentDate = new Date(startDate);
+        while (currentDate <= today) {
           const dateStr = currentDate.toISOString().split('T')[0];
           const dayOfWeek = currentDate.getDay();
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -688,7 +708,7 @@ export async function registerRoutes(
           const hasEntry = entryMap.has(dateStr);
           
           if (hasEntry) {
-            // Include days with entries
+            // Include days with entries (any day)
             totalCount += entryMap.get(dateStr)!;
             countableDays++;
           } else if (!isWeekend && !isHoliday) {
