@@ -1,5 +1,6 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, createContext, useContext } from "react";
 import { useWorksTree } from "@/hooks/use-construction";
+import { useSyncedRowHeights } from "@/hooks/use-synced-row-heights";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { ArrowLeft, CalendarDays, ChevronRight, ChevronDown } from "lucide-react";
@@ -7,6 +8,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { addDays, startOfWeek, endOfWeek, format, parseISO, differenceInDays, eachDayOfInterval, eachWeekOfInterval, isWithinInterval, isBefore, isAfter, startOfDay, isSameDay } from "date-fns";
 import { ru } from "date-fns/locale";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+
+interface RowHeightsContextType {
+  registerLeftRow: (key: string, el: HTMLTableRowElement | null) => void;
+  getRowHeight: (key: string) => number | undefined;
+}
+
+const RowHeightsContext = createContext<RowHeightsContextType | null>(null);
+
+function useRowHeights() {
+  const ctx = useContext(RowHeightsContext);
+  if (!ctx) throw new Error("RowHeightsContext not found");
+  return ctx;
+}
 
 type ViewMode = "days" | "weeks";
 
@@ -104,6 +118,7 @@ export default function KSP() {
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
   const todayColumnRef = useRef<HTMLTableCellElement>(null);
   const [hasScrolled, setHasScrolled] = useState(false);
+  const { registerLeftRow, getRowHeight } = useSyncedRowHeights();
 
   const documents = (worksTree || []) as DocumentNode[];
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -285,94 +300,96 @@ export default function KSP() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        <div className="flex-shrink-0 border-r border-border bg-card overflow-y-auto" style={{ width: leftTableWidth }}>
-          <table className="w-full border-collapse text-sm">
-            <thead className="sticky top-0 z-20 bg-card">
-              <tr className="h-12">
-                <th className="border-b border-r border-border bg-muted p-2 text-left font-medium h-12" style={{ width: hasExpanded ? 340 : 170 }}>
-                  Наименование
-                </th>
-                <th className="border-b border-r border-border bg-muted p-1 text-center font-medium w-[70px] text-xs h-12">
-                  Начало
-                  <div className="text-muted-foreground text-[10px]">план / факт</div>
-                </th>
-                <th className="border-b border-r border-border bg-muted p-1 text-center font-medium w-[70px] text-xs h-12">
-                  Конец
-                  <div className="text-muted-foreground text-[10px]">план / факт</div>
-                </th>
-                <th className="border-b border-border bg-muted p-1 text-center font-medium w-[65px] text-xs h-12">
-                  Длит-ть
-                  <div className="text-muted-foreground text-[10px]">план / факт</div>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {documents.map(doc => (
-                <DocumentLeftRows
-                  key={doc.id}
-                  doc={doc}
-                  isExpanded={expandedDocs.has(doc.id)}
-                  expandedBlocks={expandedBlocks}
-                  expandedSections={expandedSections}
-                  onToggleDoc={() => toggleDoc(doc.id)}
-                  onToggleBlock={toggleBlock}
-                  onToggleSection={toggleSection}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <RowHeightsContext.Provider value={{ registerLeftRow, getRowHeight }}>
+        <div className="flex-1 flex overflow-hidden">
+          <div className="flex-shrink-0 border-r border-border bg-card overflow-y-auto" style={{ width: leftTableWidth }}>
+            <table className="w-full border-collapse text-sm">
+              <thead className="sticky top-0 z-20 bg-card">
+                <tr className="h-12">
+                  <th className="border-b border-r border-border bg-muted p-2 text-left font-medium h-12" style={{ width: hasExpanded ? 340 : 170 }}>
+                    Наименование
+                  </th>
+                  <th className="border-b border-r border-border bg-muted p-1 text-center font-medium w-[70px] text-xs h-12">
+                    Начало
+                    <div className="text-muted-foreground text-[10px]">план / факт</div>
+                  </th>
+                  <th className="border-b border-r border-border bg-muted p-1 text-center font-medium w-[70px] text-xs h-12">
+                    Конец
+                    <div className="text-muted-foreground text-[10px]">план / факт</div>
+                  </th>
+                  <th className="border-b border-border bg-muted p-1 text-center font-medium w-[65px] text-xs h-12">
+                    Длит-ть
+                    <div className="text-muted-foreground text-[10px]">план / факт</div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {documents.map(doc => (
+                  <DocumentLeftRows
+                    key={doc.id}
+                    doc={doc}
+                    isExpanded={expandedDocs.has(doc.id)}
+                    expandedBlocks={expandedBlocks}
+                    expandedSections={expandedSections}
+                    onToggleDoc={() => toggleDoc(doc.id)}
+                    onToggleBlock={toggleBlock}
+                    onToggleSection={toggleSection}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-        <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full">
-            <div className="min-w-max">
-              <table className="w-full border-collapse text-sm">
-                <thead className="sticky top-0 z-20 bg-card">
-                  <tr className="h-12">
-                    {timeUnits.map((unit, idx) => {
-                      const isToday = viewMode === "days" 
-                        ? isSameDay(unit, today)
-                        : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
-                      
-                      return (
-                        <th 
-                          key={idx}
-                          ref={isToday ? todayColumnRef : undefined}
-                          className={`border-b border-r border-border p-0.5 text-center font-medium min-w-[32px] w-[32px] text-[10px] h-12 ${isToday ? 'bg-primary/20' : 'bg-muted/50'}`}
-                        >
-                          <div className="text-[9px] leading-tight">{format(unit, "dd.MM.yy", { locale: ru })}</div>
-                          <div className="text-muted-foreground text-[9px] leading-tight">
-                            {viewMode === "days" 
-                              ? format(unit, "EEE", { locale: ru })
-                              : `Н${format(unit, "w", { locale: ru })}`
-                            }
-                          </div>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {documents.map(doc => (
-                    <DocumentRightRows
-                      key={doc.id}
-                      doc={doc}
-                      timeUnits={timeUnits}
-                      viewMode={viewMode}
-                      today={today}
-                      isExpanded={expandedDocs.has(doc.id)}
-                      expandedBlocks={expandedBlocks}
-                      expandedSections={expandedSections}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          <div className="flex-1 overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="min-w-max">
+                <table className="w-full border-collapse text-sm">
+                  <thead className="sticky top-0 z-20 bg-card">
+                    <tr className="h-12">
+                      {timeUnits.map((unit, idx) => {
+                        const isToday = viewMode === "days" 
+                          ? isSameDay(unit, today)
+                          : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+                        
+                        return (
+                          <th 
+                            key={idx}
+                            ref={isToday ? todayColumnRef : undefined}
+                            className={`border-b border-r border-border p-0.5 text-center font-medium min-w-[32px] w-[32px] text-[10px] h-12 ${isToday ? 'bg-primary/20' : 'bg-muted/50'}`}
+                          >
+                            <div className="text-[9px] leading-tight">{format(unit, "dd.MM.yy", { locale: ru })}</div>
+                            <div className="text-muted-foreground text-[9px] leading-tight">
+                              {viewMode === "days" 
+                                ? format(unit, "EEE", { locale: ru })
+                                : `Н${format(unit, "w", { locale: ru })}`
+                              }
+                            </div>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documents.map(doc => (
+                      <DocumentRightRows
+                        key={doc.id}
+                        doc={doc}
+                        timeUnits={timeUnits}
+                        viewMode={viewMode}
+                        today={today}
+                        isExpanded={expandedDocs.has(doc.id)}
+                        expandedBlocks={expandedBlocks}
+                        expandedSections={expandedSections}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </div>
         </div>
-      </div>
+      </RowHeightsContext.Provider>
 
       <div className="bg-card border-t border-border p-3">
         <div className="container mx-auto flex items-center gap-6 text-sm flex-wrap">
@@ -419,10 +436,16 @@ function DocumentLeftRows({
   onToggleBlock: (id: number) => void;
   onToggleSection: (id: number) => void;
 }) {
+  const { registerLeftRow } = useRowHeights();
+  const rowKey = `doc-${doc.id}`;
+  
   return (
     <>
-      <tr className="bg-primary/20 hover:bg-primary/30 transition-colors">
-        <td className="border-b border-r border-border p-2 font-bold h-10">
+      <tr 
+        ref={(el) => registerLeftRow(rowKey, el)}
+        className="bg-primary/20 hover:bg-primary/30 transition-colors"
+      >
+        <td className="border-b border-r border-border p-2 font-bold">
           <button
             onClick={onToggleDoc}
             className="flex items-center gap-2 w-full text-left"
@@ -432,9 +455,9 @@ function DocumentLeftRows({
             <span className="truncate">{doc.name}</span>
           </button>
         </td>
-        <td className="border-b border-r border-border bg-primary/10 h-10" />
-        <td className="border-b border-r border-border bg-primary/10 h-10" />
-        <td className="border-b border-border bg-primary/10 h-10" />
+        <td className="border-b border-r border-border bg-primary/10" />
+        <td className="border-b border-r border-border bg-primary/10" />
+        <td className="border-b border-border bg-primary/10" />
       </tr>
       {isExpanded && doc.blocks?.map(block => (
         <BlockLeftRows
@@ -466,11 +489,17 @@ function BlockLeftRows({
   onToggleSection: (id: number) => void;
   indentLevel: number;
 }) {
+  const { registerLeftRow } = useRowHeights();
+  const rowKey = `block-${block.id}`;
+  
   return (
     <>
-      <tr className="bg-primary/10 hover:bg-primary/20 transition-colors">
+      <tr 
+        ref={(el) => registerLeftRow(rowKey, el)}
+        className="bg-primary/10 hover:bg-primary/20 transition-colors"
+      >
         <td 
-          className="border-b border-r border-border p-2 font-bold h-10"
+          className="border-b border-r border-border p-2 font-bold"
           style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
         >
           <button
@@ -483,9 +512,9 @@ function BlockLeftRows({
             <span className="truncate">{block.name}</span>
           </button>
         </td>
-        <td className="border-b border-r border-border bg-primary/5 h-10" />
-        <td className="border-b border-r border-border bg-primary/5 h-10" />
-        <td className="border-b border-border bg-primary/5 h-10" />
+        <td className="border-b border-r border-border bg-primary/5" />
+        <td className="border-b border-r border-border bg-primary/5" />
+        <td className="border-b border-border bg-primary/5" />
       </tr>
       {isExpanded && block.sections?.map(section => (
         <SectionLeftRows
@@ -511,11 +540,17 @@ function SectionLeftRows({
   onToggleSection: () => void;
   indentLevel: number;
 }) {
+  const { registerLeftRow } = useRowHeights();
+  const rowKey = `section-${section.id}`;
+  
   return (
     <>
-      <tr className="bg-secondary/30 hover:bg-secondary/50 transition-colors">
+      <tr 
+        ref={(el) => registerLeftRow(rowKey, el)}
+        className="bg-secondary/30 hover:bg-secondary/50 transition-colors"
+      >
         <td 
-          className="border-b border-r border-border p-2 font-semibold h-10"
+          className="border-b border-r border-border p-2 font-semibold"
           style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
         >
           <button
@@ -528,9 +563,9 @@ function SectionLeftRows({
             <span className="truncate">{section.name}</span>
           </button>
         </td>
-        <td className="border-b border-r border-border bg-secondary/10 h-10" />
-        <td className="border-b border-r border-border bg-secondary/10 h-10" />
-        <td className="border-b border-border bg-secondary/10 h-10" />
+        <td className="border-b border-r border-border bg-secondary/10" />
+        <td className="border-b border-r border-border bg-secondary/10" />
+        <td className="border-b border-border bg-secondary/10" />
       </tr>
       {isExpanded && section.groups?.map(group => (
         <GroupLeftRow
@@ -550,6 +585,8 @@ function GroupLeftRow({
   group: GroupNode;
   indentLevel: number;
 }) {
+  const { registerLeftRow } = useRowHeights();
+  const rowKey = `group-${group.id}`;
   const { planStart, planEnd, actualStart, actualEnd } = getGroupDates(group);
   const planDuration = planStart && planEnd ? differenceInDays(planEnd, planStart) + 1 : null;
   const actualDuration = actualStart && actualEnd ? differenceInDays(actualEnd, actualStart) + 1 : null;
@@ -576,9 +613,12 @@ function GroupLeftRow({
   };
 
   return (
-    <tr className="hover:bg-muted/50 transition-colors">
+    <tr 
+      ref={(el) => registerLeftRow(rowKey, el)}
+      className="hover:bg-muted/50 transition-colors"
+    >
       <td 
-        className="border-b border-r border-border p-2 h-10"
+        className="border-b border-r border-border p-2"
         style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
       >
         <div className="flex items-center gap-2">
@@ -586,21 +626,21 @@ function GroupLeftRow({
           <span className="text-foreground truncate">{group.name}</span>
         </div>
       </td>
-      <td className="border-b border-r border-border p-1 text-center text-xs h-10">
+      <td className="border-b border-r border-border p-1 text-center text-xs">
         <div className="flex flex-col items-center gap-0.5">
           <span className="text-muted-foreground">{formatDate(planStart)}</span>
           <span className="font-medium">{formatDate(actualStart)}</span>
           {getDeviationIndicator(startDeviation)}
         </div>
       </td>
-      <td className="border-b border-r border-border p-1 text-center text-xs h-10">
+      <td className="border-b border-r border-border p-1 text-center text-xs">
         <div className="flex flex-col items-center gap-0.5">
           <span className="text-muted-foreground">{formatDate(planEnd)}</span>
           <span className="font-medium">{formatDate(actualEnd)}</span>
           {getDeviationIndicator(endDeviation)}
         </div>
       </td>
-      <td className="border-b border-border p-1 text-center text-xs h-10">
+      <td className="border-b border-border p-1 text-center text-xs">
         <div className="flex flex-col items-center gap-0.5">
           <span className="text-muted-foreground">{planDuration ?? "—"}</span>
           <span className="font-medium">{actualDuration ?? "—"}</span>
@@ -628,16 +668,20 @@ function DocumentRightRows({
   expandedBlocks: Set<number>;
   expandedSections: Set<number>;
 }) {
+  const { getRowHeight } = useRowHeights();
+  const rowKey = `doc-${doc.id}`;
+  const height = getRowHeight(rowKey);
+  
   return (
     <>
-      <tr className="bg-primary/20">
+      <tr className="bg-primary/20" style={height ? { height } : undefined}>
         {timeUnits.map((unit, idx) => {
           const isToday = viewMode === "days" 
             ? isSameDay(unit, today)
             : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
           
           return (
-            <td key={idx} className={`border-b border-r border-border h-10 relative ${isToday ? 'bg-primary/30' : 'bg-primary/10'}`}>
+            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/30' : 'bg-primary/10'}`}>
               {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
             </td>
           );
@@ -673,16 +717,20 @@ function BlockRightRows({
   isExpanded: boolean;
   expandedSections: Set<number>;
 }) {
+  const { getRowHeight } = useRowHeights();
+  const rowKey = `block-${block.id}`;
+  const height = getRowHeight(rowKey);
+  
   return (
     <>
-      <tr className="bg-primary/10">
+      <tr className="bg-primary/10" style={height ? { height } : undefined}>
         {timeUnits.map((unit, idx) => {
           const isToday = viewMode === "days" 
             ? isSameDay(unit, today)
             : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
           
           return (
-            <td key={idx} className={`border-b border-r border-border h-10 relative ${isToday ? 'bg-primary/20' : 'bg-primary/5'}`}>
+            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/20' : 'bg-primary/5'}`}>
               {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
             </td>
           );
@@ -715,16 +763,20 @@ function SectionRightRows({
   today: Date;
   isExpanded: boolean;
 }) {
+  const { getRowHeight } = useRowHeights();
+  const rowKey = `section-${section.id}`;
+  const height = getRowHeight(rowKey);
+  
   return (
     <>
-      <tr className="bg-secondary/30">
+      <tr className="bg-secondary/30" style={height ? { height } : undefined}>
         {timeUnits.map((unit, idx) => {
           const isToday = viewMode === "days" 
             ? isSameDay(unit, today)
             : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
           
           return (
-            <td key={idx} className={`border-b border-r border-border h-10 relative ${isToday ? 'bg-primary/20' : 'bg-secondary/10'}`}>
+            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/20' : 'bg-secondary/10'}`}>
               {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
             </td>
           );
@@ -754,6 +806,9 @@ function GroupRightRow({
   viewMode: ViewMode;
   today: Date;
 }) {
+  const { getRowHeight } = useRowHeights();
+  const rowKey = `group-${group.id}`;
+  const height = getRowHeight(rowKey);
   const { planStart, planEnd, actualStart, actualEnd } = getGroupDates(group);
 
   const getCellContent = (unit: Date) => {
@@ -782,7 +837,7 @@ function GroupRightRow({
   };
 
   return (
-    <tr>
+    <tr style={height ? { height } : undefined}>
       {timeUnits.map((unit, idx) => {
         const { isInPlanRange, isInActualRange, isDelay, isAhead } = getCellContent(unit);
         const isToday = viewMode === "days" 
@@ -790,7 +845,7 @@ function GroupRightRow({
           : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
         
         return (
-          <td key={idx} className={`border-b border-r border-border p-0 h-10 relative ${isToday ? 'bg-primary/10' : ''}`}>
+          <td key={idx} className={`border-b border-r border-border p-0 relative ${isToday ? 'bg-primary/10' : ''}`}>
             <div className="absolute inset-0 flex flex-col">
               <div className={`flex-1 ${isInPlanRange ? 'bg-blue-500' : ''}`} />
               <div className={`flex-1 ${
