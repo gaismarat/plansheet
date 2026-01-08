@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWorksTree, useHolidays, useWorkPeopleSummary, useLatestProgressSubmissions, useUpdateWork } from "@/hooks/use-construction";
+import { queryClient } from "@/lib/queryClient";
 import { WorkItemRow } from "@/components/work-item-row";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -28,6 +29,12 @@ import { type WorkTreeDocument, type WorkTreeBlock, type WorkTreeSection, type W
 import logoImage from "@assets/Планшет_1767727492095.png";
 
 export default function Dashboard() {
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ['/api/works/tree'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/work-people/summary'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/progress/latest-all'] });
+  }, []);
+
   const { data: worksTree, isLoading } = useWorksTree();
   const { data: holidays = [] } = useHolidays();
   const { data: peopleSummary = {} } = useWorkPeopleSummary();

@@ -237,7 +237,8 @@ export function useUpdateWork() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.workGroups.list.path] });
-      // Toasts can be noisy for frequent updates like sliders, maybe optional here
+      queryClient.invalidateQueries({ queryKey: ['/api/works/tree'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-people/summary'] });
     },
     onError: (error) => {
       toast({ title: "Ошибка обновления", description: error.message, variant: "destructive" });

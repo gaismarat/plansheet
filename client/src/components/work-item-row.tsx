@@ -5,7 +5,7 @@ import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { ProgressHistoryDialog } from "@/components/progress-history-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Trash2, ArrowUp, ArrowDown, ChevronDown, X, Users, Check, Package } from "lucide-react";
+import { ChevronDown, X, Users, Check, Package } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -921,53 +921,8 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
             )}
             {!isPdcWork && <div />}
             
-            <div className="flex gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => { e.stopPropagation(); moveUp(work.id); }}
-                    data-testid={`button-move-up-${work.id}`}
-                  >
-                    <ArrowUp className="w-3.5 h-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Переместить вверх</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => { e.stopPropagation(); moveDown(work.id); }}
-                    data-testid={`button-move-down-${work.id}`}
-                  >
-                    <ArrowDown className="w-3.5 h-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Переместить вниз</TooltipContent>
-              </Tooltip>
-              <div onClick={(e) => e.stopPropagation()}>
-                <EditWorkDialog work={work} />
-              </div>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => { e.stopPropagation(); deleteWork(work.id); }}
-                    disabled={isDeleting}
-                    data-testid={`button-delete-${work.id}`}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Удалить работу</TooltipContent>
-              </Tooltip>
+            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+              <EditWorkDialog work={work} />
             </div>
           </div>
 

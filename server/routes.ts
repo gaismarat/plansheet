@@ -660,9 +660,12 @@ export async function registerRoutes(
       const holidays = await storage.getHolidays();
       const holidaySet = new Set(holidays.map(h => h.date));
       
-      const today = new Date();
+      // Use UTC+3 timezone for project
+      const now = new Date();
+      const utcPlus3 = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+      const todayStr = utcPlus3.toISOString().split('T')[0];
+      const today = new Date(todayStr);
       today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().split('T')[0];
       
       // Create work map for planStartDate lookup from all work groups
       const workMap = new Map<number, { planStartDate: string | null }>();
