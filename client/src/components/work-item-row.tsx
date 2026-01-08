@@ -456,7 +456,12 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
           <div className="grid grid-cols-12 gap-2 items-start text-xs" onClick={(e) => e.stopPropagation()}>
             {/* Name & ID & Responsible */}
             <div className="col-span-2 flex flex-col justify-center">
-              <span className="font-semibold text-foreground truncate text-sm" title={displayName}>
+              <span 
+                className="font-semibold text-foreground text-sm line-clamp-3 break-words" 
+                style={{ hyphens: 'auto', WebkitHyphens: 'auto' }}
+                lang="ru"
+                title={displayName}
+              >
                 {displayName}
               </span>
               <span className="text-xs text-muted-foreground font-mono mt-0.5">
