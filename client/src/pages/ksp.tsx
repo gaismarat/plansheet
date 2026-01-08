@@ -1,15 +1,53 @@
 import { useState, useMemo } from "react";
-import { useBlocks, useUnassignedGroups } from "@/hooks/use-construction";
+import { useWorksTree } from "@/hooks/use-construction";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { ArrowLeft, CalendarDays, ChevronRight, ChevronDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { type WorkGroupResponse, type BlockResponse, type Work } from "@shared/schema";
 import { addDays, startOfWeek, endOfWeek, format, parseISO, differenceInDays, eachDayOfInterval, eachWeekOfInterval, isWithinInterval, isBefore, isAfter, startOfDay, isSameDay } from "date-fns";
 import { ru } from "date-fns/locale";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 type ViewMode = "days" | "weeks";
+
+interface WorkTreeItem {
+  id: number;
+  planStartDate: string | null;
+  planEndDate: string | null;
+  actualStartDate: string | null;
+  actualEndDate: string | null;
+}
+
+interface GroupNode {
+  id: number;
+  pdcGroupId: number;
+  number: string;
+  name: string;
+  works: WorkTreeItem[];
+}
+
+interface SectionNode {
+  id: number;
+  pdcSectionId: number;
+  number: string;
+  name: string;
+  groups: GroupNode[];
+}
+
+interface BlockNode {
+  id: number;
+  pdcBlockId: number;
+  number: string;
+  name: string;
+  sections: SectionNode[];
+}
+
+interface DocumentNode {
+  id: number;
+  pdcDocumentId: number;
+  name: string;
+  blocks: BlockNode[];
+}
 
 function CurrentDateLine({ viewMode, today, unit }: { viewMode: ViewMode; today: Date; unit: Date }) {
   let leftPercent = 50;
@@ -30,31 +68,57 @@ function CurrentDateLine({ viewMode, today, unit }: { viewMode: ViewMode; today:
   );
 }
 
+function getGroupDates(group: GroupNode) {
+  let planStart: Date | null = null;
+  let planEnd: Date | null = null;
+  let actualStart: Date | null = null;
+  let actualEnd: Date | null = null;
+
+  group.works?.forEach(work => {
+    if (work.planStartDate) {
+      const d = parseISO(work.planStartDate);
+      if (!planStart || isBefore(d, planStart)) planStart = d;
+    }
+    if (work.planEndDate) {
+      const d = parseISO(work.planEndDate);
+      if (!planEnd || isAfter(d, planEnd)) planEnd = d;
+    }
+    if (work.actualStartDate) {
+      const d = parseISO(work.actualStartDate);
+      if (!actualStart || isBefore(d, actualStart)) actualStart = d;
+    }
+    if (work.actualEndDate) {
+      const d = parseISO(work.actualEndDate);
+      if (!actualEnd || isAfter(d, actualEnd)) actualEnd = d;
+    }
+  });
+
+  return { planStart, planEnd, actualStart, actualEnd };
+}
+
 export default function KSP() {
-  const { data: blocksData, isLoading: blocksLoading } = useBlocks();
-  const { data: unassignedGroups, isLoading: groupsLoading } = useUnassignedGroups();
+  const { data: worksTree, isLoading } = useWorksTree();
   const [viewMode, setViewMode] = useState<ViewMode>("weeks");
+  const [expandedDocs, setExpandedDocs] = useState<Set<number>>(new Set());
   const [expandedBlocks, setExpandedBlocks] = useState<Set<number>>(new Set());
-  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
+  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
 
-  const isLoading = blocksLoading || groupsLoading;
-  const blocks = blocksData || [];
-  const groups = unassignedGroups || [];
-
+  const documents = (worksTree || []) as DocumentNode[];
   const today = useMemo(() => startOfDay(new Date()), []);
 
   const allWorks = useMemo(() => {
-    const works: Work[] = [];
-    blocks.forEach(block => {
-      block.groups?.forEach(group => {
-        group.works?.forEach(work => works.push(work));
+    const works: WorkTreeItem[] = [];
+    documents.forEach(doc => {
+      doc.blocks?.forEach(block => {
+        block.sections?.forEach(section => {
+          section.groups?.forEach(group => {
+            group.works?.forEach(work => works.push(work));
+          });
+        });
       });
     });
-    groups.forEach(group => {
-      group.works?.forEach(work => works.push(work));
-    });
     return works;
-  }, [blocks, groups]);
+  }, [documents]);
 
   const dateRange = useMemo(() => {
     if (allWorks.length === 0) {
@@ -106,38 +170,41 @@ export default function KSP() {
     }
   }, [dateRange, viewMode]);
 
-  const toggleBlock = (blockId: number) => {
+  const toggleDoc = (id: number) => {
+    const newSet = new Set(expandedDocs);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setExpandedDocs(newSet);
+  };
+
+  const toggleBlock = (id: number) => {
     const newSet = new Set(expandedBlocks);
-    if (newSet.has(blockId)) {
-      newSet.delete(blockId);
-    } else {
-      newSet.add(blockId);
-    }
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
     setExpandedBlocks(newSet);
   };
 
-  const toggleGroup = (groupId: number) => {
-    const newSet = new Set(expandedGroups);
-    if (newSet.has(groupId)) {
-      newSet.delete(groupId);
-    } else {
-      newSet.add(groupId);
-    }
-    setExpandedGroups(newSet);
+  const toggleSection = (id: number) => {
+    const newSet = new Set(expandedSections);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setExpandedSections(newSet);
   };
 
   const expandAll = () => {
-    setExpandedBlocks(new Set(blocks.map(b => b.id)));
-    const allGroupIds = [
-      ...blocks.flatMap(b => b.groups?.map(g => g.id) || []),
-      ...groups.map(g => g.id)
-    ];
-    setExpandedGroups(new Set(allGroupIds));
+    setExpandedDocs(new Set(documents.map(d => d.id)));
+    const allBlockIds = documents.flatMap(d => d.blocks?.map(b => b.id) || []);
+    setExpandedBlocks(new Set(allBlockIds));
+    const allSectionIds = documents.flatMap(d => 
+      d.blocks?.flatMap(b => b.sections?.map(s => s.id) || []) || []
+    );
+    setExpandedSections(new Set(allSectionIds));
   };
 
   const collapseAll = () => {
+    setExpandedDocs(new Set());
     setExpandedBlocks(new Set());
-    setExpandedGroups(new Set());
+    setExpandedSections(new Set());
   };
 
   if (isLoading) {
@@ -199,7 +266,7 @@ export default function KSP() {
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-20 bg-card">
                 <tr>
-                  <th className="border border-border bg-muted/50 p-2 text-left font-medium min-w-[250px] sticky left-0 z-30">
+                  <th className="border border-border bg-muted/50 p-2 text-left font-medium min-w-[300px] sticky left-0 z-30">
                     Наименование
                   </th>
                   <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[50px] w-[50px] text-xs">
@@ -240,29 +307,19 @@ export default function KSP() {
                 </tr>
               </thead>
               <tbody>
-                {blocks.map(block => (
-                  <BlockRow 
-                    key={block.id} 
-                    block={block} 
+                {documents.map(doc => (
+                  <DocumentRow 
+                    key={doc.id} 
+                    doc={doc}
                     timeUnits={timeUnits}
                     viewMode={viewMode}
                     today={today}
-                    isExpanded={expandedBlocks.has(block.id)}
-                    expandedGroups={expandedGroups}
-                    onToggleBlock={() => toggleBlock(block.id)}
-                    onToggleGroup={toggleGroup}
-                  />
-                ))}
-                {groups.map(group => (
-                  <GroupRows
-                    key={group.id}
-                    group={group}
-                    timeUnits={timeUnits}
-                    viewMode={viewMode}
-                    today={today}
-                    isExpanded={expandedGroups.has(group.id)}
-                    onToggle={() => toggleGroup(group.id)}
-                    indentLevel={0}
+                    isExpanded={expandedDocs.has(doc.id)}
+                    expandedBlocks={expandedBlocks}
+                    expandedSections={expandedSections}
+                    onToggleDoc={() => toggleDoc(doc.id)}
+                    onToggleBlock={toggleBlock}
+                    onToggleSection={toggleSection}
                   />
                 ))}
               </tbody>
@@ -300,36 +357,111 @@ export default function KSP() {
   );
 }
 
+function DocumentRow({ 
+  doc, 
+  timeUnits, 
+  viewMode,
+  today,
+  isExpanded, 
+  expandedBlocks,
+  expandedSections,
+  onToggleDoc,
+  onToggleBlock,
+  onToggleSection
+}: { 
+  doc: DocumentNode;
+  timeUnits: Date[];
+  viewMode: ViewMode;
+  today: Date;
+  isExpanded: boolean;
+  expandedBlocks: Set<number>;
+  expandedSections: Set<number>;
+  onToggleDoc: () => void;
+  onToggleBlock: (id: number) => void;
+  onToggleSection: (id: number) => void;
+}) {
+  return (
+    <>
+      <tr className="bg-primary/20 hover:bg-primary/30 transition-colors">
+        <td className="border border-border p-2 font-bold sticky left-0 bg-primary/20 z-10">
+          <button 
+            onClick={onToggleDoc}
+            className="flex items-center gap-2 w-full text-left"
+            data-testid={`button-toggle-doc-${doc.id}`}
+          >
+            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            <span className="truncate">{doc.name}</span>
+          </button>
+        </td>
+        <td className="border border-border bg-primary/10" />
+        <td className="border border-border bg-primary/10" />
+        <td className="border border-border bg-primary/10" />
+        {timeUnits.map((unit, idx) => {
+          const isToday = viewMode === "days" 
+            ? isSameDay(unit, today)
+            : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+          
+          return (
+            <td key={idx} className={`border border-border bg-primary/10 relative ${isToday ? 'bg-primary/20' : ''}`}>
+              {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
+            </td>
+          );
+        })}
+      </tr>
+      {isExpanded && doc.blocks?.map(block => (
+        <BlockRow
+          key={block.id}
+          block={block}
+          timeUnits={timeUnits}
+          viewMode={viewMode}
+          today={today}
+          isExpanded={expandedBlocks.has(block.id)}
+          expandedSections={expandedSections}
+          onToggleBlock={() => onToggleBlock(block.id)}
+          onToggleSection={onToggleSection}
+          indentLevel={1}
+        />
+      ))}
+    </>
+  );
+}
+
 function BlockRow({ 
   block, 
   timeUnits, 
   viewMode,
   today,
   isExpanded, 
-  expandedGroups,
+  expandedSections,
   onToggleBlock,
-  onToggleGroup
+  onToggleSection,
+  indentLevel
 }: { 
-  block: BlockResponse; 
+  block: BlockNode; 
   timeUnits: Date[];
   viewMode: ViewMode;
   today: Date;
   isExpanded: boolean;
-  expandedGroups: Set<number>;
+  expandedSections: Set<number>;
   onToggleBlock: () => void;
-  onToggleGroup: (id: number) => void;
+  onToggleSection: (id: number) => void;
+  indentLevel: number;
 }) {
   return (
     <>
       <tr className="bg-primary/10 hover:bg-primary/20 transition-colors">
-        <td className="border border-border p-2 font-bold sticky left-0 bg-primary/10 z-10">
+        <td 
+          className="border border-border p-2 font-bold sticky left-0 bg-primary/10 z-10"
+          style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
+        >
           <button 
             onClick={onToggleBlock}
             className="flex items-center gap-2 w-full text-left"
             data-testid={`button-toggle-block-${block.id}`}
           >
             {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            {block.name}
+            <span className="text-muted-foreground text-xs mr-1">{block.number}</span>
+            <span className="truncate">{block.name}</span>
           </button>
         </td>
         <td className="border border-border bg-primary/5" />
@@ -347,50 +479,54 @@ function BlockRow({
           );
         })}
       </tr>
-      {isExpanded && block.groups?.map(group => (
-        <GroupRows
-          key={group.id}
-          group={group}
+      {isExpanded && block.sections?.map(section => (
+        <SectionRow
+          key={section.id}
+          section={section}
           timeUnits={timeUnits}
           viewMode={viewMode}
           today={today}
-          isExpanded={expandedGroups.has(group.id)}
-          onToggle={() => onToggleGroup(group.id)}
-          indentLevel={1}
+          isExpanded={expandedSections.has(section.id)}
+          onToggleSection={() => onToggleSection(section.id)}
+          indentLevel={indentLevel + 1}
         />
       ))}
     </>
   );
 }
 
-function GroupRows({
-  group,
+function SectionRow({
+  section,
   timeUnits,
   viewMode,
   today,
   isExpanded,
-  onToggle,
+  onToggleSection,
   indentLevel
 }: {
-  group: WorkGroupResponse;
+  section: SectionNode;
   timeUnits: Date[];
   viewMode: ViewMode;
   today: Date;
   isExpanded: boolean;
-  onToggle: () => void;
+  onToggleSection: () => void;
   indentLevel: number;
 }) {
   return (
     <>
       <tr className="bg-secondary/30 hover:bg-secondary/50 transition-colors">
-        <td className="border border-border p-2 font-semibold sticky left-0 bg-secondary/30 z-10" style={{ paddingLeft: `${(indentLevel + 1) * 16}px` }}>
+        <td 
+          className="border border-border p-2 font-semibold sticky left-0 bg-secondary/30 z-10" 
+          style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
+        >
           <button 
-            onClick={onToggle}
+            onClick={onToggleSection}
             className="flex items-center gap-2 w-full text-left"
-            data-testid={`button-toggle-group-${group.id}`}
+            data-testid={`button-toggle-section-${section.id}`}
           >
             {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            {group.name}
+            <span className="text-muted-foreground text-xs mr-1">{section.number}</span>
+            <span className="truncate">{section.name}</span>
           </button>
         </td>
         <td className="border border-border bg-secondary/10" />
@@ -408,10 +544,10 @@ function GroupRows({
           );
         })}
       </tr>
-      {isExpanded && group.works?.map(work => (
-        <WorkRow 
-          key={work.id} 
-          work={work} 
+      {isExpanded && section.groups?.map(group => (
+        <GroupRow 
+          key={group.id} 
+          group={group} 
           timeUnits={timeUnits}
           viewMode={viewMode}
           today={today}
@@ -422,23 +558,20 @@ function GroupRows({
   );
 }
 
-function WorkRow({
-  work,
+function GroupRow({
+  group,
   timeUnits,
   viewMode,
   today,
   indentLevel
 }: {
-  work: Work;
+  group: GroupNode;
   timeUnits: Date[];
   viewMode: ViewMode;
   today: Date;
   indentLevel: number;
 }) {
-  const planStart = work.planStartDate ? parseISO(work.planStartDate) : null;
-  const planEnd = work.planEndDate ? parseISO(work.planEndDate) : null;
-  const actualStart = work.actualStartDate ? parseISO(work.actualStartDate) : null;
-  const actualEnd = work.actualEndDate ? parseISO(work.actualEndDate) : null;
+  const { planStart, planEnd, actualStart, actualEnd } = getGroupDates(group);
 
   const planDuration = planStart && planEnd ? differenceInDays(planEnd, planStart) + 1 : null;
   const actualDuration = actualStart && actualEnd ? differenceInDays(actualEnd, actualStart) + 1 : null;
@@ -497,9 +630,12 @@ function WorkRow({
     <tr className="hover:bg-muted/50 transition-colors">
       <td 
         className="border border-border p-2 sticky left-0 bg-background z-10" 
-        style={{ paddingLeft: `${(indentLevel + 1) * 16}px` }}
+        style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
       >
-        <span className="text-foreground">{work.name}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-xs">{group.number}</span>
+          <span className="text-foreground truncate">{group.name}</span>
+        </div>
       </td>
       <td className="border border-border p-1 text-center text-xs">
         <div className="flex flex-col items-center gap-0.5">
