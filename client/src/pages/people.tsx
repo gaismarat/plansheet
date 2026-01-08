@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useWorksTree } from "@/hooks/use-construction";
 import { Button } from "@/components/ui/button";
@@ -600,6 +600,94 @@ function SectionDataRows({
   );
 }
 
+function PeopleInputCell({
+  workId,
+  groupId,
+  dateStr,
+  initialValue,
+  isToday,
+  isWeekend
+}: {
+  workId: number;
+  groupId: number;
+  dateStr: string;
+  initialValue: number;
+  isToday: boolean;
+  isWeekend: boolean;
+}) {
+  const [localValue, setLocalValue] = useState<string>(initialValue > 0 ? String(initialValue) : '');
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingValueRef = useRef<string | null>(null);
+  const lastSavedRef = useRef<string>(initialValue > 0 ? String(initialValue) : '');
+
+  const updateWorkPeopleMutation = useMutation({
+    mutationFn: async ({ workId, date, count }: { workId: number; date: string; count: number }) => {
+      return apiRequest("POST", "/api/work-people", { workId, date, count });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/work-people"] });
+    }
+  });
+
+  const flushPendingValue = useCallback(() => {
+    if (pendingValueRef.current !== null && pendingValueRef.current !== lastSavedRef.current) {
+      const numValue = parseInt(pendingValueRef.current) || 0;
+      updateWorkPeopleMutation.mutate({ workId, date: dateStr, count: numValue });
+      lastSavedRef.current = pendingValueRef.current;
+      pendingValueRef.current = null;
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, [workId, dateStr, updateWorkPeopleMutation]);
+
+  useEffect(() => {
+    setLocalValue(initialValue > 0 ? String(initialValue) : '');
+    lastSavedRef.current = initialValue > 0 ? String(initialValue) : '';
+  }, [initialValue]);
+
+  const handleChange = (value: string) => {
+    setLocalValue(value);
+    pendingValueRef.current = value;
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      flushPendingValue();
+    }, 500);
+  };
+
+  const handleBlur = () => {
+    flushPendingValue();
+  };
+
+  useEffect(() => {
+    return () => {
+      flushPendingValue();
+    };
+  }, [flushPendingValue]);
+
+  return (
+    <td 
+      className={`border-b border-r border-border p-0 h-10 text-center text-sm ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/10' : ''}`}
+      data-testid={`cell-people-group-${groupId}-${dateStr}`}
+    >
+      <input
+        type="number"
+        min="0"
+        value={localValue}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={handleBlur}
+        className="w-full h-full text-center bg-transparent border-0 focus:ring-1 focus:ring-primary text-sm"
+        data-testid={`input-people-group-${groupId}-${dateStr}`}
+      />
+    </td>
+  );
+}
+
 function GroupDataRows({
   group,
   days,
@@ -612,15 +700,6 @@ function GroupDataRows({
   workPeopleMap: Map<string, number>;
 }) {
   const firstWork = group.works?.[0];
-  
-  const updateWorkPeopleMutation = useMutation({
-    mutationFn: async ({ workId, date, count }: { workId: number; date: string; count: number }) => {
-      return apiRequest("POST", "/api/work-people", { workId, date, count });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/work-people"] });
-    }
-  });
 
   const getGroupPeopleCount = (dateStr: string) => {
     let total = 0;
@@ -632,12 +711,6 @@ function GroupDataRows({
     return total;
   };
 
-  const handlePeopleChange = (dateStr: string, value: string) => {
-    if (!firstWork) return;
-    const numValue = parseInt(value) || 0;
-    updateWorkPeopleMutation.mutate({ workId: firstWork.id, date: dateStr, count: numValue });
-  };
-
   return (
     <tr className="hover:bg-muted/20 transition-colors">
       {days.map((day, idx) => {
@@ -646,23 +719,25 @@ function GroupDataRows({
         const dateStr = format(day, "yyyy-MM-dd");
         const peopleCount = getGroupPeopleCount(dateStr);
 
+        if (!firstWork) {
+          return (
+            <td 
+              key={idx}
+              className={`border-b border-r border-border p-0 h-10 text-center text-sm ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/10' : ''}`}
+            />
+          );
+        }
+
         return (
-          <td 
-            key={idx}
-            className={`border-b border-r border-border p-0 h-10 text-center text-sm ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/10' : ''}`}
-            data-testid={`cell-people-group-${group.id}-${dateStr}`}
-          >
-            {firstWork ? (
-              <input
-                type="number"
-                min="0"
-                value={peopleCount || ''}
-                onChange={(e) => handlePeopleChange(dateStr, e.target.value)}
-                className="w-full h-full text-center bg-transparent border-0 focus:ring-1 focus:ring-primary text-sm"
-                data-testid={`input-people-group-${group.id}-${dateStr}`}
-              />
-            ) : null}
-          </td>
+          <PeopleInputCell
+            key={`${firstWork.id}-${dateStr}`}
+            workId={firstWork.id}
+            groupId={group.id}
+            dateStr={dateStr}
+            initialValue={peopleCount}
+            isToday={isToday}
+            isWeekend={isWeekend}
+          />
         );
       })}
     </tr>
