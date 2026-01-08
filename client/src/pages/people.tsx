@@ -14,6 +14,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 
 interface WorkTreeItem {
   id: number;
+  name: string;
   planStartDate: string | null;
   planEndDate: string | null;
   actualStartDate: string | null;
@@ -282,7 +283,7 @@ export default function People() {
                         <th 
                           key={idx}
                           ref={isToday ? todayColumnRef : undefined}
-                          className={`border-b border-r border-border p-0.5 text-center font-medium min-w-[50px] w-[50px] h-12 ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/30' : 'bg-muted/50'}`}
+                          className={`border-b border-r border-border p-0.5 text-center font-medium min-w-[32px] w-[32px] h-12 ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/30' : 'bg-muted/50'}`}
                         >
                           <div className="text-[9px] leading-tight">{format(day, "dd.MM.yy", { locale: ru })}</div>
                           <div className="text-muted-foreground text-[9px] leading-tight">
@@ -738,16 +739,23 @@ function WorkDataRow({
   today,
   workPeopleMap
 }: {
-  work: Work;
+  work: WorkTreeItem;
   days: Date[];
   today: Date;
   workPeopleMap: Map<string, number>;
 }) {
-  const { updateWorkPeople } = useConstruction();
+  const updateWorkPeopleMutation = useMutation({
+    mutationFn: async ({ workId, date, count }: { workId: number; date: string; count: number }) => {
+      return apiRequest("POST", "/api/work-people", { workId, date, count });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/work-people"] });
+    }
+  });
 
   const handlePeopleChange = (dateStr: string, value: string) => {
     const numValue = parseInt(value) || 0;
-    updateWorkPeople.mutate({ workId: work.id, date: dateStr, count: numValue });
+    updateWorkPeopleMutation.mutate({ workId: work.id, date: dateStr, count: numValue });
   };
 
   return (
