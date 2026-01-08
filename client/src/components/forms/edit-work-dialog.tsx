@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useUpdateWork } from "@/hooks/use-construction";
-import { insertWorkSchema, type Work } from "@shared/schema";
 import { z } from "zod";
+import { useUpdateWork } from "@/hooks/use-construction";
+import { type Work } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -23,11 +23,19 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Edit2 } from "lucide-react";
 
-const formSchema = insertWorkSchema;
-type FormValues = z.infer<typeof formSchema>;
+const editWorkFormSchema = z.object({
+  responsiblePerson: z.string(),
+  plannedPeople: z.coerce.number().min(0).max(9999),
+  volumeActual: z.coerce.number().min(0),
+  planStartDate: z.string(),
+  planEndDate: z.string(),
+  actualStartDate: z.string(),
+  actualEndDate: z.string(),
+});
+
+type EditWorkFormValues = z.infer<typeof editWorkFormSchema>;
 
 interface EditWorkDialogProps {
   work: Work;
@@ -37,19 +45,12 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
   const [open, setOpen] = useState(false);
   const { mutate, isPending } = useUpdateWork();
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<EditWorkFormValues>({
+    resolver: zodResolver(editWorkFormSchema),
     defaultValues: {
-      groupId: work.groupId,
-      name: work.name,
-      responsiblePerson: work.responsiblePerson,
-      daysEstimated: work.daysEstimated,
-      volumeAmount: work.volumeAmount,
-      volumeUnit: work.volumeUnit,
-      daysActual: work.daysActual,
-      volumeActual: work.volumeActual,
-      progressPercentage: work.progressPercentage,
+      responsiblePerson: work.responsiblePerson || '',
       plannedPeople: work.plannedPeople ?? 0,
+      volumeActual: work.volumeActual ?? 0,
       planStartDate: work.planStartDate || '',
       planEndDate: work.planEndDate || '',
       actualStartDate: work.actualStartDate || '',
@@ -57,8 +58,17 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
     },
   });
 
-  function onSubmit(values: FormValues) {
-    mutate({ id: work.id, ...values }, {
+  function onSubmit(values: EditWorkFormValues) {
+    mutate({ 
+      id: work.id, 
+      responsiblePerson: values.responsiblePerson,
+      plannedPeople: values.plannedPeople,
+      volumeActual: values.volumeActual,
+      planStartDate: values.planStartDate || undefined,
+      planEndDate: values.planEndDate || undefined,
+      actualStartDate: values.actualStartDate || undefined,
+      actualEndDate: values.actualEndDate || undefined,
+    }, {
       onSuccess: () => {
         setOpen(false);
       },
@@ -73,11 +83,12 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
           size="icon"
           className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
           title="Редактировать работу"
+          data-testid={`button-edit-work-${work.id}`}
         >
           <Edit2 className="w-4 h-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Редактировать работу</DialogTitle>
           <DialogDescription>
@@ -87,35 +98,19 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Название работы</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Заливка бетона" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormItem>
+              <FormLabel>Название работы</FormLabel>
+              <FormControl>
+                <Input 
+                  value={work.name} 
+                  disabled 
+                  className="bg-muted cursor-not-allowed"
+                  data-testid={`input-work-name-${work.id}`}
+                />
+              </FormControl>
+            </FormItem>
 
-            <div className="grid grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="daysEstimated"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Дней (оценка)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="0" {...field} data-testid="input-days-estimated" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="responsiblePerson"
@@ -123,7 +118,11 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
                   <FormItem>
                     <FormLabel>Ответственный</FormLabel>
                     <FormControl>
-                      <Input placeholder="Иванов И.И." {...field} data-testid="input-responsible-person" />
+                      <Input 
+                        placeholder="Иванов И.И." 
+                        {...field} 
+                        data-testid={`input-responsible-person-${work.id}`}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -137,7 +136,14 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
                   <FormItem>
                     <FormLabel>Людей (план)</FormLabel>
                     <FormControl>
-                      <Input type="number" min="0" max="9999" {...field} data-testid="input-planned-people" />
+                      <Input 
+                        type="number" 
+                        min="0" 
+                        max="9999"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        data-testid={`input-planned-people-${work.id}`}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -145,76 +151,26 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="volumeAmount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Объём (план)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.1" min="0" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="volumeUnit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ед. изм.</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Выберите ед. изм." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-white">
-                        <SelectItem value="шт">шт (pcs)</SelectItem>
-                        <SelectItem value="м3">м³</SelectItem>
-                        <SelectItem value="м2">м²</SelectItem>
-                        <SelectItem value="п.м">п.м (lm)</SelectItem>
-                        <SelectItem value="компл">компл (set)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="volumeActual"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Объём (факт)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.1" min="0" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="daysActual"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Дней (факт)</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="0" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="volumeActual"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Объём (факт)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="0.1" 
+                      min="0"
+                      {...field}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      data-testid={`input-volume-actual-${work.id}`}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -224,7 +180,11 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
                   <FormItem>
                     <FormLabel>План начало</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input 
+                        type="date" 
+                        {...field}
+                        data-testid={`input-plan-start-${work.id}`}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -233,12 +193,16 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
 
               <FormField
                 control={form.control}
-                name="actualStartDate"
+                name="planEndDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Факт начало</FormLabel>
+                    <FormLabel>План конец</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input 
+                        type="date" 
+                        {...field}
+                        data-testid={`input-plan-end-${work.id}`}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -249,12 +213,16 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="planEndDate"
+                name="actualStartDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>План конец</FormLabel>
+                    <FormLabel>Факт начало</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input 
+                        type="date" 
+                        {...field}
+                        data-testid={`input-actual-start-${work.id}`}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -268,7 +236,11 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
                   <FormItem>
                     <FormLabel>Факт конец</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input 
+                        type="date" 
+                        {...field}
+                        data-testid={`input-actual-end-${work.id}`}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -277,7 +249,11 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
             </div>
 
             <DialogFooter>
-              <Button type="submit" disabled={isPending}>
+              <Button 
+                type="submit" 
+                disabled={isPending}
+                data-testid={`button-save-work-${work.id}`}
+              >
                 {isPending ? "Сохранение..." : "Сохранить изменения"}
               </Button>
             </DialogFooter>

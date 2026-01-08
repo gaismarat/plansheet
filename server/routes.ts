@@ -832,15 +832,13 @@ export async function registerRoutes(
   // Get all latest submissions for works (for batch fetching)
   app.get('/api/progress/latest-all', async (_req, res) => {
     try {
-      const workGroupsWithWorks = await storage.getWorkGroupsWithWorks();
+      const allWorks = await storage.getAllWorks();
       const result: Record<number, any> = {};
       
-      for (const group of workGroupsWithWorks) {
-        for (const work of group.works) {
-          const submission = await storage.getLatestSubmission(work.id);
-          if (submission) {
-            result[work.id] = submission;
-          }
+      for (const work of allWorks) {
+        const submission = await storage.getLatestSubmission(work.id);
+        if (submission) {
+          result[work.id] = submission;
         }
       }
       

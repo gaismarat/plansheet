@@ -88,6 +88,7 @@ export interface IStorage {
   deleteWorkGroup(id: number): Promise<void>;
 
   // Works
+  getAllWorks(): Promise<Work[]>;
   createWork(work: InsertWork): Promise<Work>;
   updateWork(id: number, updates: UpdateWorkRequest): Promise<Work>;
   deleteWork(id: number): Promise<void>;
@@ -339,6 +340,10 @@ export class DatabaseStorage implements IStorage {
 
   async deleteWork(id: number): Promise<void> {
     await db.delete(works).where(eq(works.id, id));
+  }
+
+  async getAllWorks(): Promise<Work[]> {
+    return await db.select().from(works).orderBy(asc(works.id));
   }
 
   async getWork(id: number): Promise<Work | undefined> {

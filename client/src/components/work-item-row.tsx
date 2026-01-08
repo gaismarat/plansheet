@@ -371,7 +371,11 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                   </div>
                   <span className="text-[10px] text-muted-foreground w-8 text-right">{plannedProgress}%</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className={cn(
+                  "flex items-center gap-1 px-0.5 rounded transition-all",
+                  progressSubmission?.status === "submitted" && "border border-dashed border-gray-400",
+                  progressSubmission?.status === "rejected" && "border border-dashed border-red-500"
+                )}>
                   <span className="text-[10px] text-muted-foreground w-8">Факт</span>
                   <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                     <div 
@@ -391,6 +395,42 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
               )}>
                 {deviation >= 0 ? '+' : ''}{deviation}%
               </span>
+              
+              {/* Admin approve/reject buttons in collapsed view */}
+              {isAdmin && progressSubmission?.status === "submitted" && (
+                <div className="flex items-center gap-0.5 ml-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-5 w-5 text-green-600 hover:text-green-700 hover:bg-green-100"
+                        onClick={(e) => { e.stopPropagation(); handleProgressApprove(); }}
+                        disabled={isApproving}
+                        data-testid={`button-approve-collapsed-${work.id}`}
+                      >
+                        <Check className="h-3 w-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Согласовать</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-5 w-5 text-red-600 hover:text-red-700 hover:bg-red-100"
+                        onClick={(e) => { e.stopPropagation(); handleProgressReject(); }}
+                        disabled={isRejecting}
+                        data-testid={`button-reject-collapsed-${work.id}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Отклонить</TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
             </div>
           </div>
         </>
