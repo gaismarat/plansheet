@@ -289,19 +289,19 @@ export default function KSP() {
         <div className="flex-shrink-0 border-r border-border bg-card overflow-y-auto" style={{ width: leftTableWidth }}>
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-20 bg-card">
-              <tr>
-                <th className="border-b border-r border-border bg-muted p-2 text-left font-medium" style={{ width: hasExpanded ? 340 : 170 }}>
+              <tr className="h-12">
+                <th className="border-b border-r border-border bg-muted p-2 text-left font-medium h-12" style={{ width: hasExpanded ? 340 : 170 }}>
                   Наименование
                 </th>
-                <th className="border-b border-r border-border bg-muted p-1 text-center font-medium w-[70px] text-xs">
+                <th className="border-b border-r border-border bg-muted p-1 text-center font-medium w-[70px] text-xs h-12">
                   Начало
                   <div className="text-muted-foreground text-[10px]">план / факт</div>
                 </th>
-                <th className="border-b border-r border-border bg-muted p-1 text-center font-medium w-[70px] text-xs">
+                <th className="border-b border-r border-border bg-muted p-1 text-center font-medium w-[70px] text-xs h-12">
                   Конец
                   <div className="text-muted-foreground text-[10px]">план / факт</div>
                 </th>
-                <th className="border-b border-border bg-muted p-1 text-center font-medium w-[65px] text-xs">
+                <th className="border-b border-border bg-muted p-1 text-center font-medium w-[65px] text-xs h-12">
                   Длит-ть
                   <div className="text-muted-foreground text-[10px]">план / факт</div>
                 </th>
@@ -329,7 +329,7 @@ export default function KSP() {
             <div className="min-w-max">
               <table className="w-full border-collapse text-sm">
                 <thead className="sticky top-0 z-20 bg-card">
-                  <tr>
+                  <tr className="h-12">
                     {timeUnits.map((unit, idx) => {
                       const isToday = viewMode === "days" 
                         ? isSameDay(unit, today)
@@ -339,7 +339,7 @@ export default function KSP() {
                         <th 
                           key={idx}
                           ref={isToday ? todayColumnRef : undefined}
-                          className={`border-b border-r border-border p-0.5 text-center font-medium min-w-[32px] w-[32px] text-[10px] ${isToday ? 'bg-primary/20' : 'bg-muted/50'}`}
+                          className={`border-b border-r border-border p-0.5 text-center font-medium min-w-[32px] w-[32px] text-[10px] h-12 ${isToday ? 'bg-primary/20' : 'bg-muted/50'}`}
                         >
                           <div className="text-[9px] leading-tight">{format(unit, "dd.MM.yy", { locale: ru })}</div>
                           <div className="text-muted-foreground text-[9px] leading-tight">
