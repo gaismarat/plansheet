@@ -343,7 +343,7 @@ export function useToggleHoliday() {
 // ============================================
 
 export function useWorkPeopleSummary() {
-  return useQuery<Record<number, { actualToday: number; averageActual: number }>>({
+  return useQuery<Record<number, { actualToday: number; averageActual: number; weekendHolidayWorkedDays: number }>>({
     queryKey: ['/api/work-people/summary'],
     queryFn: async () => {
       const res = await fetch('/api/work-people/summary');

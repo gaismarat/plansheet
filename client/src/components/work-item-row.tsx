@@ -22,6 +22,7 @@ import {
 interface PeopleSummary {
   actualToday: number;
   averageActual: number;
+  weekendHolidayWorkedDays: number;
 }
 
 interface ProgressSubmissionStatus {
@@ -729,7 +730,12 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                 <div className="text-[9px] text-muted-foreground">План</div>
                 <span className="font-mono text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).working}</span>
                 <div className="text-[9px] text-muted-foreground mt-0.5">Факт</div>
-                <span className="font-mono text-foreground text-xs">{calculateDays(localActualStartDate, localActualEndDate).working}</span>
+                <span className="font-mono text-foreground text-xs flex items-center gap-0.5">
+                  {calculateDays(localActualStartDate, localActualEndDate).working}
+                  {(peopleSummary?.weekendHolidayWorkedDays ?? 0) > 0 && (
+                    <span className="text-green-500">(+{peopleSummary?.weekendHolidayWorkedDays})</span>
+                  )}
+                </span>
               </div>
               
               <div className="flex flex-col items-center">
@@ -737,7 +743,12 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                 <div className="text-[9px] text-muted-foreground">План</div>
                 <span className="font-mono text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).weekend}</span>
                 <div className="text-[9px] text-muted-foreground mt-0.5">Факт</div>
-                <span className="font-mono text-foreground text-xs">{calculateDays(localActualStartDate, localActualEndDate).weekend}</span>
+                <span className="font-mono text-foreground text-xs flex items-center gap-0.5">
+                  {calculateDays(localActualStartDate, localActualEndDate).weekend}
+                  {(peopleSummary?.weekendHolidayWorkedDays ?? 0) > 0 && (
+                    <span className="text-red-500">(-{peopleSummary?.weekendHolidayWorkedDays})</span>
+                  )}
+                </span>
               </div>
             </div>
 

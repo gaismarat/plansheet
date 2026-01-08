@@ -656,7 +656,7 @@ export async function registerRoutes(
   app.get('/api/work-people/summary', async (_req, res) => {
     try {
       const allWorkPeople = await storage.getWorkPeople();
-      const workGroupsWithWorks = await storage.getWorkGroupsWithWorks();
+      const allWorks = await storage.getAllWorks();
       const holidays = await storage.getHolidays();
       const holidaySet = new Set(holidays.map(h => h.date));
       
@@ -667,11 +667,13 @@ export async function registerRoutes(
       const today = new Date(todayStr);
       today.setHours(0, 0, 0, 0);
       
-      // Create work map for planStartDate lookup from all work groups
-      const workMap = new Map<number, { planStartDate: string | null }>();
-      workGroupsWithWorks.forEach(group => {
-        group.works.forEach(w => {
-          workMap.set(w.id, { planStartDate: w.planStartDate });
+      // Create work map for date lookup from all works
+      const workMap = new Map<number, { planStartDate: string | null; actualStartDate: string | null; actualEndDate: string | null }>();
+      allWorks.forEach(w => {
+        workMap.set(w.id, { 
+          planStartDate: w.planStartDate, 
+          actualStartDate: w.actualStartDate,
+          actualEndDate: w.actualEndDate
         });
       });
       
@@ -684,32 +686,59 @@ export async function registerRoutes(
         workPeopleByWork.get(wp.workId)!.push({ date: wp.date, count: wp.count });
       });
       
-      const result: Record<number, { actualToday: number; averageActual: number }> = {};
+      const result: Record<number, { actualToday: number; averageActual: number; weekendHolidayWorkedDays: number }> = {};
       
       workPeopleByWork.forEach((entries, workId) => {
         // Get today's actual count
         const todayEntry = entries.find(e => e.date === todayStr);
         const actualToday = todayEntry ? todayEntry.count : 0;
         
-        // Get work's plannedStartDate
+        // Get work's dates
         const workInfo = workMap.get(workId);
         const planStartDateStr = workInfo?.planStartDate;
-        
-        if (!planStartDateStr) {
-          // No planned start date - use entries only if they exist
-          if (entries.length === 0) {
-            result[workId] = { actualToday, averageActual: 0 };
-          } else {
-            const totalCount = entries.reduce((sum, e) => sum + e.count, 0);
-            const averageActual = Math.round((totalCount / entries.length) * 10) / 10;
-            result[workId] = { actualToday, averageActual };
-          }
-          return;
-        }
+        const actualStartDateStr = workInfo?.actualStartDate;
+        const actualEndDateStr = workInfo?.actualEndDate;
         
         // Create a map for quick lookup
         const entryMap = new Map<string, number>();
         entries.forEach(e => entryMap.set(e.date, e.count));
+        
+        // Calculate weekendHolidayWorkedDays for actual period
+        let weekendHolidayWorkedDays = 0;
+        if (actualStartDateStr && actualEndDateStr) {
+          const actualStart = new Date(actualStartDateStr);
+          const actualEnd = new Date(actualEndDateStr);
+          actualStart.setHours(0, 0, 0, 0);
+          actualEnd.setHours(0, 0, 0, 0);
+          
+          const currentActual = new Date(actualStart);
+          while (currentActual <= actualEnd) {
+            const dateStr = currentActual.toISOString().split('T')[0];
+            const dayOfWeek = currentActual.getDay();
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            const isHoliday = holidaySet.has(dateStr);
+            const entryCount = entryMap.get(dateStr) ?? 0;
+            
+            // Count days where worked on weekend/holiday
+            if ((isWeekend || isHoliday) && entryCount > 0) {
+              weekendHolidayWorkedDays++;
+            }
+            
+            currentActual.setDate(currentActual.getDate() + 1);
+          }
+        }
+        
+        if (!planStartDateStr) {
+          // No planned start date - use entries only if they exist
+          if (entries.length === 0) {
+            result[workId] = { actualToday, averageActual: 0, weekendHolidayWorkedDays };
+          } else {
+            const totalCount = entries.reduce((sum, e) => sum + e.count, 0);
+            const averageActual = Math.round((totalCount / entries.length) * 10) / 10;
+            result[workId] = { actualToday, averageActual, weekendHolidayWorkedDays };
+          }
+          return;
+        }
         
         // Calculate from plannedStartDate to today
         const startDate = new Date(planStartDateStr);
@@ -717,7 +746,7 @@ export async function registerRoutes(
         
         // If today is before start date, average is 0
         if (today < startDate) {
-          result[workId] = { actualToday, averageActual: 0 };
+          result[workId] = { actualToday, averageActual: 0, weekendHolidayWorkedDays };
           return;
         }
         
@@ -733,21 +762,27 @@ export async function registerRoutes(
           const isHoliday = holidaySet.has(dateStr);
           const hasEntry = entryMap.has(dateStr);
           
-          if (hasEntry) {
-            // Include days with entries (any day)
-            totalCount += entryMap.get(dateStr)!;
-            countableDays++;
-          } else if (!isWeekend && !isHoliday) {
-            // Weekdays without entries count as 0
+          const entryCount = entryMap.get(dateStr) ?? 0;
+          const isNonWorkingDay = isWeekend || isHoliday;
+          
+          if (isNonWorkingDay) {
+            // Weekends/holidays only count if someone actually worked (count > 0)
+            if (hasEntry && entryCount > 0) {
+              totalCount += entryCount;
+              countableDays++;
+            }
+            // Skip weekends/holidays with 0 or no entry
+          } else {
+            // Regular workday - always counts
+            totalCount += entryCount;
             countableDays++;
           }
-          // Skip weekends/holidays without entries
           
           currentDate.setDate(currentDate.getDate() + 1);
         }
         
         const averageActual = countableDays > 0 ? Math.round((totalCount / countableDays) * 10) / 10 : 0;
-        result[workId] = { actualToday, averageActual };
+        result[workId] = { actualToday, averageActual, weekendHolidayWorkedDays };
       });
       
       res.json(result);
