@@ -61,7 +61,14 @@ import {
   type PdcGroupWithElements,
   type WorkPeople,
   type ProgressSubmission,
-  type ProgressSubmissionWithUsers
+  type ProgressSubmissionWithUsers,
+  type WorksTreeResponse,
+  type WorkTreeDocument,
+  type WorkTreeBlock,
+  type WorkTreeSection,
+  type WorkTreeGroup,
+  type WorkTreeItem,
+  type WorkMaterial
 } from "@shared/schema";
 import { eq, and, isNull, asc } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -183,6 +190,12 @@ export interface IStorage {
   getProgressHistory(workId: number): Promise<ProgressSubmissionWithUsers[]>;
   getLatestSubmission(workId: number): Promise<ProgressSubmission | undefined>;
 
+  // Works Tree (PDC-based hierarchy)
+  getWorksTree(): Promise<WorksTreeResponse>;
+  getWorkMaterials(workId: number): Promise<WorkMaterial[]>;
+  getOrCreateWorkForPdcGroup(pdcGroupId: number): Promise<Work>;
+  syncWorksFromPdc(): Promise<void>;
+
   // Admin initialization
   initializeAdmin(): Promise<void>;
 }
@@ -292,14 +305,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteWorkGroup(id: number): Promise<void> {
-    // First delete associated works to avoid constraint violation if not set to cascade (though default mostly isn't)
-    await db.delete(works).where(eq(works.groupId, id));
     await db.delete(workGroups).where(eq(workGroups.id, id));
   }
 
   async createWork(work: InsertWork): Promise<Work> {
-    // Get the next order value for this group
-    const groupWorks = await db.select().from(works).where(eq(works.groupId, work.groupId));
+    // Get the next order value for this pdc group or legacy group
+    let groupWorks: Work[] = [];
+    if (work.pdcGroupId) {
+      groupWorks = await db.select().from(works).where(eq(works.pdcGroupId, work.pdcGroupId));
+    } else if (work.groupId) {
+      const gid = work.groupId;
+      groupWorks = await db.select().from(works).where(
+        and(eq(works.groupId, gid), isNull(works.pdcGroupId))
+      );
+    }
     const maxOrder = Math.max(...groupWorks.map(w => w.order), -1);
     
     const [newWork] = await db.insert(works).values({
@@ -331,9 +350,17 @@ export class DatabaseStorage implements IStorage {
     const work = await this.getWork(id);
     if (!work) return;
     
-    const [prevWork] = await db.select().from(works)
-      .where(and(eq(works.groupId, work.groupId), eq(works.order, work.order - 1)))
-      .limit(1);
+    // Use pdcGroupId for PDC-based works, groupId for legacy
+    let condition;
+    if (work.pdcGroupId) {
+      condition = and(eq(works.pdcGroupId, work.pdcGroupId), eq(works.order, work.order - 1));
+    } else if (work.groupId) {
+      condition = and(eq(works.groupId, work.groupId), eq(works.order, work.order - 1));
+    } else {
+      return;
+    }
+    
+    const [prevWork] = await db.select().from(works).where(condition).limit(1);
     
     if (prevWork) {
       await this.updateWork(work.id, { order: work.order - 1 });
@@ -345,9 +372,17 @@ export class DatabaseStorage implements IStorage {
     const work = await this.getWork(id);
     if (!work) return;
     
-    const [nextWork] = await db.select().from(works)
-      .where(and(eq(works.groupId, work.groupId), eq(works.order, work.order + 1)))
-      .limit(1);
+    // Use pdcGroupId for PDC-based works, groupId for legacy
+    let condition;
+    if (work.pdcGroupId) {
+      condition = and(eq(works.pdcGroupId, work.pdcGroupId), eq(works.order, work.order + 1));
+    } else if (work.groupId) {
+      condition = and(eq(works.groupId, work.groupId), eq(works.order, work.order + 1));
+    } else {
+      return;
+    }
+    
+    const [nextWork] = await db.select().from(works).where(condition).limit(1);
     
     if (nextWork) {
       await this.updateWork(work.id, { order: work.order + 1 });
@@ -1065,6 +1100,204 @@ export class DatabaseStorage implements IStorage {
     
     if (submissions.length === 0) return undefined;
     return submissions[submissions.length - 1];
+  }
+
+  // === WORKS TREE (PDC-based hierarchy) ===
+
+  async getOrCreateWorkForPdcGroup(pdcGroupId: number): Promise<Work> {
+    const [existing] = await db.select().from(works).where(eq(works.pdcGroupId, pdcGroupId));
+    if (existing) return existing;
+
+    const [pdcGroup] = await db.select().from(pdcGroups).where(eq(pdcGroups.id, pdcGroupId));
+    if (!pdcGroup) throw new Error(`PDC Group ${pdcGroupId} not found`);
+
+    const quantity = parseFloat(pdcGroup.quantity || "0");
+    const smrPnrPrice = parseFloat(pdcGroup.smrPnrPrice || "0");
+
+    const [newWork] = await db.insert(works).values({
+      pdcGroupId,
+      name: pdcGroup.name,
+      volumeAmount: quantity,
+      volumeUnit: pdcGroup.unit || "шт.",
+      costPlan: quantity * smrPnrPrice,
+      order: pdcGroup.order
+    }).returning();
+    return newWork;
+  }
+
+  async syncWorksFromPdc(): Promise<void> {
+    const allPdcGroups = await db.select().from(pdcGroups).orderBy(asc(pdcGroups.id));
+    for (const pdcGroup of allPdcGroups) {
+      await this.getOrCreateWorkForPdcGroup(pdcGroup.id);
+    }
+  }
+
+  async getWorkMaterials(workId: number): Promise<WorkMaterial[]> {
+    const work = await this.getWork(workId);
+    if (!work || !work.pdcGroupId) return [];
+
+    const [pdcGroup] = await db.select().from(pdcGroups).where(eq(pdcGroups.id, work.pdcGroupId));
+    if (!pdcGroup) return [];
+
+    const [pdcSection] = await db.select().from(pdcSections).where(eq(pdcSections.id, pdcGroup.sectionId));
+    const [pdcBlock] = pdcSection ? await db.select().from(pdcBlocks).where(eq(pdcBlocks.id, pdcSection.blockId)) : [null];
+    const [pdcDocument] = pdcBlock ? await db.select().from(pdcDocuments).where(eq(pdcDocuments.id, pdcBlock.documentId)) : [null];
+    
+    const vatRate = pdcDocument ? parseFloat(pdcDocument.vatRate || "20") : 20;
+    const vatMultiplier = 1 + vatRate / 100;
+
+    const elements = await db.select().from(pdcElements)
+      .where(eq(pdcElements.groupId, work.pdcGroupId))
+      .orderBy(asc(pdcElements.order), asc(pdcElements.id));
+
+    return elements.map((el, idx) => {
+      const quantity = parseFloat(el.quantity || "0");
+      const materialPrice = parseFloat(el.materialPrice || "0");
+      const costWithVat = quantity * materialPrice * vatMultiplier;
+      
+      return {
+        id: el.id,
+        pdcElementId: el.id,
+        number: `${idx + 1}`,
+        name: el.name,
+        unit: el.unit || "шт.",
+        quantity,
+        costWithVat
+      };
+    });
+  }
+
+  async getWorksTree(): Promise<WorksTreeResponse> {
+    await this.syncWorksFromPdc();
+
+    const allDocuments = await db.select().from(pdcDocuments).orderBy(asc(pdcDocuments.order), asc(pdcDocuments.id));
+    const allBlocks = await db.select().from(pdcBlocks).orderBy(asc(pdcBlocks.order), asc(pdcBlocks.id));
+    const allSections = await db.select().from(pdcSections).orderBy(asc(pdcSections.order), asc(pdcSections.id));
+    const allPdcGroups = await db.select().from(pdcGroups).orderBy(asc(pdcGroups.order), asc(pdcGroups.id));
+    const allWorks = await db.select().from(works).orderBy(asc(works.order), asc(works.id));
+
+    const worksByPdcGroupId = new Map<number, Work>();
+    for (const w of allWorks) {
+      if (w.pdcGroupId) {
+        worksByPdcGroupId.set(w.pdcGroupId, w);
+      }
+    }
+
+    const result: WorksTreeResponse = [];
+
+    for (const doc of allDocuments) {
+      const vatRate = parseFloat(doc.vatRate || "20");
+      const vatMultiplier = 1 + vatRate / 100;
+      const docBlocks = allBlocks.filter(b => b.documentId === doc.id);
+
+      let docIndex = 1;
+      const treeBlocks: WorkTreeBlock[] = [];
+      let docProgress = 0;
+      let docCost = 0;
+      let docWorkCount = 0;
+
+      for (const block of docBlocks) {
+        const blockSections = allSections.filter(s => s.blockId === block.id);
+        
+        let blockIndex = 1;
+        const treeSections: WorkTreeSection[] = [];
+        let blockProgress = 0;
+        let blockCost = 0;
+        let blockWorkCount = 0;
+
+        for (const section of blockSections) {
+          const sectionGroups = allPdcGroups.filter(g => g.sectionId === section.id);
+          
+          let groupIndex = 1;
+          const treeGroups: WorkTreeGroup[] = [];
+          let sectionProgress = 0;
+          let sectionCost = 0;
+          let sectionWorkCount = 0;
+
+          for (const pdcGroup of sectionGroups) {
+            const work = worksByPdcGroupId.get(pdcGroup.id);
+            const quantity = parseFloat(pdcGroup.quantity || "0");
+            const smrPnrPrice = parseFloat(pdcGroup.smrPnrPrice || "0");
+            const groupCostWithVat = quantity * smrPnrPrice * vatMultiplier;
+
+            const treeWorks: WorkTreeItem[] = [];
+            if (work) {
+              treeWorks.push({
+                ...work,
+                pdcName: pdcGroup.name,
+                pdcUnit: pdcGroup.unit || "шт.",
+                pdcQuantity: quantity,
+                pdcCostWithVat: groupCostWithVat
+              });
+              sectionProgress += work.progressPercentage;
+              sectionWorkCount++;
+            }
+
+            treeGroups.push({
+              id: pdcGroup.id,
+              pdcGroupId: pdcGroup.id,
+              number: `${docIndex}.${blockIndex}.${groupIndex}`,
+              name: pdcGroup.name,
+              unit: pdcGroup.unit || "шт.",
+              quantity,
+              costWithVat: groupCostWithVat,
+              progressPercentage: work?.progressPercentage || 0,
+              works: treeWorks
+            });
+
+            sectionCost += groupCostWithVat;
+            groupIndex++;
+          }
+
+          const sectionAvgProgress = sectionWorkCount > 0 ? Math.round(sectionProgress / sectionWorkCount) : 0;
+          treeSections.push({
+            id: section.id,
+            pdcSectionId: section.id,
+            number: `${docIndex}.${blockIndex}`,
+            name: section.name,
+            description: section.description,
+            progressPercentage: sectionAvgProgress,
+            costWithVat: sectionCost,
+            groups: treeGroups
+          });
+
+          blockProgress += sectionProgress;
+          blockWorkCount += sectionWorkCount;
+          blockCost += sectionCost;
+          blockIndex++;
+        }
+
+        const blockAvgProgress = blockWorkCount > 0 ? Math.round(blockProgress / blockWorkCount) : 0;
+        treeBlocks.push({
+          id: block.id,
+          pdcBlockId: block.id,
+          number: `${docIndex}`,
+          name: block.name,
+          progressPercentage: blockAvgProgress,
+          costWithVat: blockCost,
+          sections: treeSections
+        });
+
+        docProgress += blockProgress;
+        docWorkCount += blockWorkCount;
+        docCost += blockCost;
+        docIndex++;
+      }
+
+      const docAvgProgress = docWorkCount > 0 ? Math.round(docProgress / docWorkCount) : 0;
+      result.push({
+        id: doc.id,
+        pdcDocumentId: doc.id,
+        name: doc.name,
+        headerText: doc.headerText,
+        vatRate,
+        progressPercentage: docAvgProgress,
+        costWithVat: docCost,
+        blocks: treeBlocks
+      });
+    }
+
+    return result;
   }
 }
 

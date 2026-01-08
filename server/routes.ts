@@ -107,6 +107,29 @@ export async function registerRoutes(
 
   // === Works ===
 
+  // Get works tree (PDC-based hierarchy)
+  app.get("/api/works/tree", async (_req, res) => {
+    try {
+      const tree = await storage.getWorksTree();
+      res.json(tree);
+    } catch (err) {
+      console.error("Error getting works tree:", err);
+      res.status(500).json({ message: "Failed to get works tree" });
+    }
+  });
+
+  // Get materials for a work item
+  app.get("/api/works/:id/materials", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const materials = await storage.getWorkMaterials(id);
+      res.json(materials);
+    } catch (err) {
+      console.error("Error getting work materials:", err);
+      res.status(500).json({ message: "Failed to get work materials" });
+    }
+  });
+
   app.post(api.works.create.path, async (req, res) => {
     try {
       const input = api.works.create.input.parse(req.body);

@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { type Work } from "@shared/schema";
-import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress } from "@/hooks/use-construction";
+import { type Work, type WorkTreeItem } from "@shared/schema";
+import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress, useWorkMaterials } from "@/hooks/use-construction";
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { ProgressHistoryDialog } from "@/components/progress-history-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Trash2, ArrowUp, ArrowDown, ChevronDown, X, Users, Check } from "lucide-react";
+import { Trash2, ArrowUp, ArrowDown, ChevronDown, X, Users, Check, Package } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -13,6 +13,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface PeopleSummary {
   actualToday: number;
@@ -28,7 +33,7 @@ interface ProgressSubmissionStatus {
 }
 
 interface WorkItemRowProps {
-  work: Work;
+  work: Work | WorkTreeItem;
   expandAll?: boolean;
   holidayDates?: Set<string>;
   showCost?: boolean;
@@ -36,6 +41,10 @@ interface WorkItemRowProps {
   isAdmin?: boolean;
   progressSubmission?: ProgressSubmissionStatus | null;
   canSetProgress?: boolean;
+}
+
+function isWorkTreeItem(work: Work | WorkTreeItem): work is WorkTreeItem {
+  return 'pdcName' in work;
 }
 
 function getPeopleColor(actual: number, plan: number): string {
@@ -54,13 +63,23 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   const { mutate: submitProgress, isPending: isSubmitting } = useSubmitProgress();
   const { mutate: approveProgress, isPending: isApproving } = useApproveProgress();
   const { mutate: rejectProgress, isPending: isRejecting } = useRejectProgress();
+
+  const isPdcWork = isWorkTreeItem(work);
+  const displayName = isPdcWork ? work.pdcName : work.name;
+  const displayUnit = isPdcWork ? work.pdcUnit : work.volumeUnit;
+  const displayQuantityPlan = isPdcWork ? work.pdcQuantity : work.volumeAmount;
+  const displayCostPlan = isPdcWork ? work.pdcCostWithVat : work.costPlan;
   
   const [isExpanded, setIsExpanded] = useState(expandAll);
+  const [isMaterialsOpen, setIsMaterialsOpen] = useState(false);
   const [isEditingProgress, setIsEditingProgress] = useState(false);
   const [originalProgress, setOriginalProgress] = useState(work.progressPercentage);
 
   useEffect(() => {
     setIsExpanded(expandAll);
+    if (!expandAll) {
+      setIsMaterialsOpen(false);
+    }
   }, [expandAll]);
   
   const [localProgress, setLocalProgress] = useState(work.progressPercentage);
@@ -306,7 +325,13 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, height: 0 }}
       className="group flex flex-col p-3 bg-card rounded-lg border border-border/50 hover:border-primary/20 hover:shadow-md transition-all duration-300 mb-2 cursor-pointer"
-      onClick={() => setIsExpanded(!isExpanded)}
+      onClick={() => {
+        const newExpanded = !isExpanded;
+        setIsExpanded(newExpanded);
+        if (!newExpanded) {
+          setIsMaterialsOpen(false);
+        }
+      }}
       data-testid={`work-row-${work.id}`}
     >
       {/* Collapsed View */}
@@ -318,8 +343,8 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
             </div>
 
             <div className="col-span-5 flex flex-col justify-center">
-              <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
-                {work.name}
+              <span className="font-semibold text-foreground truncate text-sm" title={displayName}>
+                {displayName}
               </span>
               <span className="text-xs text-muted-foreground font-mono">
                 ID: {work.id.toString().padStart(4, '0')} | {work.responsiblePerson}
@@ -390,8 +415,8 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
           <div className="grid grid-cols-12 gap-2 items-start text-xs" onClick={(e) => e.stopPropagation()}>
             {/* Name & ID & Responsible */}
             <div className="col-span-2 flex flex-col justify-center">
-              <span className="font-semibold text-foreground truncate text-sm" title={work.name}>
-                {work.name}
+              <span className="font-semibold text-foreground truncate text-sm" title={displayName}>
+                {displayName}
               </span>
               <span className="text-xs text-muted-foreground font-mono mt-0.5">
                 ID: {work.id.toString().padStart(4, '0')}
@@ -405,25 +430,31 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
             <div className="col-span-1 flex flex-col gap-0.5">
               <div className="text-muted-foreground font-medium">План</div>
               <div className="flex items-center gap-0.5">
-                <input 
-                  type="text"
-                  value={localVolumeAmount.toLocaleString('ru-RU')}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
-                    handleVolumeAmountChange({ target: { value: val.toString() } } as any);
-                  }}
-                  onBlur={handleVolumeAmountBlur}
-                  className="w-14 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-mono"
-                  data-testid={`input-volume-plan-${work.id}`}
-                />
-                <span className="text-muted-foreground text-[10px]">{work.volumeUnit}</span>
+                {isPdcWork ? (
+                  <span className="font-mono text-xs text-foreground" data-testid={`text-volume-plan-${work.id}`}>
+                    {displayQuantityPlan.toLocaleString('ru-RU')}
+                  </span>
+                ) : (
+                  <input 
+                    type="text"
+                    value={localVolumeAmount.toLocaleString('ru-RU')}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
+                      handleVolumeAmountChange({ target: { value: val.toString() } } as any);
+                    }}
+                    onBlur={handleVolumeAmountBlur}
+                    className="w-14 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-mono"
+                    data-testid={`input-volume-plan-${work.id}`}
+                  />
+                )}
+                <span className="text-muted-foreground text-[10px]">{displayUnit}</span>
               </div>
 
               <div className="py-0.5 whitespace-nowrap text-[10px]">
                 {(() => {
-                  if (localVolumeAmount === 0) return null;
-                  const diff = localVolumeActual - localVolumeAmount;
-                  const percent = (Math.abs(diff) / localVolumeAmount) * 100;
+                  if (displayQuantityPlan === 0) return null;
+                  const diff = localVolumeActual - displayQuantityPlan;
+                  const percent = (Math.abs(diff) / displayQuantityPlan) * 100;
                   
                   if (diff > 0) {
                     return <span className="text-red-500">+{percent.toFixed(0)}%</span>;
@@ -447,7 +478,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                   className="w-14 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-mono"
                   data-testid={`input-volume-actual-${work.id}`}
                 />
-                <span className="text-muted-foreground text-[10px]">{work.volumeUnit}</span>
+                <span className="text-muted-foreground text-[10px]">{displayUnit}</span>
               </div>
             </div>
 
@@ -456,24 +487,30 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
               <div className="col-span-1 flex flex-col gap-0.5">
                 <div className="text-muted-foreground font-medium">План</div>
                 <div className="flex items-center gap-0.5">
-                  <input 
-                    type="text"
-                    value={localCostPlan.toLocaleString('ru-RU')}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
-                      handleCostPlanChange({ target: { value: val.toString() } } as any);
-                    }}
-                    onBlur={handleCostPlanBlur}
-                    className="w-16 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-mono"
-                    data-testid={`input-cost-plan-${work.id}`}
-                  />
+                  {isPdcWork ? (
+                    <span className="font-mono text-xs text-foreground" data-testid={`text-cost-plan-${work.id}`}>
+                      {displayCostPlan.toLocaleString('ru-RU')}
+                    </span>
+                  ) : (
+                    <input 
+                      type="text"
+                      value={localCostPlan.toLocaleString('ru-RU')}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value.replace(/\s/g, '').replace(',', '.')) || 0;
+                        handleCostPlanChange({ target: { value: val.toString() } } as any);
+                      }}
+                      onBlur={handleCostPlanBlur}
+                      className="w-16 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-mono"
+                      data-testid={`input-cost-plan-${work.id}`}
+                    />
+                  )}
                 </div>
 
                 <div className="py-0.5 whitespace-nowrap text-[10px]">
                   {(() => {
-                    if (localCostPlan === 0) return null;
-                    const diff = localCostActual - localCostPlan;
-                    const percent = (Math.abs(diff) / localCostPlan) * 100;
+                    if (displayCostPlan === 0) return null;
+                    const diff = localCostActual - displayCostPlan;
+                    const percent = (Math.abs(diff) / displayCostPlan) * 100;
                     
                     if (diff > 0) {
                       return <span className="text-red-500">+{percent.toFixed(0)}%</span>;
@@ -811,7 +848,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                 )}
 
                 {/* History button */}
-                <ProgressHistoryDialog workId={work.id} workName={work.name} />
+                <ProgressHistoryDialog workId={work.id} workName={displayName} />
               </div>
 
               {/* Deviation */}
@@ -828,56 +865,129 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
           </div>
 
           {/* Actions Row */}
-          <div className="mt-2 flex justify-end gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => { e.stopPropagation(); moveUp(work.id); }}
-                  data-testid={`button-move-up-${work.id}`}
-                >
-                  <ArrowUp className="w-3.5 h-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Переместить вверх</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => { e.stopPropagation(); moveDown(work.id); }}
-                  data-testid={`button-move-down-${work.id}`}
-                >
-                  <ArrowDown className="w-3.5 h-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Переместить вниз</TooltipContent>
-            </Tooltip>
-            <div onClick={(e) => e.stopPropagation()}>
-              <EditWorkDialog work={work} />
+          <div className="mt-2 flex justify-between items-center">
+            {isPdcWork && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 text-xs"
+                onClick={(e) => { e.stopPropagation(); setIsMaterialsOpen(!isMaterialsOpen); }}
+                data-testid={`button-materials-${work.id}`}
+              >
+                <Package className="w-3.5 h-3.5" />
+                Материалы
+                <ChevronDown className={cn("w-3 h-3 transition-transform", isMaterialsOpen && "rotate-180")} />
+              </Button>
+            )}
+            {!isPdcWork && <div />}
+            
+            <div className="flex gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); moveUp(work.id); }}
+                    data-testid={`button-move-up-${work.id}`}
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Переместить вверх</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); moveDown(work.id); }}
+                    data-testid={`button-move-down-${work.id}`}
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Переместить вниз</TooltipContent>
+              </Tooltip>
+              <div onClick={(e) => e.stopPropagation()}>
+                <EditWorkDialog work={work} />
+              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => { e.stopPropagation(); deleteWork(work.id); }}
+                    disabled={isDeleting}
+                    data-testid={`button-delete-${work.id}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Удалить работу</TooltipContent>
+              </Tooltip>
             </div>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => { e.stopPropagation(); deleteWork(work.id); }}
-                  disabled={isDeleting}
-                  data-testid={`button-delete-${work.id}`}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Удалить работу</TooltipContent>
-            </Tooltip>
           </div>
+
+          {/* Materials Spoiler */}
+          {isPdcWork && isMaterialsOpen && (
+            <MaterialsSpoiler workId={work.id} showCost={showCost} />
+          )}
         </>
       )}
     </motion.div>
+  );
+}
+
+function MaterialsSpoiler({ workId, showCost }: { workId: number; showCost: boolean }) {
+  const { data: materials = [], isLoading } = useWorkMaterials(workId);
+
+  if (isLoading) {
+    return (
+      <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border/50">
+        <p className="text-xs text-muted-foreground">Загрузка материалов...</p>
+      </div>
+    );
+  }
+
+  if (materials.length === 0) {
+    return (
+      <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border/50">
+        <p className="text-xs text-muted-foreground">Материалы не найдены</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 bg-muted/50 rounded-lg border border-border/50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/70 text-[10px] font-semibold text-muted-foreground uppercase">
+        <div className="col-span-1">N</div>
+        <div className="col-span-5">Наименование</div>
+        <div className="col-span-2">Ед. изм.</div>
+        <div className="col-span-2 text-right">Количество</div>
+        {showCost && <div className="col-span-2 text-right">Стоимость</div>}
+      </div>
+      <div className="divide-y divide-border/30">
+        {materials.map((material, index) => (
+          <div 
+            key={material.id} 
+            className="grid grid-cols-12 gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors"
+            data-testid={`material-row-${material.id}`}
+          >
+            <div className="col-span-1 font-mono text-muted-foreground">{material.number || (index + 1)}</div>
+            <div className="col-span-5 truncate" title={material.name}>{material.name}</div>
+            <div className="col-span-2 text-muted-foreground">{material.unit}</div>
+            <div className="col-span-2 text-right font-mono">{material.quantity.toLocaleString('ru-RU')}</div>
+            {showCost && (
+              <div className="col-span-2 text-right font-mono">
+                {material.costWithVat.toLocaleString('ru-RU')} <span className="text-muted-foreground text-[10px]">руб.</span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

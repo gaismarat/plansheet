@@ -41,22 +41,23 @@ export const workGroups = pgTable("work_groups", {
 
 export const works = pgTable("works", {
   id: serial("id").primaryKey(),
-  groupId: integer("group_id").notNull().references(() => workGroups.id),
-  name: text("name").notNull(), // Название работы
-  daysEstimated: integer("days_estimated").notNull(), // Количество дней (план)
-  volumeAmount: real("volume_amount").notNull(), // Объём работ (план)
-  volumeUnit: text("volume_unit").notNull(), // Единица измерения (шт, м3, м2, п.м, компл)
-  daysActual: integer("days_actual").default(0).notNull(), // Фактические дни
-  volumeActual: real("volume_actual").default(0).notNull(), // Фактический объём
-  costPlan: real("cost_plan").default(0).notNull(), // Плановая стоимость (руб.)
-  costActual: real("cost_actual").default(0).notNull(), // Фактическая стоимость (руб.)
-  planStartDate: varchar("plan_start_date"), // Плановая дата начала
-  actualStartDate: varchar("actual_start_date"), // Фактическая дата начала
-  planEndDate: varchar("plan_end_date"), // Плановая дата окончания
-  actualEndDate: varchar("actual_end_date"), // Фактическая дата окончания
-  progressPercentage: integer("progress_percentage").default(0).notNull(), // Шкала выполнения 0-100%
-  plannedPeople: integer("planned_people").default(0).notNull(), // Плановое количество людей
-  responsiblePerson: text("responsible_person").notNull(), // Ответственный
+  groupId: integer("group_id").references(() => workGroups.id), // Legacy, теперь используем pdcGroupId
+  pdcGroupId: integer("pdc_group_id"), // Связь с PDC группой (FK добавляется в relations)
+  name: text("name").notNull(), // Название работы (из PDC или ручное)
+  daysEstimated: integer("days_estimated").default(0).notNull(), // Количество дней (план) - ручное
+  volumeAmount: real("volume_amount").default(0).notNull(), // Объём работ (план) - из PDC
+  volumeUnit: text("volume_unit").default("шт.").notNull(), // Единица измерения - из PDC
+  daysActual: integer("days_actual").default(0).notNull(), // Фактические дни - ручное
+  volumeActual: real("volume_actual").default(0).notNull(), // Фактический объём - ручное
+  costPlan: real("cost_plan").default(0).notNull(), // Плановая стоимость (руб.) - из PDC
+  costActual: real("cost_actual").default(0).notNull(), // Фактическая стоимость (руб.) - ручное
+  planStartDate: varchar("plan_start_date"), // Плановая дата начала - ручное
+  actualStartDate: varchar("actual_start_date"), // Фактическая дата начала - ручное
+  planEndDate: varchar("plan_end_date"), // Плановая дата окончания - ручное
+  actualEndDate: varchar("actual_end_date"), // Фактическая дата окончания - ручное
+  progressPercentage: integer("progress_percentage").default(0).notNull(), // Шкала выполнения 0-100% - ручное
+  plannedPeople: integer("planned_people").default(0).notNull(), // Плановое количество людей - ручное
+  responsiblePerson: text("responsible_person").default("").notNull(), // Ответственный - ручное
   order: integer("order").default(0).notNull(), // Порядок в группе
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -123,6 +124,10 @@ export const worksRelations = relations(works, ({ one }) => ({
     fields: [works.groupId],
     references: [workGroups.id],
   }),
+  pdcGroup: one(pdcGroups, {
+    fields: [works.pdcGroupId],
+    references: [pdcGroups.id],
+  }),
 }));
 
 // === BUDGET RELATIONS ===
@@ -169,8 +174,8 @@ export const insertBlockSchema = createInsertSchema(blocks).omit({ id: true, cre
 export const insertWorkGroupSchema = createInsertSchema(workGroups).omit({ id: true, createdAt: true });
 export const insertWorkSchema = createInsertSchema(works).omit({ id: true, createdAt: true }).extend({
   progressPercentage: z.coerce.number().min(0).max(100).default(0),
-  daysEstimated: z.coerce.number().min(0),
-  volumeAmount: z.coerce.number().min(0),
+  daysEstimated: z.coerce.number().min(0).default(0),
+  volumeAmount: z.coerce.number().min(0).default(0),
   daysActual: z.coerce.number().min(0).default(0),
   volumeActual: z.coerce.number().min(0).default(0),
   costPlan: z.coerce.number().min(0).default(0),
@@ -180,6 +185,9 @@ export const insertWorkSchema = createInsertSchema(works).omit({ id: true, creat
   actualStartDate: z.string().optional(),
   planEndDate: z.string().optional(),
   actualEndDate: z.string().optional(),
+  pdcGroupId: z.number().optional(),
+  groupId: z.number().optional(),
+  responsiblePerson: z.string().default(""),
 });
 
 // === EXPLICIT API CONTRACT TYPES ===
@@ -465,3 +473,76 @@ export const insertWorkPeopleSchema = createInsertSchema(workPeople).omit({ id: 
 
 export type WorkPeople = typeof workPeople.$inferSelect;
 export type InsertWorkPeople = z.infer<typeof insertWorkPeopleSchema>;
+
+// === WORKS TREE TYPES (PDC-based hierarchy) ===
+
+// Work with materials from PDC elements
+export type WorkMaterial = {
+  id: number;
+  pdcElementId: number;
+  number: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  costWithVat: number;
+};
+
+// Work item with manual fields + PDC data
+export type WorkTreeItem = Work & {
+  pdcName: string;
+  pdcUnit: string;
+  pdcQuantity: number;
+  pdcCostWithVat: number;
+  materials?: WorkMaterial[];
+};
+
+// WorkGroup with works inside (level 4)
+export type WorkTreeGroup = {
+  id: number;
+  pdcGroupId: number;
+  number: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  costWithVat: number;
+  progressPercentage: number;
+  works: WorkTreeItem[];
+};
+
+// WorkSection (from PDC Section) - level 3
+export type WorkTreeSection = {
+  id: number;
+  pdcSectionId: number;
+  number: string;
+  name: string;
+  description: string | null;
+  progressPercentage: number;
+  costWithVat: number;
+  groups: WorkTreeGroup[];
+};
+
+// WorkBlock (from PDC Block) - level 2
+export type WorkTreeBlock = {
+  id: number;
+  pdcBlockId: number;
+  number: string;
+  name: string;
+  progressPercentage: number;
+  costWithVat: number;
+  sections: WorkTreeSection[];
+};
+
+// WorkDocument (from PDC Document) - level 1
+export type WorkTreeDocument = {
+  id: number;
+  pdcDocumentId: number;
+  name: string;
+  headerText: string | null;
+  vatRate: number;
+  progressPercentage: number;
+  costWithVat: number;
+  blocks: WorkTreeBlock[];
+};
+
+// Full works tree response
+export type WorksTreeResponse = WorkTreeDocument[];

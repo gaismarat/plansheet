@@ -1,13 +1,9 @@
 import { useState } from "react";
-import { useBlocks, useUnassignedGroups, useDeleteWorkGroup, useDeleteBlock, useHolidays, useWorkPeopleSummary, useLatestProgressSubmissions } from "@/hooks/use-construction";
-import { CreateWorkGroupDialog } from "@/components/forms/create-work-group-dialog";
-import { CreateBlockDialog } from "@/components/forms/create-block-dialog";
-import { EditGroupDialog } from "@/components/forms/edit-group-dialog";
-import { CreateWorkDialog } from "@/components/forms/create-work-dialog";
+import { useWorksTree, useHolidays, useWorkPeopleSummary, useLatestProgressSubmissions, useUpdateWork } from "@/hooks/use-construction";
 import { WorkItemRow } from "@/components/work-item-row";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, FolderOpen, HardHat, TrendingUp, BarChart3, Download, Layers, CalendarDays, Wallet, User, LogOut, Shield, FileText, Users } from "lucide-react";
+import { FolderOpen, HardHat, TrendingUp, BarChart3, Download, Layers, CalendarDays, Wallet, User, LogOut, Shield, FileText, Users, ChevronDown, ChevronRight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   DropdownMenu,
@@ -28,23 +24,11 @@ import {
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
-import { type WorkGroupResponse, type BlockResponse } from "@shared/schema";
+import { type WorkTreeDocument, type WorkTreeBlock, type WorkTreeSection, type WorkTreeGroup, type WorkTreeItem } from "@shared/schema";
 import logoImage from "@assets/Планшет_1767727492095.png";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 export default function Dashboard() {
-  const { data: blocksData, isLoading: blocksLoading } = useBlocks();
-  const { data: unassignedGroups, isLoading: groupsLoading } = useUnassignedGroups();
+  const { data: worksTree, isLoading } = useWorksTree();
   const { data: holidays = [] } = useHolidays();
   const { data: peopleSummary = {} } = useWorkPeopleSummary();
   const { data: progressSubmissions = {} } = useLatestProgressSubmissions();
@@ -54,64 +38,61 @@ export default function Dashboard() {
   const isAdmin = user?.isAdmin ?? false;
   const canSetProgress = isAdmin || hasPermission("edit_data", "progress");
 
-  const isLoading = blocksLoading || groupsLoading;
-  const blocks = blocksData || [];
-  const groups = unassignedGroups || [];
+  const documents = worksTree || [];
 
-  const allGroups = [...(blocks.flatMap(b => b.groups || [])), ...groups];
-  const totalGroups = allGroups.length;
-  const totalWorks = allGroups.reduce((acc, g) => acc + (g.works?.length || 0), 0);
-  const avgProgress = totalWorks > 0 
-    ? Math.round(allGroups.reduce((acc, g) => acc + (g.works?.reduce((wAcc, w) => wAcc + w.progressPercentage, 0) || 0), 0) / totalWorks)
+  const totalDocuments = documents.length;
+  const totalWorks = documents.reduce((acc, doc) => 
+    acc + doc.blocks.reduce((bAcc, block) => 
+      bAcc + block.sections.reduce((sAcc, section) => 
+        sAcc + section.groups.reduce((gAcc, group) => 
+          gAcc + group.works.length, 0), 0), 0), 0);
+  const avgProgress = documents.length > 0 
+    ? Math.round(documents.reduce((acc, doc) => acc + doc.progressPercentage, 0) / documents.length)
     : 0;
 
   const exportToExcel = () => {
     const data: any[] = [];
     const showCost = showCostColumn;
     
-    const createBaseRow = (blockName = "", groupName = "", workData: any = null) => {
-      const row: any = {
-        "Блок": blockName,
-        "Группа": groupName,
-        "Наименование работы": workData?.name || "",
-        "ID": workData?.id || "",
-        "Объём (план)": workData?.volumeAmount ?? "",
-        "Объём (факт)": workData?.volumeActual ?? "",
-        "Ед. изм.": workData?.volumeUnit || "",
-      };
+    documents.forEach((doc) => {
+      data.push({ "Документ": doc.name, "Блок": "", "Раздел": "", "Группа": "", "Работа": "" });
       
-      if (showCost) {
-        row["Стоимость (план)"] = workData?.costPlan ?? "";
-        row["Стоимость (факт)"] = workData?.costActual ?? "";
-      }
-      
-      row["Дата начала (план)"] = workData?.planStartDate || "";
-      row["Дата начала (факт)"] = workData?.actualStartDate || "";
-      row["Дата окончания (план)"] = workData?.planEndDate || "";
-      row["Дата окончания (факт)"] = workData?.actualEndDate || "";
-      row["Ответственный"] = workData?.responsiblePerson || "";
-      row["Прогресс %"] = workData?.progressPercentage ?? "";
-      
-      return row;
-    };
-    
-    blocks.forEach((block) => {
-      data.push(createBaseRow(block.name));
-      
-      block.groups?.forEach((group) => {
-        data.push(createBaseRow("", group.name));
+      doc.blocks.forEach((block) => {
+        data.push({ "Документ": "", "Блок": `${block.number}. ${block.name}`, "Раздел": "", "Группа": "", "Работа": "" });
         
-        group.works?.forEach((work) => {
-          data.push(createBaseRow("", "", work));
+        block.sections.forEach((section) => {
+          data.push({ "Документ": "", "Блок": "", "Раздел": `${section.number}. ${section.name}`, "Группа": "", "Работа": "" });
+          
+          section.groups.forEach((group) => {
+            group.works.forEach((work) => {
+              const row: any = {
+                "Документ": "",
+                "Блок": "",
+                "Раздел": "",
+                "Группа": `${group.number}. ${group.name}`,
+                "Работа": work.pdcName,
+                "ID": work.id,
+                "Объём (план)": work.pdcQuantity,
+                "Объём (факт)": work.volumeActual,
+                "Ед. изм.": work.pdcUnit,
+              };
+              
+              if (showCost) {
+                row["Стоимость (план)"] = work.pdcCostWithVat;
+                row["Стоимость (факт)"] = work.costActual;
+              }
+              
+              row["Дата начала (план)"] = work.planStartDate || "";
+              row["Дата начала (факт)"] = work.actualStartDate || "";
+              row["Дата окончания (план)"] = work.planEndDate || "";
+              row["Дата окончания (факт)"] = work.actualEndDate || "";
+              row["Ответственный"] = work.responsiblePerson || "";
+              row["Прогресс %"] = work.progressPercentage;
+              
+              data.push(row);
+            });
+          });
         });
-      });
-    });
-    
-    groups.forEach((group) => {
-      data.push(createBaseRow("", group.name));
-      
-      group.works?.forEach((work) => {
-        data.push(createBaseRow("", "", work));
       });
     });
     
@@ -123,7 +104,7 @@ export default function Dashboard() {
 
   if (isLoading) return <DashboardSkeleton />;
 
-  const hasNoData = blocks.length === 0 && groups.length === 0;
+  const hasNoData = documents.length === 0;
 
   return (
     <div className="min-h-screen bg-background/50">
@@ -171,8 +152,6 @@ export default function Dashboard() {
                 <span className="hidden sm:inline">Аналитика</span>
               </Button>
             </Link>
-            <CreateBlockDialog />
-            <CreateWorkGroupDialog />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2" data-testid="button-user-menu">
@@ -205,9 +184,9 @@ export default function Dashboard() {
       <main className="container mx-auto px-4 md:px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <StatsCard 
-            title="Всего групп" 
-            value={totalGroups} 
-            icon={<FolderOpen className="w-5 h-5 text-blue-500" />} 
+            title="Всего документов" 
+            value={totalDocuments} 
+            icon={<FileText className="w-5 h-5 text-blue-500" />} 
           />
           <StatsCard 
             title="Всего работ" 
@@ -225,30 +204,20 @@ export default function Dashboard() {
           {hasNoData ? (
             <EmptyState />
           ) : (
-            <>
-              {blocks.length > 0 && (
-                <Accordion type="multiple" defaultValue={blocks.map(b => `block-${b.id}`)} className="space-y-4">
-                  {blocks.map((block) => (
-                    <BlockAccordionItem key={block.id} block={block} holidayDates={holidayDates} showCost={showCostColumn} peopleSummary={peopleSummary} isAdmin={isAdmin} progressSubmissions={progressSubmissions} canSetProgress={canSetProgress} />
-                  ))}
-                </Accordion>
-              )}
-              
-              {groups.length > 0 && (
-                <div className="space-y-4">
-                  {blocks.length > 0 && (
-                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider px-2">
-                      Группы без блока
-                    </h3>
-                  )}
-                  <Accordion type="multiple" defaultValue={groups.map(g => `group-${g.id}`)} className="space-y-4">
-                    {groups.map((group) => (
-                      <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} showCost={showCostColumn} peopleSummary={peopleSummary} isAdmin={isAdmin} progressSubmissions={progressSubmissions} canSetProgress={canSetProgress} />
-                    ))}
-                  </Accordion>
-                </div>
-              )}
-            </>
+            <Accordion type="multiple" defaultValue={documents.map(d => `doc-${d.id}`)} className="space-y-4">
+              {documents.map((doc) => (
+                <DocumentAccordionItem 
+                  key={doc.id} 
+                  document={doc} 
+                  holidayDates={holidayDates} 
+                  showCost={showCostColumn} 
+                  peopleSummary={peopleSummary} 
+                  isAdmin={isAdmin} 
+                  progressSubmissions={progressSubmissions} 
+                  canSetProgress={canSetProgress} 
+                />
+              ))}
+            </Accordion>
           )}
         </div>
       </main>
@@ -256,30 +225,31 @@ export default function Dashboard() {
   );
 }
 
-function BlockAccordionItem({ block, holidayDates, showCost = true, peopleSummary = {}, isAdmin = false, progressSubmissions = {}, canSetProgress = false }: { block: BlockResponse; holidayDates: Set<string>; showCost?: boolean; peopleSummary?: Record<number, { actualToday: number; averageActual: number }>; isAdmin?: boolean; progressSubmissions?: Record<number, any>; canSetProgress?: boolean }) {
-  const { mutate: deleteBlock } = useDeleteBlock();
-  const [showAllGroups, setShowAllGroups] = useState(true);
-  
-  const totalGroups = block.groups?.length || 0;
-  const totalWorks = block.groups?.reduce((acc, g) => acc + (g.works?.length || 0), 0) || 0;
-  const avgProgress = totalWorks > 0 
-    ? Math.round(block.groups!.reduce((acc, g) => acc + (g.works?.reduce((wAcc, w) => wAcc + w.progressPercentage, 0) || 0), 0) / totalWorks)
-    : 0;
+function DocumentAccordionItem({ document, holidayDates, showCost = true, peopleSummary = {}, isAdmin = false, progressSubmissions = {}, canSetProgress = false }: { 
+  document: WorkTreeDocument; 
+  holidayDates: Set<string>; 
+  showCost?: boolean; 
+  peopleSummary?: Record<number, { actualToday: number; averageActual: number }>; 
+  isAdmin?: boolean; 
+  progressSubmissions?: Record<number, any>; 
+  canSetProgress?: boolean 
+}) {
+  const [showAllBlocks, setShowAllBlocks] = useState(true);
 
   return (
-    <AccordionItem value={`block-${block.id}`} className="border rounded-xl bg-card shadow-sm overflow-hidden border-primary/30">
+    <AccordionItem value={`doc-${document.id}`} className="border rounded-xl bg-card shadow-sm overflow-hidden border-primary/50">
       <div className="flex items-center px-6 py-4 hover:bg-secondary/30 transition-colors">
         <AccordionTrigger className="flex-1 hover:no-underline p-0">
           <div className="flex items-center gap-4">
             <div className="bg-primary/20 p-2 rounded-md text-primary">
-              <Layers className="w-5 h-5" />
+              <FileText className="w-5 h-5" />
             </div>
             <div className="text-left">
-              <h3 className="font-display text-lg font-bold text-foreground">{block.name}</h3>
+              <h3 className="font-display text-lg font-bold text-foreground">{document.name}</h3>
               <p className="text-xs text-muted-foreground font-sans font-medium flex gap-2">
-                <span>Групп: {totalGroups}</span>
+                <span>Блоков: {document.blocks.length}</span>
                 <span className="text-border">|</span>
-                <span>Работ: {totalWorks}</span>
+                <span>Стоимость: {document.costWithVat.toLocaleString('ru-RU')} руб.</span>
               </p>
             </div>
           </div>
@@ -287,12 +257,12 @@ function BlockAccordionItem({ block, holidayDates, showCost = true, peopleSummar
         
         <div className="flex items-center gap-6 ml-4">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Показать/скрыть группы</span>
+            <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Показать/скрыть блоки</span>
             <Switch 
-              checked={showAllGroups} 
-              onCheckedChange={setShowAllGroups}
-              className={`${showAllGroups ? 'bg-green-500' : 'bg-red-500'}`}
-              data-testid={`switch-block-groups-${block.id}`}
+              checked={showAllBlocks} 
+              onCheckedChange={setShowAllBlocks}
+              className={`${showAllBlocks ? 'bg-green-500' : 'bg-red-500'}`}
+              data-testid={`switch-doc-blocks-${document.id}`}
             />
           </div>
 
@@ -301,55 +271,34 @@ function BlockAccordionItem({ block, holidayDates, showCost = true, peopleSummar
             <div className="w-24 h-2 bg-secondary rounded-full overflow-hidden">
               <div 
                 className="h-full bg-primary transition-all duration-500" 
-                style={{ width: `${avgProgress}%` }}
+                style={{ width: `${document.progressPercentage}%` }}
               />
             </div>
-            <span className="text-xs font-mono w-8 text-right">{avgProgress}%</span>
+            <span className="text-xs font-mono w-8 text-right">{document.progressPercentage}%</span>
           </div>
         </div>
       </div>
       
       <AccordionContent className="bg-secondary/10 border-t border-border/50 px-6 py-6">
-        <div className="flex justify-between items-center mb-4">
-          <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Группы в блоке</h4>
-          <div className="flex gap-2">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" data-testid={`button-delete-block-${block.id}`}>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Удалить блок
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Это действие удалит блок "{block.name}". Группы, входящие в блок, станут неприкрепленными.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Отмена</AlertDialogCancel>
-                  <AlertDialogAction 
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={() => deleteBlock(block.id)}
-                  >
-                    Удалить
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-
-        {totalGroups === 0 ? (
+        {document.blocks.length === 0 ? (
           <div className="text-center py-10 border-2 border-dashed border-border rounded-lg bg-background/50">
-            <p className="text-muted-foreground mb-2">В этом блоке пока нет групп.</p>
-            <p className="text-xs text-muted-foreground">Создайте группу и добавьте её в этот блок через редактирование.</p>
+            <p className="text-muted-foreground mb-2">В этом документе пока нет блоков.</p>
+            <p className="text-xs text-muted-foreground">Добавьте блоки через страницу ПДЦ.</p>
           </div>
         ) : (
-          <Accordion type="multiple" defaultValue={showAllGroups ? block.groups?.map(g => `group-${g.id}`) : []} className="space-y-3">
-            {block.groups?.map((group) => (
-              <GroupAccordionItem key={group.id} group={group} holidayDates={holidayDates} isNested forceHideWorks={!showAllGroups} showCost={showCost} peopleSummary={peopleSummary} isAdmin={isAdmin} progressSubmissions={progressSubmissions} canSetProgress={canSetProgress} />
+          <Accordion type="multiple" defaultValue={showAllBlocks ? document.blocks.map(b => `block-${b.id}`) : []} className="space-y-3">
+            {document.blocks.map((block) => (
+              <BlockAccordionItem 
+                key={block.id} 
+                block={block} 
+                holidayDates={holidayDates} 
+                forceHide={!showAllBlocks} 
+                showCost={showCost} 
+                peopleSummary={peopleSummary} 
+                isAdmin={isAdmin} 
+                progressSubmissions={progressSubmissions} 
+                canSetProgress={canSetProgress} 
+              />
             ))}
           </Accordion>
         )}
@@ -358,30 +307,30 @@ function BlockAccordionItem({ block, holidayDates, showCost = true, peopleSummar
   );
 }
 
-function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWorks = false, showCost = true, peopleSummary = {}, isAdmin = false, progressSubmissions = {}, canSetProgress = false }: { group: WorkGroupResponse; holidayDates: Set<string>; isNested?: boolean; forceHideWorks?: boolean; showCost?: boolean; peopleSummary?: Record<number, { actualToday: number; averageActual: number }>; isAdmin?: boolean; progressSubmissions?: Record<number, any>; canSetProgress?: boolean }) {
-  const { mutate: deleteGroup } = useDeleteWorkGroup();
-  const [showAllWorks, setShowAllWorks] = useState(!isNested);
-  const effectiveShowWorks = forceHideWorks ? false : showAllWorks;
-  const totalWorks = group.works?.length || 0;
-  const completedWorks = group.works?.filter(w => w.progressPercentage === 100).length || 0;
-  const avgProgress = totalWorks > 0 
-    ? Math.round(group.works!.reduce((acc, w) => acc + w.progressPercentage, 0) / totalWorks)
-    : 0;
+function BlockAccordionItem({ block, holidayDates, forceHide = false, showCost = true, peopleSummary = {}, isAdmin = false, progressSubmissions = {}, canSetProgress = false }: { 
+  block: WorkTreeBlock; 
+  holidayDates: Set<string>; 
+  forceHide?: boolean; 
+  showCost?: boolean; 
+  peopleSummary?: Record<number, { actualToday: number; averageActual: number }>; 
+  isAdmin?: boolean; 
+  progressSubmissions?: Record<number, any>; 
+  canSetProgress?: boolean 
+}) {
+  const [showAllSections, setShowAllSections] = useState(true);
 
-  if (forceHideWorks) {
+  if (forceHide) {
     return (
-      <div className={`border rounded-xl bg-card shadow-sm overflow-hidden border-border/60 ${isNested ? 'bg-background' : ''}`}>
+      <div className="border rounded-xl bg-background shadow-sm overflow-hidden border-border/60">
         <div className="flex items-center px-6 py-4">
           <div className="flex items-center gap-4 flex-1">
             <div className="bg-primary/10 p-2 rounded-md text-primary">
-              <FolderOpen className="w-5 h-5" />
+              <Layers className="w-5 h-5" />
             </div>
             <div className="text-left">
-              <h3 className="font-display text-lg font-bold text-foreground">{group.name}</h3>
+              <h3 className="font-display text-lg font-bold text-foreground">{block.number}. {block.name}</h3>
               <p className="text-xs text-muted-foreground font-sans font-medium flex gap-2">
-                <span>Работ: {totalWorks}</span>
-                <span className="text-border">|</span>
-                <span>Завершено: {completedWorks}</span>
+                <span>Разделов: {block.sections.length}</span>
               </p>
             </div>
           </div>
@@ -391,10 +340,10 @@ function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWo
             <div className="w-24 h-2 bg-secondary rounded-full overflow-hidden">
               <div 
                 className="h-full bg-primary transition-all duration-500" 
-                style={{ width: `${avgProgress}%` }}
+                style={{ width: `${block.progressPercentage}%` }}
               />
             </div>
-            <span className="text-xs font-mono w-8 text-right">{avgProgress}%</span>
+            <span className="text-xs font-mono w-8 text-right">{block.progressPercentage}%</span>
           </div>
         </div>
       </div>
@@ -402,25 +351,250 @@ function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWo
   }
 
   return (
-    <AccordionItem value={`group-${group.id}`} className={`border rounded-xl bg-card shadow-sm overflow-hidden border-border/60 ${isNested ? 'bg-background' : ''}`}>
+    <AccordionItem value={`block-${block.id}`} className="border rounded-xl bg-background shadow-sm overflow-hidden border-border/60">
       <div className="flex items-center px-6 py-4 hover:bg-secondary/30 transition-colors">
         <AccordionTrigger className="flex-1 hover:no-underline p-0">
           <div className="flex items-center gap-4">
             <div className="bg-primary/10 p-2 rounded-md text-primary">
-              <FolderOpen className="w-5 h-5" />
+              <Layers className="w-5 h-5" />
             </div>
             <div className="text-left">
-              <h3 className="font-display text-lg font-bold text-foreground">{group.name}</h3>
+              <h3 className="font-display text-lg font-bold text-foreground">{block.number}. {block.name}</h3>
               <p className="text-xs text-muted-foreground font-sans font-medium flex gap-2">
-                <span>Работ: {totalWorks}</span>
+                <span>Разделов: {block.sections.length}</span>
                 <span className="text-border">|</span>
-                <span>Завершено: {completedWorks}</span>
+                <span>Стоимость: {block.costWithVat.toLocaleString('ru-RU')} руб.</span>
               </p>
             </div>
           </div>
         </AccordionTrigger>
         
         <div className="flex items-center gap-6 ml-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Показать/скрыть разделы</span>
+            <Switch 
+              checked={showAllSections} 
+              onCheckedChange={setShowAllSections}
+              className={`${showAllSections ? 'bg-green-500' : 'bg-red-500'}`}
+              data-testid={`switch-block-sections-${block.id}`}
+            />
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground">ВЫПОЛНЕНИЕ</span>
+            <div className="w-24 h-2 bg-secondary rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-500" 
+                style={{ width: `${block.progressPercentage}%` }}
+              />
+            </div>
+            <span className="text-xs font-mono w-8 text-right">{block.progressPercentage}%</span>
+          </div>
+        </div>
+      </div>
+      
+      <AccordionContent className="bg-secondary/5 border-t border-border/50 px-6 py-6">
+        {block.sections.length === 0 ? (
+          <div className="text-center py-10 border-2 border-dashed border-border rounded-lg bg-background/50">
+            <p className="text-muted-foreground">В этом блоке пока нет разделов.</p>
+          </div>
+        ) : (
+          <Accordion type="multiple" defaultValue={showAllSections ? block.sections.map(s => `section-${s.id}`) : []} className="space-y-3">
+            {block.sections.map((section) => (
+              <SectionAccordionItem 
+                key={section.id} 
+                section={section} 
+                holidayDates={holidayDates} 
+                forceHide={!showAllSections} 
+                showCost={showCost} 
+                peopleSummary={peopleSummary} 
+                isAdmin={isAdmin} 
+                progressSubmissions={progressSubmissions} 
+                canSetProgress={canSetProgress} 
+              />
+            ))}
+          </Accordion>
+        )}
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
+function SectionAccordionItem({ section, holidayDates, forceHide = false, showCost = true, peopleSummary = {}, isAdmin = false, progressSubmissions = {}, canSetProgress = false }: { 
+  section: WorkTreeSection; 
+  holidayDates: Set<string>; 
+  forceHide?: boolean; 
+  showCost?: boolean; 
+  peopleSummary?: Record<number, { actualToday: number; averageActual: number }>; 
+  isAdmin?: boolean; 
+  progressSubmissions?: Record<number, any>; 
+  canSetProgress?: boolean 
+}) {
+  const [showAllGroups, setShowAllGroups] = useState(true);
+
+  if (forceHide) {
+    return (
+      <div className="border rounded-lg bg-card shadow-sm overflow-hidden border-border/40">
+        <div className="flex items-center px-5 py-3">
+          <div className="flex items-center gap-3 flex-1">
+            <div className="bg-secondary p-1.5 rounded-md text-muted-foreground">
+              <FolderOpen className="w-4 h-4" />
+            </div>
+            <div className="text-left">
+              <h4 className="font-semibold text-foreground">{section.number}. {section.name}</h4>
+              <p className="text-xs text-muted-foreground">Групп: {section.groups.length}</p>
+            </div>
+          </div>
+          
+          <div className="hidden sm:flex items-center gap-2 ml-4">
+            <div className="w-20 h-1.5 bg-secondary rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-500" 
+                style={{ width: `${section.progressPercentage}%` }}
+              />
+            </div>
+            <span className="text-xs font-mono w-8 text-right">{section.progressPercentage}%</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <AccordionItem value={`section-${section.id}`} className="border rounded-lg bg-card shadow-sm overflow-hidden border-border/40">
+      <div className="flex items-center px-5 py-3 hover:bg-secondary/30 transition-colors">
+        <AccordionTrigger className="flex-1 hover:no-underline p-0">
+          <div className="flex items-center gap-3">
+            <div className="bg-secondary p-1.5 rounded-md text-muted-foreground">
+              <FolderOpen className="w-4 h-4" />
+            </div>
+            <div className="text-left">
+              <h4 className="font-semibold text-foreground">{section.number}. {section.name}</h4>
+              <p className="text-xs text-muted-foreground flex gap-2">
+                <span>Групп: {section.groups.length}</span>
+                <span className="text-border">|</span>
+                <span>Стоимость: {section.costWithVat.toLocaleString('ru-RU')} руб.</span>
+              </p>
+            </div>
+          </div>
+        </AccordionTrigger>
+        
+        <div className="flex items-center gap-4 ml-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Показать/скрыть группы</span>
+            <Switch 
+              checked={showAllGroups} 
+              onCheckedChange={setShowAllGroups}
+              className={`${showAllGroups ? 'bg-green-500' : 'bg-red-500'}`}
+              data-testid={`switch-section-groups-${section.id}`}
+            />
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="w-20 h-1.5 bg-secondary rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-500" 
+                style={{ width: `${section.progressPercentage}%` }}
+              />
+            </div>
+            <span className="text-xs font-mono w-8 text-right">{section.progressPercentage}%</span>
+          </div>
+        </div>
+      </div>
+      
+      <AccordionContent className="bg-secondary/5 border-t border-border/30 px-5 py-4">
+        {section.groups.length === 0 ? (
+          <div className="text-center py-6 border-2 border-dashed border-border rounded-lg bg-background/50">
+            <p className="text-muted-foreground text-sm">В этом разделе пока нет групп.</p>
+          </div>
+        ) : (
+          <Accordion type="multiple" defaultValue={showAllGroups ? section.groups.map(g => `group-${g.id}`) : []} className="space-y-2">
+            {section.groups.map((group) => (
+              <GroupAccordionItem 
+                key={group.id} 
+                group={group} 
+                holidayDates={holidayDates} 
+                forceHide={!showAllGroups} 
+                showCost={showCost} 
+                peopleSummary={peopleSummary} 
+                isAdmin={isAdmin} 
+                progressSubmissions={progressSubmissions} 
+                canSetProgress={canSetProgress} 
+              />
+            ))}
+          </Accordion>
+        )}
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
+function GroupAccordionItem({ group, holidayDates, forceHide = false, showCost = true, peopleSummary = {}, isAdmin = false, progressSubmissions = {}, canSetProgress = false }: { 
+  group: WorkTreeGroup; 
+  holidayDates: Set<string>; 
+  forceHide?: boolean; 
+  showCost?: boolean; 
+  peopleSummary?: Record<number, { actualToday: number; averageActual: number }>; 
+  isAdmin?: boolean; 
+  progressSubmissions?: Record<number, any>; 
+  canSetProgress?: boolean 
+}) {
+  const [showAllWorks, setShowAllWorks] = useState(true);
+
+  if (forceHide) {
+    return (
+      <div className="border rounded-md bg-background shadow-sm overflow-hidden border-border/30">
+        <div className="flex items-center px-4 py-2">
+          <div className="flex items-center gap-2 flex-1">
+            <div className="bg-muted p-1 rounded text-muted-foreground">
+              <HardHat className="w-3.5 h-3.5" />
+            </div>
+            <div className="text-left">
+              <h5 className="font-medium text-sm text-foreground">{group.number}. {group.name}</h5>
+              <p className="text-xs text-muted-foreground">Работ: {group.works.length}</p>
+            </div>
+          </div>
+          
+          <div className="hidden sm:flex items-center gap-2 ml-4">
+            <div className="w-16 h-1 bg-secondary rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-500" 
+                style={{ width: `${group.progressPercentage}%` }}
+              />
+            </div>
+            <span className="text-xs font-mono w-8 text-right">{group.progressPercentage}%</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <AccordionItem value={`group-${group.id}`} className="border rounded-md bg-background shadow-sm overflow-hidden border-border/30">
+      <div className="flex items-center px-4 py-2 hover:bg-secondary/20 transition-colors">
+        <AccordionTrigger className="flex-1 hover:no-underline p-0">
+          <div className="flex items-center gap-2">
+            <div className="bg-muted p-1 rounded text-muted-foreground">
+              <HardHat className="w-3.5 h-3.5" />
+            </div>
+            <div className="text-left">
+              <h5 className="font-medium text-sm text-foreground">{group.number}. {group.name}</h5>
+              <p className="text-xs text-muted-foreground flex gap-2">
+                <span>Работ: {group.works.length}</span>
+                <span className="text-border">|</span>
+                <span>{group.quantity} {group.unit}</span>
+                {showCost && (
+                  <>
+                    <span className="text-border">|</span>
+                    <span>{group.costWithVat.toLocaleString('ru-RU')} руб.</span>
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+        </AccordionTrigger>
+        
+        <div className="flex items-center gap-4 ml-4">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-muted-foreground whitespace-nowrap">Показать/скрыть работы</span>
             <Switch 
@@ -432,62 +606,36 @@ function GroupAccordionItem({ group, holidayDates, isNested = false, forceHideWo
           </div>
 
           <div className="hidden sm:flex items-center gap-2">
-            <span className="text-xs font-bold text-muted-foreground">ВЫПОЛНЕНИЕ</span>
-            <div className="w-24 h-2 bg-secondary rounded-full overflow-hidden">
+            <div className="w-16 h-1 bg-secondary rounded-full overflow-hidden">
               <div 
                 className="h-full bg-primary transition-all duration-500" 
-                style={{ width: `${avgProgress}%` }}
+                style={{ width: `${group.progressPercentage}%` }}
               />
             </div>
-            <span className="text-xs font-mono w-8 text-right">{avgProgress}%</span>
+            <span className="text-xs font-mono w-8 text-right">{group.progressPercentage}%</span>
           </div>
         </div>
       </div>
       
-      <AccordionContent className="bg-secondary/10 border-t border-border/50 px-6 py-6">
-        <div className="flex justify-between items-center mb-4">
-          <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Список работ</h4>
-          <div className="flex gap-2">
-            <CreateWorkDialog groupId={group.id} />
-            <EditGroupDialog group={group} />
-            
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" data-testid={`button-delete-group-${group.id}`}>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Удалить группу
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Вы уверены?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Это действие удалит группу "{group.name}" и все входящие в неё работы. Это действие необратимо.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Отмена</AlertDialogCancel>
-                  <AlertDialogAction 
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={() => deleteGroup(group.id)}
-                  >
-                    Удалить
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-
-        {totalWorks === 0 ? (
-          <div className="text-center py-10 border-2 border-dashed border-border rounded-lg bg-background/50">
-            <p className="text-muted-foreground mb-2">В этой группе пока нет работ.</p>
-            <CreateWorkDialog groupId={group.id} />
+      <AccordionContent className="bg-muted/30 border-t border-border/20 px-4 py-3">
+        {group.works.length === 0 ? (
+          <div className="text-center py-4 border border-dashed border-border rounded bg-background/50">
+            <p className="text-muted-foreground text-sm">В этой группе пока нет работ.</p>
           </div>
         ) : (
           <div className="space-y-1">
-            {group.works?.map((work) => (
-              <WorkItemRow key={work.id} work={work} expandAll={effectiveShowWorks} holidayDates={holidayDates} showCost={showCost} peopleSummary={peopleSummary[work.id]} isAdmin={isAdmin} progressSubmission={progressSubmissions[work.id]} canSetProgress={canSetProgress} />
+            {group.works.map((work) => (
+              <WorkItemRow 
+                key={work.id} 
+                work={work} 
+                expandAll={showAllWorks} 
+                holidayDates={holidayDates} 
+                showCost={showCost} 
+                peopleSummary={peopleSummary[work.id]} 
+                isAdmin={isAdmin} 
+                progressSubmission={progressSubmissions[work.id]} 
+                canSetProgress={canSetProgress} 
+              />
             ))}
           </div>
         )}
@@ -520,16 +668,18 @@ function EmptyState() {
       className="flex flex-col items-center justify-center py-20 text-center"
     >
       <div className="bg-secondary p-6 rounded-full mb-6">
-        <FolderOpen className="w-12 h-12 text-muted-foreground" />
+        <FileText className="w-12 h-12 text-muted-foreground" />
       </div>
       <h2 className="text-2xl font-bold font-display text-foreground mb-2">Нет данных</h2>
       <p className="text-muted-foreground max-w-md mb-8">
-        Создайте первый блок или группу работ, чтобы начать отслеживать прогресс по проекту.
+        Создайте ПДЦ документ на странице ПДЦ, чтобы работы появились здесь автоматически.
       </p>
-      <div className="flex gap-4">
-        <CreateBlockDialog />
-        <CreateWorkGroupDialog />
-      </div>
+      <Link href="/pdc">
+        <Button className="gap-2">
+          <FileText className="w-4 h-4" />
+          Перейти к ПДЦ
+        </Button>
+      </Link>
     </motion.div>
   );
 }

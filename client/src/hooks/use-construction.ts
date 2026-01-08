@@ -435,3 +435,32 @@ export function useRejectProgress() {
     },
   });
 }
+
+// ============================================
+// WORKS TREE HOOKS (PDC-based hierarchy)
+// ============================================
+
+import type { WorksTreeResponse, WorkMaterial } from "@shared/schema";
+
+export function useWorksTree() {
+  return useQuery<WorksTreeResponse>({
+    queryKey: ['/api/works/tree'],
+    queryFn: async () => {
+      const res = await fetch('/api/works/tree');
+      if (!res.ok) throw new Error("Failed to fetch works tree");
+      return res.json();
+    },
+  });
+}
+
+export function useWorkMaterials(workId: number) {
+  return useQuery<WorkMaterial[]>({
+    queryKey: ['/api/works', workId, 'materials'],
+    queryFn: async () => {
+      const res = await fetch(`/api/works/${workId}/materials`);
+      if (!res.ok) throw new Error("Failed to fetch work materials");
+      return res.json();
+    },
+    enabled: workId > 0,
+  });
+}
