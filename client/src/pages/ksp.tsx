@@ -207,6 +207,15 @@ export default function KSP() {
     setExpandedSections(new Set());
   };
 
+  const hasExpanded = expandedDocs.size > 0 || expandedBlocks.size > 0 || expandedSections.size > 0;
+  const nameColumnWidth = hasExpanded ? 540 : 270;
+  const stickyLeftOffsets = {
+    name: 0,
+    start: nameColumnWidth,
+    end: nameColumnWidth + 70,
+    duration: nameColumnWidth + 140
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background/50 p-6">
@@ -266,18 +275,30 @@ export default function KSP() {
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-20 bg-card">
                 <tr>
-                  <th className="border border-border bg-muted/50 p-2 text-left font-medium w-[270px] min-w-[270px] max-w-[270px] sticky left-0 z-30">
+                  <th 
+                    className="border border-border bg-muted p-2 text-left font-medium sticky z-30"
+                    style={{ width: nameColumnWidth, minWidth: nameColumnWidth, maxWidth: nameColumnWidth, left: stickyLeftOffsets.name }}
+                  >
                     Наименование
                   </th>
-                  <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[50px] w-[50px] text-xs">
+                  <th 
+                    className="border border-border bg-muted p-1 text-center font-medium min-w-[70px] w-[70px] text-xs sticky z-30"
+                    style={{ left: stickyLeftOffsets.start }}
+                  >
                     Начало
                     <div className="text-muted-foreground text-[10px]">план / факт</div>
                   </th>
-                  <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[50px] w-[50px] text-xs">
+                  <th 
+                    className="border border-border bg-muted p-1 text-center font-medium min-w-[70px] w-[70px] text-xs sticky z-30"
+                    style={{ left: stickyLeftOffsets.end }}
+                  >
                     Конец
                     <div className="text-muted-foreground text-[10px]">план / факт</div>
                   </th>
-                  <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[65px] w-[65px] text-xs">
+                  <th 
+                    className="border border-border bg-muted p-1 text-center font-medium min-w-[65px] w-[65px] text-xs sticky z-30"
+                    style={{ left: stickyLeftOffsets.duration }}
+                  >
                     Длит-ть
                     <div className="text-muted-foreground text-[10px]">план / факт</div>
                   </th>
@@ -317,6 +338,8 @@ export default function KSP() {
                     onToggleDoc={() => toggleDoc(doc.id)}
                     onToggleBlock={toggleBlock}
                     onToggleSection={toggleSection}
+                    nameColumnWidth={nameColumnWidth}
+                    stickyLeftOffsets={stickyLeftOffsets}
                   />
                 ))}
               </tbody>
@@ -354,6 +377,13 @@ export default function KSP() {
   );
 }
 
+interface StickyOffsets {
+  name: number;
+  start: number;
+  end: number;
+  duration: number;
+}
+
 function DocumentRow({ 
   doc, 
   timeUnits, 
@@ -364,7 +394,9 @@ function DocumentRow({
   expandedSections,
   onToggleDoc,
   onToggleBlock,
-  onToggleSection
+  onToggleSection,
+  nameColumnWidth,
+  stickyLeftOffsets
 }: { 
   doc: DocumentNode;
   timeUnits: Date[];
@@ -376,11 +408,16 @@ function DocumentRow({
   onToggleDoc: () => void;
   onToggleBlock: (id: number) => void;
   onToggleSection: (id: number) => void;
+  nameColumnWidth: number;
+  stickyLeftOffsets: StickyOffsets;
 }) {
   return (
     <>
-      <tr className="bg-primary/20 hover:bg-primary/30 transition-colors">
-        <td className="border border-border p-2 font-bold sticky left-0 bg-primary/20 z-10 w-[270px] min-w-[270px] max-w-[270px]">
+      <tr className="hover:bg-primary/30 transition-colors">
+        <td 
+          className="border border-border p-2 font-bold sticky z-10 bg-primary/20"
+          style={{ width: nameColumnWidth, minWidth: nameColumnWidth, maxWidth: nameColumnWidth, left: stickyLeftOffsets.name }}
+        >
           <button 
             onClick={onToggleDoc}
             className="flex items-center gap-2 w-full text-left"
@@ -390,9 +427,9 @@ function DocumentRow({
             <span className="truncate">{doc.name}</span>
           </button>
         </td>
-        <td className="border border-border bg-primary/10" />
-        <td className="border border-border bg-primary/10" />
-        <td className="border border-border bg-primary/10" />
+        <td className="border border-border bg-primary/10 sticky z-10 min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.start }} />
+        <td className="border border-border bg-primary/10 sticky z-10 min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.end }} />
+        <td className="border border-border bg-primary/10 sticky z-10 min-w-[65px] w-[65px]" style={{ left: stickyLeftOffsets.duration }} />
         {timeUnits.map((unit, idx) => {
           const isToday = viewMode === "days" 
             ? isSameDay(unit, today)
@@ -417,6 +454,8 @@ function DocumentRow({
           onToggleBlock={() => onToggleBlock(block.id)}
           onToggleSection={onToggleSection}
           indentLevel={1}
+          nameColumnWidth={nameColumnWidth}
+          stickyLeftOffsets={stickyLeftOffsets}
         />
       ))}
     </>
@@ -432,7 +471,9 @@ function BlockRow({
   expandedSections,
   onToggleBlock,
   onToggleSection,
-  indentLevel
+  indentLevel,
+  nameColumnWidth,
+  stickyLeftOffsets
 }: { 
   block: BlockNode; 
   timeUnits: Date[];
@@ -443,13 +484,15 @@ function BlockRow({
   onToggleBlock: () => void;
   onToggleSection: (id: number) => void;
   indentLevel: number;
+  nameColumnWidth: number;
+  stickyLeftOffsets: StickyOffsets;
 }) {
   return (
     <>
-      <tr className="bg-primary/10 hover:bg-primary/20 transition-colors">
+      <tr className="hover:bg-primary/20 transition-colors">
         <td 
-          className="border border-border p-2 font-bold sticky left-0 bg-primary/10 z-10 w-[270px] min-w-[270px] max-w-[270px]"
-          style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
+          className="border border-border p-2 font-bold sticky z-10 bg-primary/10"
+          style={{ width: nameColumnWidth, minWidth: nameColumnWidth, maxWidth: nameColumnWidth, left: stickyLeftOffsets.name, paddingLeft: `${indentLevel * 16 + 8}px` }}
         >
           <button 
             onClick={onToggleBlock}
@@ -461,9 +504,9 @@ function BlockRow({
             <span className="truncate">{block.name}</span>
           </button>
         </td>
-        <td className="border border-border bg-primary/5" />
-        <td className="border border-border bg-primary/5" />
-        <td className="border border-border bg-primary/5" />
+        <td className="border border-border bg-primary/5 sticky z-10 min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.start }} />
+        <td className="border border-border bg-primary/5 sticky z-10 min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.end }} />
+        <td className="border border-border bg-primary/5 sticky z-10 min-w-[65px] w-[65px]" style={{ left: stickyLeftOffsets.duration }} />
         {timeUnits.map((unit, idx) => {
           const isToday = viewMode === "days" 
             ? isSameDay(unit, today)
@@ -486,6 +529,8 @@ function BlockRow({
           isExpanded={expandedSections.has(section.id)}
           onToggleSection={() => onToggleSection(section.id)}
           indentLevel={indentLevel + 1}
+          nameColumnWidth={nameColumnWidth}
+          stickyLeftOffsets={stickyLeftOffsets}
         />
       ))}
     </>
@@ -499,7 +544,9 @@ function SectionRow({
   today,
   isExpanded,
   onToggleSection,
-  indentLevel
+  indentLevel,
+  nameColumnWidth,
+  stickyLeftOffsets
 }: {
   section: SectionNode;
   timeUnits: Date[];
@@ -508,13 +555,15 @@ function SectionRow({
   isExpanded: boolean;
   onToggleSection: () => void;
   indentLevel: number;
+  nameColumnWidth: number;
+  stickyLeftOffsets: StickyOffsets;
 }) {
   return (
     <>
-      <tr className="bg-secondary/30 hover:bg-secondary/50 transition-colors">
+      <tr className="hover:bg-secondary/50 transition-colors">
         <td 
-          className="border border-border p-2 font-semibold sticky left-0 bg-secondary/30 z-10 w-[270px] min-w-[270px] max-w-[270px]" 
-          style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
+          className="border border-border p-2 font-semibold sticky z-10 bg-secondary/30" 
+          style={{ width: nameColumnWidth, minWidth: nameColumnWidth, maxWidth: nameColumnWidth, left: stickyLeftOffsets.name, paddingLeft: `${indentLevel * 16 + 8}px` }}
         >
           <button 
             onClick={onToggleSection}
@@ -526,9 +575,9 @@ function SectionRow({
             <span className="truncate">{section.name}</span>
           </button>
         </td>
-        <td className="border border-border bg-secondary/10" />
-        <td className="border border-border bg-secondary/10" />
-        <td className="border border-border bg-secondary/10" />
+        <td className="border border-border bg-secondary/10 sticky z-10 min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.start }} />
+        <td className="border border-border bg-secondary/10 sticky z-10 min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.end }} />
+        <td className="border border-border bg-secondary/10 sticky z-10 min-w-[65px] w-[65px]" style={{ left: stickyLeftOffsets.duration }} />
         {timeUnits.map((unit, idx) => {
           const isToday = viewMode === "days" 
             ? isSameDay(unit, today)
@@ -549,6 +598,8 @@ function SectionRow({
           viewMode={viewMode}
           today={today}
           indentLevel={indentLevel + 1}
+          nameColumnWidth={nameColumnWidth}
+          stickyLeftOffsets={stickyLeftOffsets}
         />
       ))}
     </>
@@ -560,13 +611,17 @@ function GroupRow({
   timeUnits,
   viewMode,
   today,
-  indentLevel
+  indentLevel,
+  nameColumnWidth,
+  stickyLeftOffsets
 }: {
   group: GroupNode;
   timeUnits: Date[];
   viewMode: ViewMode;
   today: Date;
   indentLevel: number;
+  nameColumnWidth: number;
+  stickyLeftOffsets: StickyOffsets;
 }) {
   const { planStart, planEnd, actualStart, actualEnd } = getGroupDates(group);
 
@@ -626,29 +681,29 @@ function GroupRow({
   return (
     <tr className="hover:bg-muted/50 transition-colors">
       <td 
-        className="border border-border p-2 sticky left-0 bg-background z-10 w-[270px] min-w-[270px] max-w-[270px]" 
-        style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
+        className="border border-border p-2 sticky z-10 bg-background" 
+        style={{ width: nameColumnWidth, minWidth: nameColumnWidth, maxWidth: nameColumnWidth, left: stickyLeftOffsets.name, paddingLeft: `${indentLevel * 16 + 8}px` }}
       >
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground text-xs">{group.number}</span>
           <span className="text-foreground truncate">{group.name}</span>
         </div>
       </td>
-      <td className="border border-border p-1 text-center text-xs">
+      <td className="border border-border p-1 text-center text-xs sticky z-10 bg-background min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.start }}>
         <div className="flex flex-col items-center gap-0.5">
           <span className="text-muted-foreground">{formatDate(planStart)}</span>
           <span className="font-medium">{formatDate(actualStart)}</span>
           {getDeviationIndicator(startDeviation)}
         </div>
       </td>
-      <td className="border border-border p-1 text-center text-xs">
+      <td className="border border-border p-1 text-center text-xs sticky z-10 bg-background min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.end }}>
         <div className="flex flex-col items-center gap-0.5">
           <span className="text-muted-foreground">{formatDate(planEnd)}</span>
           <span className="font-medium">{formatDate(actualEnd)}</span>
           {getDeviationIndicator(endDeviation)}
         </div>
       </td>
-      <td className="border border-border p-1 text-center text-xs">
+      <td className="border border-border p-1 text-center text-xs sticky z-10 bg-background min-w-[65px] w-[65px]" style={{ left: stickyLeftOffsets.duration }}>
         <div className="flex flex-col items-center gap-0.5">
           <span className="text-muted-foreground">{planDuration ?? "—"}</span>
           <span className="font-medium">{actualDuration ?? "—"}</span>
