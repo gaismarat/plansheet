@@ -266,7 +266,7 @@ export default function KSP() {
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-20 bg-card">
                 <tr>
-                  <th className="border border-border bg-muted/50 p-2 text-left font-medium min-w-[240px] sticky left-0 z-30">
+                  <th className="border border-border bg-muted/50 p-2 text-left font-medium min-w-[192px] sticky left-0 z-30">
                     Наименование
                   </th>
                   <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[50px] w-[50px] text-xs">
