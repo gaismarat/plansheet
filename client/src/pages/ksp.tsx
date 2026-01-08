@@ -266,7 +266,7 @@ export default function KSP() {
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-20 bg-card">
                 <tr>
-                  <th className="border border-border bg-muted/50 p-2 text-left font-medium w-[220px] min-w-[220px] max-w-[220px] sticky left-0 z-30">
+                  <th className="border border-border bg-muted/50 p-2 text-left font-medium w-[270px] min-w-[270px] max-w-[270px] sticky left-0 z-30">
                     Наименование
                   </th>
                   <th className="border border-border bg-muted/50 p-1 text-center font-medium min-w-[50px] w-[50px] text-xs">
@@ -289,16 +289,13 @@ export default function KSP() {
                     return (
                       <th 
                         key={idx} 
-                        className={`border border-border bg-muted/50 p-1 text-center font-medium min-w-[40px] text-xs relative ${isToday ? 'bg-primary/20' : ''}`}
+                        className={`border border-border bg-muted/50 p-0.5 text-center font-medium min-w-[32px] w-[32px] text-[10px] relative ${isToday ? 'bg-primary/20' : ''}`}
                       >
-                        {viewMode === "days" 
-                          ? format(unit, "dd", { locale: ru })
-                          : format(unit, "dd.MM", { locale: ru })
-                        }
-                        <div className="text-muted-foreground text-[10px]">
+                        {format(unit, "dd.MM.yy", { locale: ru })}
+                        <div className="text-muted-foreground text-[9px]">
                           {viewMode === "days" 
                             ? format(unit, "EEE", { locale: ru })
-                            : `Нед ${format(unit, "w", { locale: ru })}`
+                            : `Н${format(unit, "w", { locale: ru })}`
                           }
                         </div>
                       </th>
@@ -383,7 +380,7 @@ function DocumentRow({
   return (
     <>
       <tr className="bg-primary/20 hover:bg-primary/30 transition-colors">
-        <td className="border border-border p-2 font-bold sticky left-0 bg-primary/20 z-10 w-[220px] min-w-[220px] max-w-[220px]">
+        <td className="border border-border p-2 font-bold sticky left-0 bg-primary/20 z-10 w-[270px] min-w-[270px] max-w-[270px]">
           <button 
             onClick={onToggleDoc}
             className="flex items-center gap-2 w-full text-left"
@@ -451,7 +448,7 @@ function BlockRow({
     <>
       <tr className="bg-primary/10 hover:bg-primary/20 transition-colors">
         <td 
-          className="border border-border p-2 font-bold sticky left-0 bg-primary/10 z-10 w-[220px] min-w-[220px] max-w-[220px]"
+          className="border border-border p-2 font-bold sticky left-0 bg-primary/10 z-10 w-[270px] min-w-[270px] max-w-[270px]"
           style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
         >
           <button 
@@ -516,7 +513,7 @@ function SectionRow({
     <>
       <tr className="bg-secondary/30 hover:bg-secondary/50 transition-colors">
         <td 
-          className="border border-border p-2 font-semibold sticky left-0 bg-secondary/30 z-10 w-[220px] min-w-[220px] max-w-[220px]" 
+          className="border border-border p-2 font-semibold sticky left-0 bg-secondary/30 z-10 w-[270px] min-w-[270px] max-w-[270px]" 
           style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
         >
           <button 
@@ -629,7 +626,7 @@ function GroupRow({
   return (
     <tr className="hover:bg-muted/50 transition-colors">
       <td 
-        className="border border-border p-2 sticky left-0 bg-background z-10 w-[220px] min-w-[220px] max-w-[220px]" 
+        className="border border-border p-2 sticky left-0 bg-background z-10 w-[270px] min-w-[270px] max-w-[270px]" 
         style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
       >
         <div className="flex items-center gap-2">
