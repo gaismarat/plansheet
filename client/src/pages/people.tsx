@@ -61,7 +61,6 @@ export default function People() {
   const [expandedDocs, setExpandedDocs] = useState<Set<number>>(new Set());
   const [expandedBlocks, setExpandedBlocks] = useState<Set<number>>(new Set());
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
-  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
   const todayColumnRef = useRef<HTMLTableCellElement>(null);
   const [hasScrolled, setHasScrolled] = useState(false);
 
@@ -174,13 +173,6 @@ export default function People() {
     setExpandedSections(newSet);
   };
 
-  const toggleGroup = (id: number) => {
-    const newSet = new Set(expandedGroups);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setExpandedGroups(newSet);
-  };
-
   const expandAll = () => {
     setExpandedDocs(new Set(documents.map(d => d.id)));
     const allBlockIds = documents.flatMap(d => d.blocks?.map(b => b.id) || []);
@@ -189,17 +181,12 @@ export default function People() {
       d.blocks?.flatMap(b => b.sections?.map(s => s.id) || []) || []
     );
     setExpandedSections(new Set(allSectionIds));
-    const allGroupIds = documents.flatMap(d => 
-      d.blocks?.flatMap(b => b.sections?.flatMap(s => s.groups?.map(g => g.id) || []) || []) || []
-    );
-    setExpandedGroups(new Set(allGroupIds));
   };
 
   const collapseAll = () => {
     setExpandedDocs(new Set());
     setExpandedBlocks(new Set());
     setExpandedSections(new Set());
-    setExpandedGroups(new Set());
   };
 
   if (isLoading) {
@@ -240,7 +227,7 @@ export default function People() {
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-shrink-0 border-r border-border bg-card overflow-y-auto" style={{ width: 300 }}>
+        <div className="flex-shrink-0 border-r border-border bg-card overflow-y-auto" style={{ width: expandedDocs.size > 0 || expandedBlocks.size > 0 || expandedSections.size > 0 ? 540 : 300 }}>
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-20 bg-card">
               <tr>
@@ -257,11 +244,9 @@ export default function People() {
                   isExpanded={expandedDocs.has(doc.id)}
                   expandedBlocks={expandedBlocks}
                   expandedSections={expandedSections}
-                  expandedGroups={expandedGroups}
                   onToggleDoc={() => toggleDoc(doc.id)}
                   onToggleBlock={toggleBlock}
                   onToggleSection={toggleSection}
-                  onToggleGroup={toggleGroup}
                 />
               ))}
             </tbody>
@@ -304,7 +289,6 @@ export default function People() {
                       isExpanded={expandedDocs.has(doc.id)}
                       expandedBlocks={expandedBlocks}
                       expandedSections={expandedSections}
-                      expandedGroups={expandedGroups}
                       workPeopleMap={workPeopleMap}
                     />
                   ))}
@@ -338,21 +322,17 @@ function DocumentNameRows({
   isExpanded,
   expandedBlocks,
   expandedSections,
-  expandedGroups,
   onToggleDoc,
   onToggleBlock,
-  onToggleSection,
-  onToggleGroup
+  onToggleSection
 }: {
   doc: DocumentNode;
   isExpanded: boolean;
   expandedBlocks: Set<number>;
   expandedSections: Set<number>;
-  expandedGroups: Set<number>;
   onToggleDoc: () => void;
   onToggleBlock: (id: number) => void;
   onToggleSection: (id: number) => void;
-  onToggleGroup: (id: number) => void;
 }) {
   return (
     <>
@@ -374,10 +354,8 @@ function DocumentNameRows({
           block={block}
           isExpanded={expandedBlocks.has(block.id)}
           expandedSections={expandedSections}
-          expandedGroups={expandedGroups}
           onToggleBlock={() => onToggleBlock(block.id)}
           onToggleSection={onToggleSection}
-          onToggleGroup={onToggleGroup}
           indentLevel={1}
         />
       ))}
@@ -389,19 +367,15 @@ function BlockNameRows({
   block,
   isExpanded,
   expandedSections,
-  expandedGroups,
   onToggleBlock,
   onToggleSection,
-  onToggleGroup,
   indentLevel
 }: {
   block: BlockNode;
   isExpanded: boolean;
   expandedSections: Set<number>;
-  expandedGroups: Set<number>;
   onToggleBlock: () => void;
   onToggleSection: (id: number) => void;
-  onToggleGroup: (id: number) => void;
   indentLevel: number;
 }) {
   return (
@@ -427,9 +401,7 @@ function BlockNameRows({
           key={section.id}
           section={section}
           isExpanded={expandedSections.has(section.id)}
-          expandedGroups={expandedGroups}
           onToggleSection={() => onToggleSection(section.id)}
-          onToggleGroup={onToggleGroup}
           indentLevel={indentLevel + 1}
         />
       ))}
@@ -440,16 +412,12 @@ function BlockNameRows({
 function SectionNameRows({
   section,
   isExpanded,
-  expandedGroups,
   onToggleSection,
-  onToggleGroup,
   indentLevel
 }: {
   section: SectionNode;
   isExpanded: boolean;
-  expandedGroups: Set<number>;
   onToggleSection: () => void;
-  onToggleGroup: (id: number) => void;
   indentLevel: number;
 }) {
   return (
@@ -474,8 +442,6 @@ function SectionNameRows({
         <GroupNameRows
           key={group.id}
           group={group}
-          isExpanded={expandedGroups.has(group.id)}
-          onToggleGroup={() => onToggleGroup(group.id)}
           indentLevel={indentLevel + 1}
         />
       ))}
@@ -485,55 +451,23 @@ function SectionNameRows({
 
 function GroupNameRows({
   group,
-  isExpanded,
-  onToggleGroup,
   indentLevel
 }: {
   group: GroupNode;
-  isExpanded: boolean;
-  onToggleGroup: () => void;
   indentLevel: number;
 }) {
-  const hasWorks = group.works && group.works.length > 0;
-  
   return (
-    <>
-      <tr className="hover:bg-muted/20 transition-colors">
-        <td 
-          className="border-b border-border p-2 h-10" 
-          style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
-        >
-          {hasWorks ? (
-            <button
-              onClick={onToggleGroup}
-              className="flex items-center gap-2 w-full text-left"
-              data-testid={`button-toggle-group-${group.id}`}
-            >
-              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              <span className="text-muted-foreground text-xs">{group.number}</span>
-              <span className="truncate" title={group.name}>{group.name}</span>
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-xs">{group.number}</span>
-              <span className="truncate" title={group.name}>{group.name}</span>
-            </div>
-          )}
-        </td>
-      </tr>
-      {isExpanded && group.works?.map(work => (
-        <tr key={work.id} className="hover:bg-muted/30 transition-colors bg-muted/5">
-          <td 
-            className="border-b border-border p-2 h-10 text-sm" 
-            style={{ paddingLeft: `${(indentLevel + 1) * 16 + 8}px` }}
-          >
-            <span className="truncate block text-muted-foreground" title={work.name}>
-              {work.name}
-            </span>
-          </td>
-        </tr>
-      ))}
-    </>
+    <tr className="hover:bg-muted/20 transition-colors">
+      <td 
+        className="border-b border-border p-2 h-10" 
+        style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-xs">{group.number}</span>
+          <span className="truncate" title={group.name}>{group.name}</span>
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -544,7 +478,6 @@ function DocumentDataRows({
   isExpanded,
   expandedBlocks,
   expandedSections,
-  expandedGroups,
   workPeopleMap
 }: {
   doc: DocumentNode;
@@ -553,7 +486,6 @@ function DocumentDataRows({
   isExpanded: boolean;
   expandedBlocks: Set<number>;
   expandedSections: Set<number>;
-  expandedGroups: Set<number>;
   workPeopleMap: Map<string, number>;
 }) {
   return (
@@ -578,7 +510,6 @@ function DocumentDataRows({
           today={today}
           isExpanded={expandedBlocks.has(block.id)}
           expandedSections={expandedSections}
-          expandedGroups={expandedGroups}
           workPeopleMap={workPeopleMap}
         />
       ))}
@@ -592,7 +523,6 @@ function BlockDataRows({
   today,
   isExpanded,
   expandedSections,
-  expandedGroups,
   workPeopleMap
 }: {
   block: BlockNode;
@@ -600,7 +530,6 @@ function BlockDataRows({
   today: Date;
   isExpanded: boolean;
   expandedSections: Set<number>;
-  expandedGroups: Set<number>;
   workPeopleMap: Map<string, number>;
 }) {
   return (
@@ -624,7 +553,6 @@ function BlockDataRows({
           days={days}
           today={today}
           isExpanded={expandedSections.has(section.id)}
-          expandedGroups={expandedGroups}
           workPeopleMap={workPeopleMap}
         />
       ))}
@@ -637,14 +565,12 @@ function SectionDataRows({
   days,
   today,
   isExpanded,
-  expandedGroups,
   workPeopleMap
 }: {
   section: SectionNode;
   days: Date[];
   today: Date;
   isExpanded: boolean;
-  expandedGroups: Set<number>;
   workPeopleMap: Map<string, number>;
 }) {
   return (
@@ -667,7 +593,6 @@ function SectionDataRows({
           group={group}
           days={days}
           today={today}
-          isExpanded={expandedGroups.has(group.id)}
           workPeopleMap={workPeopleMap}
         />
       ))}
@@ -679,15 +604,24 @@ function GroupDataRows({
   group,
   days,
   today,
-  isExpanded,
   workPeopleMap
 }: {
   group: GroupNode;
   days: Date[];
   today: Date;
-  isExpanded: boolean;
   workPeopleMap: Map<string, number>;
 }) {
+  const firstWork = group.works?.[0];
+  
+  const updateWorkPeopleMutation = useMutation({
+    mutationFn: async ({ workId, date, count }: { workId: number; date: string; count: number }) => {
+      return apiRequest("POST", "/api/work-people", { workId, date, count });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/work-people"] });
+    }
+  });
+
   const getGroupPeopleCount = (dateStr: string) => {
     let total = 0;
     group.works?.forEach(work => {
@@ -698,88 +632,36 @@ function GroupDataRows({
     return total;
   };
 
-  return (
-    <>
-      <tr className="hover:bg-muted/20 transition-colors">
-        {days.map((day, idx) => {
-          const isToday = isSameDay(day, today);
-          const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-          const dateStr = format(day, "yyyy-MM-dd");
-          const peopleCount = getGroupPeopleCount(dateStr);
-
-          return (
-            <td 
-              key={idx}
-              className={`border-b border-r border-border p-0 h-10 text-center text-sm ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/10' : ''}`}
-              data-testid={`cell-people-group-${group.id}-${dateStr}`}
-            >
-              {peopleCount > 0 ? (
-                <span className="text-foreground font-medium">{peopleCount}</span>
-              ) : null}
-            </td>
-          );
-        })}
-      </tr>
-      {isExpanded && group.works?.map(work => (
-        <WorkDataRow
-          key={work.id}
-          work={work}
-          days={days}
-          today={today}
-          workPeopleMap={workPeopleMap}
-        />
-      ))}
-    </>
-  );
-}
-
-function WorkDataRow({
-  work,
-  days,
-  today,
-  workPeopleMap
-}: {
-  work: WorkTreeItem;
-  days: Date[];
-  today: Date;
-  workPeopleMap: Map<string, number>;
-}) {
-  const updateWorkPeopleMutation = useMutation({
-    mutationFn: async ({ workId, date, count }: { workId: number; date: string; count: number }) => {
-      return apiRequest("POST", "/api/work-people", { workId, date, count });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/work-people"] });
-    }
-  });
-
   const handlePeopleChange = (dateStr: string, value: string) => {
+    if (!firstWork) return;
     const numValue = parseInt(value) || 0;
-    updateWorkPeopleMutation.mutate({ workId: work.id, date: dateStr, count: numValue });
+    updateWorkPeopleMutation.mutate({ workId: firstWork.id, date: dateStr, count: numValue });
   };
 
   return (
-    <tr className="hover:bg-muted/30 transition-colors">
+    <tr className="hover:bg-muted/20 transition-colors">
       {days.map((day, idx) => {
         const isToday = isSameDay(day, today);
         const isWeekend = day.getDay() === 0 || day.getDay() === 6;
         const dateStr = format(day, "yyyy-MM-dd");
-        const key = `${work.id}-${dateStr}`;
-        const peopleCount = workPeopleMap.get(key) || 0;
+        const peopleCount = getGroupPeopleCount(dateStr);
 
         return (
           <td 
             key={idx}
-            className={`border-b border-r border-border p-0 h-10 text-center ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/10' : ''}`}
+            className={`border-b border-r border-border p-0 h-10 text-center text-sm ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/10' : ''}`}
+            data-testid={`cell-people-group-${group.id}-${dateStr}`}
           >
-            <input
-              type="number"
-              min="0"
-              value={peopleCount || ''}
-              onChange={(e) => handlePeopleChange(dateStr, e.target.value)}
-              className="w-full h-full text-center bg-transparent border-0 focus:ring-1 focus:ring-primary text-sm"
-              data-testid={`input-people-work-${work.id}-${dateStr}`}
-            />
+            {firstWork ? (
+              <input
+                type="number"
+                min="0"
+                value={peopleCount || ''}
+                onChange={(e) => handlePeopleChange(dateStr, e.target.value)}
+                className="w-full h-full text-center bg-transparent border-0 focus:ring-1 focus:ring-primary text-sm"
+                data-testid={`input-people-group-${group.id}-${dateStr}`}
+              />
+            ) : null}
           </td>
         );
       })}
