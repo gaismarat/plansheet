@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useWorksTree } from "@/hooks/use-construction";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -102,6 +102,8 @@ export default function KSP() {
   const [expandedDocs, setExpandedDocs] = useState<Set<number>>(new Set());
   const [expandedBlocks, setExpandedBlocks] = useState<Set<number>>(new Set());
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
+  const todayColumnRef = useRef<HTMLTableCellElement>(null);
+  const [hasScrolled, setHasScrolled] = useState(false);
 
   const documents = (worksTree || []) as DocumentNode[];
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -170,6 +172,26 @@ export default function KSP() {
     }
   }, [dateRange, viewMode]);
 
+  const todayIndex = useMemo(() => {
+    return timeUnits.findIndex(unit => {
+      if (viewMode === "days") {
+        return isSameDay(unit, today);
+      } else {
+        return isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+      }
+    });
+  }, [timeUnits, today, viewMode]);
+
+  useEffect(() => {
+    if (!hasScrolled && !isLoading && todayIndex >= 0 && todayColumnRef.current) {
+      const timer = setTimeout(() => {
+        todayColumnRef.current?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' });
+        setHasScrolled(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [hasScrolled, isLoading, todayIndex]);
+
   const toggleDoc = (id: number) => {
     const newSet = new Set(expandedDocs);
     if (newSet.has(id)) newSet.delete(id);
@@ -208,13 +230,7 @@ export default function KSP() {
   };
 
   const hasExpanded = expandedDocs.size > 0 || expandedBlocks.size > 0 || expandedSections.size > 0;
-  const nameColumnWidth = hasExpanded ? 540 : 270;
-  const stickyLeftOffsets = {
-    name: 0,
-    start: nameColumnWidth,
-    end: nameColumnWidth + 70,
-    duration: nameColumnWidth + 140
-  };
+  const leftTableWidth = hasExpanded ? 745 : 475;
 
   if (isLoading) {
     return (
@@ -269,84 +285,93 @@ export default function KSP() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-hidden relative">
-        <ScrollArea className="h-full">
-          <div className="min-w-max relative">
-            <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 z-20 bg-card">
-                <tr>
-                  <th 
-                    className="border border-border bg-muted p-2 text-left font-medium sticky z-30"
-                    style={{ width: nameColumnWidth, minWidth: nameColumnWidth, maxWidth: nameColumnWidth, left: stickyLeftOffsets.name }}
-                  >
-                    Наименование
-                  </th>
-                  <th 
-                    className="border border-border bg-muted p-1 text-center font-medium min-w-[70px] w-[70px] text-xs sticky z-30"
-                    style={{ left: stickyLeftOffsets.start }}
-                  >
-                    Начало
-                    <div className="text-muted-foreground text-[10px]">план / факт</div>
-                  </th>
-                  <th 
-                    className="border border-border bg-muted p-1 text-center font-medium min-w-[70px] w-[70px] text-xs sticky z-30"
-                    style={{ left: stickyLeftOffsets.end }}
-                  >
-                    Конец
-                    <div className="text-muted-foreground text-[10px]">план / факт</div>
-                  </th>
-                  <th 
-                    className="border border-border bg-muted p-1 text-center font-medium min-w-[65px] w-[65px] text-xs sticky z-30"
-                    style={{ left: stickyLeftOffsets.duration }}
-                  >
-                    Длит-ть
-                    <div className="text-muted-foreground text-[10px]">план / факт</div>
-                  </th>
-                  {timeUnits.map((unit, idx) => {
-                    const isToday = viewMode === "days" 
-                      ? isSameDay(unit, today)
-                      : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
-                    
-                    return (
-                      <th 
-                        key={idx} 
-                        className={`border border-border bg-muted/50 p-0.5 text-center font-medium min-w-[32px] w-[32px] text-[10px] relative ${isToday ? 'bg-primary/20' : ''}`}
-                      >
-                        {format(unit, "dd.MM.yy", { locale: ru })}
-                        <div className="text-muted-foreground text-[9px]">
-                          {viewMode === "days" 
-                            ? format(unit, "EEE", { locale: ru })
-                            : `Н${format(unit, "w", { locale: ru })}`
-                          }
-                        </div>
-                      </th>
-                    );
-                  })}
-                </tr>
-              </thead>
-              <tbody>
-                {documents.map(doc => (
-                  <DocumentRow 
-                    key={doc.id} 
-                    doc={doc}
-                    timeUnits={timeUnits}
-                    viewMode={viewMode}
-                    today={today}
-                    isExpanded={expandedDocs.has(doc.id)}
-                    expandedBlocks={expandedBlocks}
-                    expandedSections={expandedSections}
-                    onToggleDoc={() => toggleDoc(doc.id)}
-                    onToggleBlock={toggleBlock}
-                    onToggleSection={toggleSection}
-                    nameColumnWidth={nameColumnWidth}
-                    stickyLeftOffsets={stickyLeftOffsets}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-shrink-0 border-r border-border bg-card overflow-y-auto" style={{ width: leftTableWidth }}>
+          <table className="w-full border-collapse text-sm">
+            <thead className="sticky top-0 z-20 bg-card">
+              <tr>
+                <th className="border-b border-r border-border bg-muted p-2 text-left font-medium" style={{ width: hasExpanded ? 340 : 170 }}>
+                  Наименование
+                </th>
+                <th className="border-b border-r border-border bg-muted p-1 text-center font-medium w-[70px] text-xs">
+                  Начало
+                  <div className="text-muted-foreground text-[10px]">план / факт</div>
+                </th>
+                <th className="border-b border-r border-border bg-muted p-1 text-center font-medium w-[70px] text-xs">
+                  Конец
+                  <div className="text-muted-foreground text-[10px]">план / факт</div>
+                </th>
+                <th className="border-b border-border bg-muted p-1 text-center font-medium w-[65px] text-xs">
+                  Длит-ть
+                  <div className="text-muted-foreground text-[10px]">план / факт</div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {documents.map(doc => (
+                <DocumentLeftRows
+                  key={doc.id}
+                  doc={doc}
+                  isExpanded={expandedDocs.has(doc.id)}
+                  expandedBlocks={expandedBlocks}
+                  expandedSections={expandedSections}
+                  onToggleDoc={() => toggleDoc(doc.id)}
+                  onToggleBlock={toggleBlock}
+                  onToggleSection={toggleSection}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="min-w-max">
+              <table className="w-full border-collapse text-sm">
+                <thead className="sticky top-0 z-20 bg-card">
+                  <tr>
+                    {timeUnits.map((unit, idx) => {
+                      const isToday = viewMode === "days" 
+                        ? isSameDay(unit, today)
+                        : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+                      
+                      return (
+                        <th 
+                          key={idx}
+                          ref={isToday ? todayColumnRef : undefined}
+                          className={`border-b border-r border-border p-0.5 text-center font-medium min-w-[32px] w-[32px] text-[10px] ${isToday ? 'bg-primary/20' : 'bg-muted/50'}`}
+                        >
+                          <div className="text-[9px] leading-tight">{format(unit, "dd.MM.yy", { locale: ru })}</div>
+                          <div className="text-muted-foreground text-[9px] leading-tight">
+                            {viewMode === "days" 
+                              ? format(unit, "EEE", { locale: ru })
+                              : `Н${format(unit, "w", { locale: ru })}`
+                            }
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map(doc => (
+                    <DocumentRightRows
+                      key={doc.id}
+                      doc={doc}
+                      timeUnits={timeUnits}
+                      viewMode={viewMode}
+                      today={today}
+                      isExpanded={expandedDocs.has(doc.id)}
+                      expandedBlocks={expandedBlocks}
+                      expandedSections={expandedSections}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </div>
       </div>
 
       <div className="bg-card border-t border-border p-3">
@@ -377,48 +402,28 @@ export default function KSP() {
   );
 }
 
-interface StickyOffsets {
-  name: number;
-  start: number;
-  end: number;
-  duration: number;
-}
-
-function DocumentRow({ 
-  doc, 
-  timeUnits, 
-  viewMode,
-  today,
-  isExpanded, 
+function DocumentLeftRows({
+  doc,
+  isExpanded,
   expandedBlocks,
   expandedSections,
   onToggleDoc,
   onToggleBlock,
-  onToggleSection,
-  nameColumnWidth,
-  stickyLeftOffsets
-}: { 
+  onToggleSection
+}: {
   doc: DocumentNode;
-  timeUnits: Date[];
-  viewMode: ViewMode;
-  today: Date;
   isExpanded: boolean;
   expandedBlocks: Set<number>;
   expandedSections: Set<number>;
   onToggleDoc: () => void;
   onToggleBlock: (id: number) => void;
   onToggleSection: (id: number) => void;
-  nameColumnWidth: number;
-  stickyLeftOffsets: StickyOffsets;
 }) {
   return (
     <>
-      <tr className="hover:bg-primary/30 transition-colors">
-        <td 
-          className="border border-border p-2 font-bold sticky z-10 bg-primary/20"
-          style={{ width: nameColumnWidth, minWidth: nameColumnWidth, maxWidth: nameColumnWidth, left: stickyLeftOffsets.name }}
-        >
-          <button 
+      <tr className="bg-primary/20 hover:bg-primary/30 transition-colors">
+        <td className="border-b border-r border-border p-2 font-bold h-10">
+          <button
             onClick={onToggleDoc}
             className="flex items-center gap-2 w-full text-left"
             data-testid={`button-toggle-doc-${doc.id}`}
@@ -427,74 +432,48 @@ function DocumentRow({
             <span className="truncate">{doc.name}</span>
           </button>
         </td>
-        <td className="border border-border bg-primary/10 sticky z-10 min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.start }} />
-        <td className="border border-border bg-primary/10 sticky z-10 min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.end }} />
-        <td className="border border-border bg-primary/10 sticky z-10 min-w-[65px] w-[65px]" style={{ left: stickyLeftOffsets.duration }} />
-        {timeUnits.map((unit, idx) => {
-          const isToday = viewMode === "days" 
-            ? isSameDay(unit, today)
-            : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
-          
-          return (
-            <td key={idx} className={`border border-border bg-primary/10 relative ${isToday ? 'bg-primary/20' : ''}`}>
-              {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
-            </td>
-          );
-        })}
+        <td className="border-b border-r border-border bg-primary/10 h-10" />
+        <td className="border-b border-r border-border bg-primary/10 h-10" />
+        <td className="border-b border-border bg-primary/10 h-10" />
       </tr>
       {isExpanded && doc.blocks?.map(block => (
-        <BlockRow
+        <BlockLeftRows
           key={block.id}
           block={block}
-          timeUnits={timeUnits}
-          viewMode={viewMode}
-          today={today}
           isExpanded={expandedBlocks.has(block.id)}
           expandedSections={expandedSections}
           onToggleBlock={() => onToggleBlock(block.id)}
           onToggleSection={onToggleSection}
           indentLevel={1}
-          nameColumnWidth={nameColumnWidth}
-          stickyLeftOffsets={stickyLeftOffsets}
         />
       ))}
     </>
   );
 }
 
-function BlockRow({ 
-  block, 
-  timeUnits, 
-  viewMode,
-  today,
-  isExpanded, 
+function BlockLeftRows({
+  block,
+  isExpanded,
   expandedSections,
   onToggleBlock,
   onToggleSection,
-  indentLevel,
-  nameColumnWidth,
-  stickyLeftOffsets
-}: { 
-  block: BlockNode; 
-  timeUnits: Date[];
-  viewMode: ViewMode;
-  today: Date;
+  indentLevel
+}: {
+  block: BlockNode;
   isExpanded: boolean;
   expandedSections: Set<number>;
   onToggleBlock: () => void;
   onToggleSection: (id: number) => void;
   indentLevel: number;
-  nameColumnWidth: number;
-  stickyLeftOffsets: StickyOffsets;
 }) {
   return (
     <>
-      <tr className="hover:bg-primary/20 transition-colors">
+      <tr className="bg-primary/10 hover:bg-primary/20 transition-colors">
         <td 
-          className="border border-border p-2 font-bold sticky z-10 bg-primary/10"
-          style={{ width: nameColumnWidth, minWidth: nameColumnWidth, maxWidth: nameColumnWidth, left: stickyLeftOffsets.name, paddingLeft: `${indentLevel * 16 + 8}px` }}
+          className="border-b border-r border-border p-2 font-bold h-10"
+          style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
         >
-          <button 
+          <button
             onClick={onToggleBlock}
             className="flex items-center gap-2 w-full text-left"
             data-testid={`button-toggle-block-${block.id}`}
@@ -504,68 +483,42 @@ function BlockRow({
             <span className="truncate">{block.name}</span>
           </button>
         </td>
-        <td className="border border-border bg-primary/5 sticky z-10 min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.start }} />
-        <td className="border border-border bg-primary/5 sticky z-10 min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.end }} />
-        <td className="border border-border bg-primary/5 sticky z-10 min-w-[65px] w-[65px]" style={{ left: stickyLeftOffsets.duration }} />
-        {timeUnits.map((unit, idx) => {
-          const isToday = viewMode === "days" 
-            ? isSameDay(unit, today)
-            : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
-          
-          return (
-            <td key={idx} className={`border border-border bg-primary/5 relative ${isToday ? 'bg-primary/20' : ''}`}>
-              {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
-            </td>
-          );
-        })}
+        <td className="border-b border-r border-border bg-primary/5 h-10" />
+        <td className="border-b border-r border-border bg-primary/5 h-10" />
+        <td className="border-b border-border bg-primary/5 h-10" />
       </tr>
       {isExpanded && block.sections?.map(section => (
-        <SectionRow
+        <SectionLeftRows
           key={section.id}
           section={section}
-          timeUnits={timeUnits}
-          viewMode={viewMode}
-          today={today}
           isExpanded={expandedSections.has(section.id)}
           onToggleSection={() => onToggleSection(section.id)}
           indentLevel={indentLevel + 1}
-          nameColumnWidth={nameColumnWidth}
-          stickyLeftOffsets={stickyLeftOffsets}
         />
       ))}
     </>
   );
 }
 
-function SectionRow({
+function SectionLeftRows({
   section,
-  timeUnits,
-  viewMode,
-  today,
   isExpanded,
   onToggleSection,
-  indentLevel,
-  nameColumnWidth,
-  stickyLeftOffsets
+  indentLevel
 }: {
   section: SectionNode;
-  timeUnits: Date[];
-  viewMode: ViewMode;
-  today: Date;
   isExpanded: boolean;
   onToggleSection: () => void;
   indentLevel: number;
-  nameColumnWidth: number;
-  stickyLeftOffsets: StickyOffsets;
 }) {
   return (
     <>
-      <tr className="hover:bg-secondary/50 transition-colors">
+      <tr className="bg-secondary/30 hover:bg-secondary/50 transition-colors">
         <td 
-          className="border border-border p-2 font-semibold sticky z-10 bg-secondary/30" 
-          style={{ width: nameColumnWidth, minWidth: nameColumnWidth, maxWidth: nameColumnWidth, left: stickyLeftOffsets.name, paddingLeft: `${indentLevel * 16 + 8}px` }}
+          className="border-b border-r border-border p-2 font-semibold h-10"
+          style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
         >
-          <button 
+          <button
             onClick={onToggleSection}
             className="flex items-center gap-2 w-full text-left"
             data-testid={`button-toggle-section-${section.id}`}
@@ -575,62 +528,233 @@ function SectionRow({
             <span className="truncate">{section.name}</span>
           </button>
         </td>
-        <td className="border border-border bg-secondary/10 sticky z-10 min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.start }} />
-        <td className="border border-border bg-secondary/10 sticky z-10 min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.end }} />
-        <td className="border border-border bg-secondary/10 sticky z-10 min-w-[65px] w-[65px]" style={{ left: stickyLeftOffsets.duration }} />
-        {timeUnits.map((unit, idx) => {
-          const isToday = viewMode === "days" 
-            ? isSameDay(unit, today)
-            : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
-          
-          return (
-            <td key={idx} className={`border border-border bg-secondary/10 relative ${isToday ? 'bg-primary/20' : ''}`}>
-              {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
-            </td>
-          );
-        })}
+        <td className="border-b border-r border-border bg-secondary/10 h-10" />
+        <td className="border-b border-r border-border bg-secondary/10 h-10" />
+        <td className="border-b border-border bg-secondary/10 h-10" />
       </tr>
       {isExpanded && section.groups?.map(group => (
-        <GroupRow 
-          key={group.id} 
-          group={group} 
-          timeUnits={timeUnits}
-          viewMode={viewMode}
-          today={today}
+        <GroupLeftRow
+          key={group.id}
+          group={group}
           indentLevel={indentLevel + 1}
-          nameColumnWidth={nameColumnWidth}
-          stickyLeftOffsets={stickyLeftOffsets}
         />
       ))}
     </>
   );
 }
 
-function GroupRow({
+function GroupLeftRow({
   group,
+  indentLevel
+}: {
+  group: GroupNode;
+  indentLevel: number;
+}) {
+  const { planStart, planEnd, actualStart, actualEnd } = getGroupDates(group);
+  const planDuration = planStart && planEnd ? differenceInDays(planEnd, planStart) + 1 : null;
+  const actualDuration = actualStart && actualEnd ? differenceInDays(actualEnd, actualStart) + 1 : null;
+  const startDeviation = planStart && actualStart ? differenceInDays(actualStart, planStart) : null;
+  const endDeviation = planEnd && actualEnd ? differenceInDays(actualEnd, planEnd) : null;
+  const durationDeviation = planDuration && actualDuration ? actualDuration - planDuration : null;
+
+  const formatDate = (date: Date | null) => {
+    if (!date) return "—";
+    return format(date, "dd.MM", { locale: ru });
+  };
+
+  const getDeviationIndicator = (deviation: number | null) => {
+    if (deviation === null || deviation === 0) return null;
+    const isNegative = deviation < 0;
+    const color = isNegative ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
+    const bgColor = isNegative ? "bg-green-100 dark:bg-green-900/30" : "bg-red-100 dark:bg-red-900/30";
+    const sign = isNegative ? "" : "+";
+    return (
+      <span className={`text-[9px] px-1 rounded ${color} ${bgColor}`}>
+        {sign}{deviation}д
+      </span>
+    );
+  };
+
+  return (
+    <tr className="hover:bg-muted/50 transition-colors">
+      <td 
+        className="border-b border-r border-border p-2 h-10"
+        style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-xs">{group.number}</span>
+          <span className="text-foreground truncate">{group.name}</span>
+        </div>
+      </td>
+      <td className="border-b border-r border-border p-1 text-center text-xs h-10">
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-muted-foreground">{formatDate(planStart)}</span>
+          <span className="font-medium">{formatDate(actualStart)}</span>
+          {getDeviationIndicator(startDeviation)}
+        </div>
+      </td>
+      <td className="border-b border-r border-border p-1 text-center text-xs h-10">
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-muted-foreground">{formatDate(planEnd)}</span>
+          <span className="font-medium">{formatDate(actualEnd)}</span>
+          {getDeviationIndicator(endDeviation)}
+        </div>
+      </td>
+      <td className="border-b border-border p-1 text-center text-xs h-10">
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-muted-foreground">{planDuration ?? "—"}</span>
+          <span className="font-medium">{actualDuration ?? "—"}</span>
+          {getDeviationIndicator(durationDeviation)}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function DocumentRightRows({
+  doc,
   timeUnits,
   viewMode,
   today,
-  indentLevel,
-  nameColumnWidth,
-  stickyLeftOffsets
+  isExpanded,
+  expandedBlocks,
+  expandedSections
+}: {
+  doc: DocumentNode;
+  timeUnits: Date[];
+  viewMode: ViewMode;
+  today: Date;
+  isExpanded: boolean;
+  expandedBlocks: Set<number>;
+  expandedSections: Set<number>;
+}) {
+  return (
+    <>
+      <tr className="bg-primary/20">
+        {timeUnits.map((unit, idx) => {
+          const isToday = viewMode === "days" 
+            ? isSameDay(unit, today)
+            : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+          
+          return (
+            <td key={idx} className={`border-b border-r border-border h-10 relative ${isToday ? 'bg-primary/30' : 'bg-primary/10'}`}>
+              {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
+            </td>
+          );
+        })}
+      </tr>
+      {isExpanded && doc.blocks?.map(block => (
+        <BlockRightRows
+          key={block.id}
+          block={block}
+          timeUnits={timeUnits}
+          viewMode={viewMode}
+          today={today}
+          isExpanded={expandedBlocks.has(block.id)}
+          expandedSections={expandedSections}
+        />
+      ))}
+    </>
+  );
+}
+
+function BlockRightRows({
+  block,
+  timeUnits,
+  viewMode,
+  today,
+  isExpanded,
+  expandedSections
+}: {
+  block: BlockNode;
+  timeUnits: Date[];
+  viewMode: ViewMode;
+  today: Date;
+  isExpanded: boolean;
+  expandedSections: Set<number>;
+}) {
+  return (
+    <>
+      <tr className="bg-primary/10">
+        {timeUnits.map((unit, idx) => {
+          const isToday = viewMode === "days" 
+            ? isSameDay(unit, today)
+            : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+          
+          return (
+            <td key={idx} className={`border-b border-r border-border h-10 relative ${isToday ? 'bg-primary/20' : 'bg-primary/5'}`}>
+              {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
+            </td>
+          );
+        })}
+      </tr>
+      {isExpanded && block.sections?.map(section => (
+        <SectionRightRows
+          key={section.id}
+          section={section}
+          timeUnits={timeUnits}
+          viewMode={viewMode}
+          today={today}
+          isExpanded={expandedSections.has(section.id)}
+        />
+      ))}
+    </>
+  );
+}
+
+function SectionRightRows({
+  section,
+  timeUnits,
+  viewMode,
+  today,
+  isExpanded
+}: {
+  section: SectionNode;
+  timeUnits: Date[];
+  viewMode: ViewMode;
+  today: Date;
+  isExpanded: boolean;
+}) {
+  return (
+    <>
+      <tr className="bg-secondary/30">
+        {timeUnits.map((unit, idx) => {
+          const isToday = viewMode === "days" 
+            ? isSameDay(unit, today)
+            : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+          
+          return (
+            <td key={idx} className={`border-b border-r border-border h-10 relative ${isToday ? 'bg-primary/20' : 'bg-secondary/10'}`}>
+              {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
+            </td>
+          );
+        })}
+      </tr>
+      {isExpanded && section.groups?.map(group => (
+        <GroupRightRow
+          key={group.id}
+          group={group}
+          timeUnits={timeUnits}
+          viewMode={viewMode}
+          today={today}
+        />
+      ))}
+    </>
+  );
+}
+
+function GroupRightRow({
+  group,
+  timeUnits,
+  viewMode,
+  today
 }: {
   group: GroupNode;
   timeUnits: Date[];
   viewMode: ViewMode;
   today: Date;
-  indentLevel: number;
-  nameColumnWidth: number;
-  stickyLeftOffsets: StickyOffsets;
 }) {
   const { planStart, planEnd, actualStart, actualEnd } = getGroupDates(group);
-
-  const planDuration = planStart && planEnd ? differenceInDays(planEnd, planStart) + 1 : null;
-  const actualDuration = actualStart && actualEnd ? differenceInDays(actualEnd, actualStart) + 1 : null;
-
-  const startDeviation = planStart && actualStart ? differenceInDays(actualStart, planStart) : null;
-  const endDeviation = planEnd && actualEnd ? differenceInDays(actualEnd, planEnd) : null;
-  const durationDeviation = planDuration && actualDuration ? actualDuration - planDuration : null;
 
   const getCellContent = (unit: Date) => {
     const unitEnd = viewMode === "weeks" ? endOfWeek(unit, { weekStartsOn: 1 }) : unit;
@@ -657,59 +781,8 @@ function GroupRow({
     return { isInPlanRange, isInActualRange, isDelay, isAhead };
   };
 
-  const formatDate = (date: Date | null) => {
-    if (!date) return "—";
-    return format(date, "dd.MM", { locale: ru });
-  };
-
-  const getDeviationIndicator = (deviation: number | null) => {
-    if (deviation === null) return null;
-    if (deviation === 0) return null;
-    
-    const isNegative = deviation < 0;
-    const color = isNegative ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
-    const bgColor = isNegative ? "bg-green-100 dark:bg-green-900/30" : "bg-red-100 dark:bg-red-900/30";
-    const sign = isNegative ? "" : "+";
-    
-    return (
-      <span className={`text-[9px] px-1 rounded ${color} ${bgColor}`}>
-        {sign}{deviation}д
-      </span>
-    );
-  };
-
   return (
-    <tr className="hover:bg-muted/50 transition-colors">
-      <td 
-        className="border border-border p-2 sticky z-10 bg-background" 
-        style={{ width: nameColumnWidth, minWidth: nameColumnWidth, maxWidth: nameColumnWidth, left: stickyLeftOffsets.name, paddingLeft: `${indentLevel * 16 + 8}px` }}
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-xs">{group.number}</span>
-          <span className="text-foreground truncate">{group.name}</span>
-        </div>
-      </td>
-      <td className="border border-border p-1 text-center text-xs sticky z-10 bg-background min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.start }}>
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="text-muted-foreground">{formatDate(planStart)}</span>
-          <span className="font-medium">{formatDate(actualStart)}</span>
-          {getDeviationIndicator(startDeviation)}
-        </div>
-      </td>
-      <td className="border border-border p-1 text-center text-xs sticky z-10 bg-background min-w-[70px] w-[70px]" style={{ left: stickyLeftOffsets.end }}>
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="text-muted-foreground">{formatDate(planEnd)}</span>
-          <span className="font-medium">{formatDate(actualEnd)}</span>
-          {getDeviationIndicator(endDeviation)}
-        </div>
-      </td>
-      <td className="border border-border p-1 text-center text-xs sticky z-10 bg-background min-w-[65px] w-[65px]" style={{ left: stickyLeftOffsets.duration }}>
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="text-muted-foreground">{planDuration ?? "—"}</span>
-          <span className="font-medium">{actualDuration ?? "—"}</span>
-          {getDeviationIndicator(durationDeviation)}
-        </div>
-      </td>
+    <tr>
       {timeUnits.map((unit, idx) => {
         const { isInPlanRange, isInActualRange, isDelay, isAhead } = getCellContent(unit);
         const isToday = viewMode === "days" 
@@ -717,7 +790,7 @@ function GroupRow({
           : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
         
         return (
-          <td key={idx} className={`border border-border p-0 h-10 relative ${isToday ? 'bg-primary/10' : ''}`}>
+          <td key={idx} className={`border-b border-r border-border p-0 h-10 relative ${isToday ? 'bg-primary/10' : ''}`}>
             <div className="absolute inset-0 flex flex-col">
               <div className={`flex-1 ${isInPlanRange ? 'bg-blue-500' : ''}`} />
               <div className={`flex-1 ${
