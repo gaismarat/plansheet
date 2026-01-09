@@ -23,21 +23,8 @@ import {
   useRemoveProjectMember,
   useTransferOwnership 
 } from "@/hooks/use-construction";
-import { Plus, Trash2, Key, Settings, User, Shield, ArrowLeft, Crown, UserCog, UserMinus, AlertTriangle, Building2 } from "lucide-react";
-import type { SafeUser, Permission, ProjectPermission, ProjectWithPermission } from "@shared/schema";
-
-type UserWithPermissions = SafeUser & { permissions: Permission[] };
-
-const PAGES = [
-  { id: "works", label: "Работы" },
-  { id: "ksp", label: "КСП" },
-  { id: "budget", label: "Бюджет" },
-  { id: "holidays", label: "Праздники" },
-];
-
-const FIELDS = [
-  { id: "cost", label: "Стоимость (работы)" },
-];
+import { Plus, Trash2, Key, User, Shield, ArrowLeft, Crown, UserCog, UserMinus, AlertTriangle, Building2, Settings } from "lucide-react";
+import type { SafeUser, ProjectPermission } from "@shared/schema";
 
 const PROJECT_PERMISSIONS = [
   { key: "worksView", label: "Работы - просмотр", group: "works" },
@@ -65,7 +52,6 @@ export default function Admin() {
   
   const [showAddUser, setShowAddUser] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState<number | null>(null);
-  const [showPermissions, setShowPermissions] = useState<number | null>(null);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newIsAdmin, setNewIsAdmin] = useState(false);
@@ -95,11 +81,6 @@ export default function Admin() {
   const { data: users = [] } = useQuery<SafeUser[]>({
     queryKey: ["/api/users"],
     enabled: isSystemAdmin || canManageAnyProject,
-  });
-
-  const { data: selectedUserData } = useQuery<UserWithPermissions>({
-    queryKey: ["/api/users", showPermissions],
-    enabled: showPermissions !== null,
   });
 
   const { data: projectPermissions = [] } = useProjectPermissions(selectedProjectId || 0);
@@ -166,35 +147,6 @@ export default function Admin() {
       toast({ variant: "destructive", title: "Ошибка", description: err.message });
     },
   });
-
-  const setPermission = useMutation({
-    mutationFn: async ({ userId, permissionType, resource, allowed }: {
-      userId: number;
-      permissionType: string;
-      resource: string;
-      allowed: boolean;
-    }) => {
-      await apiRequest("POST", `/api/users/${userId}/permissions`, {
-        permissionType,
-        resource,
-        allowed,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users", showPermissions] });
-    },
-  });
-
-  const hasPermission = (perms: Permission[] | undefined, type: string, resource: string): boolean => {
-    if (!perms) return false;
-    const perm = perms.find(p => p.permissionType === type && p.resource === resource);
-    return perm?.allowed ?? false;
-  };
-
-  const togglePermission = (userId: number, perms: Permission[] | undefined, type: string, resource: string) => {
-    const current = hasPermission(perms, type, resource);
-    setPermission.mutate({ userId, permissionType: type, resource, allowed: !current });
-  };
 
   const handleAddMember = () => {
     if (!selectedProjectId || !selectedUserToAdd) return;
@@ -327,16 +279,6 @@ export default function Admin() {
                         )}
                       </div>
                       <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setShowPermissions(u.id)}
-                          disabled={u.isAdmin}
-                          title="Глобальные разрешения"
-                          data-testid={`button-permissions-${u.id}`}
-                        >
-                          <Settings className="w-4 h-4" />
-                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -554,89 +496,6 @@ export default function Admin() {
               >
                 Сохранить
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showPermissions !== null} onOpenChange={() => setShowPermissions(null)}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>
-                Глобальные разрешения: {users.find(u => u.id === showPermissions)?.username}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-6">
-              <div>
-                <h4 className="font-medium mb-3">Доступ к страницам</h4>
-                <div className="space-y-2">
-                  {PAGES.map((page) => (
-                    <div key={page.id} className="flex items-center gap-2">
-                      <Checkbox
-                        checked={hasPermission(selectedUserData?.permissions, "page_access", page.id)}
-                        onCheckedChange={() =>
-                          showPermissions && togglePermission(
-                            showPermissions,
-                            selectedUserData?.permissions,
-                            "page_access",
-                            page.id
-                          )
-                        }
-                        data-testid={`checkbox-page-${page.id}`}
-                      />
-                      <Label>{page.label}</Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-3">Редактирование данных</h4>
-                <div className="space-y-2">
-                  {PAGES.map((page) => (
-                    <div key={page.id} className="flex items-center gap-2">
-                      <Checkbox
-                        checked={hasPermission(selectedUserData?.permissions, "edit_data", page.id)}
-                        onCheckedChange={() =>
-                          showPermissions && togglePermission(
-                            showPermissions,
-                            selectedUserData?.permissions,
-                            "edit_data",
-                            page.id
-                          )
-                        }
-                        data-testid={`checkbox-edit-${page.id}`}
-                      />
-                      <Label>{page.label}</Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-3">Видимость полей</h4>
-                <div className="space-y-2">
-                  {FIELDS.map((field) => (
-                    <div key={field.id} className="flex items-center gap-2">
-                      <Checkbox
-                        checked={hasPermission(selectedUserData?.permissions, "view_field", field.id)}
-                        onCheckedChange={() =>
-                          showPermissions && togglePermission(
-                            showPermissions,
-                            selectedUserData?.permissions,
-                            "view_field",
-                            field.id
-                          )
-                        }
-                        data-testid={`checkbox-field-${field.id}`}
-                      />
-                      <Label>{field.label}</Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={() => setShowPermissions(null)}>Готово</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
