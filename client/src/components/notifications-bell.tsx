@@ -56,6 +56,11 @@ export function NotificationsBell() {
                   data-testid={`notification-item-${notification.id}`}
                 >
                   <p className="text-foreground">{notification.message}</p>
+                  {notification.projectName && (
+                    <p className="text-xs font-medium text-primary mt-0.5">
+                      {notification.projectName}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     {formatDate(notification.createdAt)}
                   </p>

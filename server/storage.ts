@@ -235,7 +235,7 @@ export interface IStorage {
   processExpiredOwners(): Promise<void>;
 
   // Notifications
-  getNotifications(userId: number): Promise<Notification[]>;
+  getNotifications(userId: number): Promise<(Notification & { projectName: string | null })[]>;
   getUnreadNotificationCount(userId: number): Promise<number>;
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationsAsRead(userId: number): Promise<void>;
@@ -1667,10 +1667,22 @@ export class DatabaseStorage implements IStorage {
 
   // === NOTIFICATIONS ===
 
-  async getNotifications(userId: number): Promise<Notification[]> {
-    return await db.select().from(notifications)
-      .where(eq(notifications.userId, userId))
-      .orderBy(sql`${notifications.createdAt} DESC`);
+  async getNotifications(userId: number): Promise<(Notification & { projectName: string | null })[]> {
+    const result = await db.select({
+      id: notifications.id,
+      userId: notifications.userId,
+      projectId: notifications.projectId,
+      type: notifications.type,
+      message: notifications.message,
+      isRead: notifications.isRead,
+      createdAt: notifications.createdAt,
+      projectName: projects.name,
+    })
+    .from(notifications)
+    .leftJoin(projects, eq(notifications.projectId, projects.id))
+    .where(eq(notifications.userId, userId))
+    .orderBy(sql`${notifications.createdAt} DESC`);
+    return result;
   }
 
   async getUnreadNotificationCount(userId: number): Promise<number> {

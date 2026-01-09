@@ -631,7 +631,7 @@ export function useDuplicateProject() {
 // ============================================
 
 export function useNotifications() {
-  return useQuery<Notification[]>({
+  return useQuery<(Notification & { projectName: string | null })[]>({
     queryKey: ['/api/notifications'],
     queryFn: async () => {
       const res = await fetch('/api/notifications');
