@@ -35,8 +35,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return res.json();
     },
     onSuccess: () => {
+      // Clear all cached data and localStorage before reload
       queryClient.clear();
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      localStorage.removeItem('currentProjectId');
+      // Full page reload to reset all React state and contexts
+      window.location.reload();
     },
   });
 
@@ -45,8 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await apiRequest("POST", "/api/auth/logout");
     },
     onSuccess: () => {
+      // Clear all cached data and localStorage before reload
       queryClient.clear();
       localStorage.removeItem('currentProjectId');
+      // Full page reload to reset all React state and contexts
+      window.location.reload();
     },
   });
 
