@@ -80,7 +80,6 @@ export function setupAuth(app: Express) {
 
   // Auth routes
   app.post("/api/auth/login", (req, res, next) => {
-    // First destroy any existing session to ensure clean state
     const oldSessionId = req.sessionID;
     
     passport.authenticate("local", (err: Error | null, user: SafeUser | false, info: { message: string }) => {
@@ -91,33 +90,26 @@ export function setupAuth(app: Express) {
         return res.status(401).json({ message: info?.message || "Ошибка авторизации" });
       }
       
-      // Destroy old session first, then create new one with login
-      req.session.destroy((destroyErr) => {
-        if (destroyErr) {
-          console.error("Session destroy on login error:", destroyErr);
+      // Regenerate session to get new session ID (prevents session fixation)
+      req.session.regenerate((regenerateErr) => {
+        if (regenerateErr) {
+          return next(regenerateErr);
         }
         
-        // Regenerate creates a completely new session
-        req.session.regenerate((regenerateErr) => {
-          if (regenerateErr) {
-            return next(regenerateErr);
+        console.log(`[AUTH] Login: old session ${oldSessionId}, new session ${req.sessionID}, user ${user.username} (id: ${user.id})`);
+        
+        req.logIn(user, (loginErr) => {
+          if (loginErr) {
+            return next(loginErr);
           }
           
-          console.log(`[AUTH] Login: old session ${oldSessionId}, new session ${req.sessionID}, user ${user.username} (id: ${user.id})`);
-          
-          req.logIn(user, (loginErr) => {
-            if (loginErr) {
-              return next(loginErr);
+          // Explicitly save session to ensure it's persisted
+          req.session.save((saveErr) => {
+            if (saveErr) {
+              return next(saveErr);
             }
-            
-            // Explicitly save session to ensure it's persisted
-            req.session.save((saveErr) => {
-              if (saveErr) {
-                return next(saveErr);
-              }
-              console.log(`[AUTH] Session saved for user ${user.username}, sessionID: ${req.sessionID}`);
-              return res.json({ user });
-            });
+            console.log(`[AUTH] Session saved for user ${user.username}, sessionID: ${req.sessionID}`);
+            return res.json({ user });
           });
         });
       });
