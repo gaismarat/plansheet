@@ -3,6 +3,73 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
+// === PROJECTS TABLE ===
+
+export const projects = pgTable("projects", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  deletedAt: timestamp("deleted_at"), // Soft delete, удаляется через 30 дней
+});
+
+// === PROJECT PERMISSIONS TABLE ===
+// Детальные права доступа пользователя к проекту
+
+export const projectPermissions = pgTable("project_permissions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  projectId: integer("project_id").notNull(),
+  
+  // Роли
+  isOwner: boolean("is_owner").default(false).notNull(),
+  isAdmin: boolean("is_admin").default(false).notNull(),
+  ownerExpiresAt: timestamp("owner_expires_at"), // Для 15-дневного переходного периода
+  
+  // Права по страницам: view = просмотр, edit = редактирование
+  // Работы
+  worksView: boolean("works_view").default(true).notNull(),
+  worksEdit: boolean("works_edit").default(false).notNull(),
+  worksEditProgress: boolean("works_edit_progress").default(true).notNull(), // Редактировать прогресс и отправлять на согласование
+  worksSeeAmounts: boolean("works_see_amounts").default(false).notNull(), // Видеть суммы
+  
+  // ПДС
+  pdcView: boolean("pdc_view").default(false).notNull(),
+  pdcEdit: boolean("pdc_edit").default(false).notNull(),
+  
+  // Бюджет
+  budgetView: boolean("budget_view").default(false).notNull(),
+  budgetEdit: boolean("budget_edit").default(false).notNull(),
+  
+  // КСП (Гантт)
+  kspView: boolean("ksp_view").default(true).notNull(),
+  kspEdit: boolean("ksp_edit").default(false).notNull(),
+  
+  // Люди
+  peopleView: boolean("people_view").default(true).notNull(),
+  peopleEdit: boolean("people_edit").default(false).notNull(),
+  
+  // Аналитика
+  analyticsView: boolean("analytics_view").default(false).notNull(),
+  
+  // Календарь праздников
+  calendarView: boolean("calendar_view").default(true).notNull(),
+  calendarEdit: boolean("calendar_edit").default(false).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// === NOTIFICATIONS TABLE ===
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  projectId: integer("project_id"),
+  type: text("type").notNull(), // "added_to_project" | "removed_from_project" | "permissions_changed" | "made_admin" | "made_owner"
+  message: text("message").notNull(),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === USER & PERMISSIONS TABLES ===
 
 export const users = pgTable("users", {
@@ -290,6 +357,7 @@ export type UserWithPermissions = SafeUser & { permissions: Permission[] };
 
 export const pdcDocuments = pgTable("pdc_documents", {
   id: serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   headerText: text("header_text"),
   vatRate: numeric("vat_rate", { precision: 5, scale: 2 }).default("20"),
@@ -546,3 +614,60 @@ export type WorkTreeDocument = {
 
 // Full works tree response
 export type WorksTreeResponse = WorkTreeDocument[];
+
+// === PROJECTS RELATIONS ===
+
+export const projectsRelations = relations(projects, ({ many }) => ({
+  permissions: many(projectPermissions),
+  pdcDocuments: many(pdcDocuments),
+  notifications: many(notifications),
+}));
+
+export const projectPermissionsRelations = relations(projectPermissions, ({ one }) => ({
+  user: one(users, {
+    fields: [projectPermissions.userId],
+    references: [users.id],
+  }),
+  project: one(projects, {
+    fields: [projectPermissions.projectId],
+    references: [projects.id],
+  }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+  project: one(projects, {
+    fields: [notifications.projectId],
+    references: [projects.id],
+  }),
+}));
+
+// === PROJECTS SCHEMAS ===
+
+export const insertProjectSchema = createInsertSchema(projects).omit({ id: true, createdAt: true, deletedAt: true });
+export const insertProjectPermissionSchema = createInsertSchema(projectPermissions).omit({ id: true, createdAt: true });
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+
+export type ProjectPermission = typeof projectPermissions.$inferSelect;
+export type InsertProjectPermission = z.infer<typeof insertProjectPermissionSchema>;
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+// Project with permissions for user
+export type ProjectWithPermission = Project & {
+  permission?: ProjectPermission;
+};
+
+// Full project permission details for user management
+export type UserProjectPermission = {
+  userId: number;
+  username: string;
+  permission: ProjectPermission;
+};

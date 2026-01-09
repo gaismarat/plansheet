@@ -977,6 +977,296 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // === Projects ===
+
+  app.get('/api/projects', requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const projectsList = await storage.getProjectsForUser(userId);
+      res.json(projectsList);
+    } catch (err) {
+      console.error("Error getting projects:", err);
+      res.status(500).json({ message: "Failed to get projects" });
+    }
+  });
+
+  app.get('/api/projects/deleted', requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const deletedProjects = await storage.getDeletedProjectsForUser(userId);
+      res.json(deletedProjects);
+    } catch (err) {
+      console.error("Error getting deleted projects:", err);
+      res.status(500).json({ message: "Failed to get deleted projects" });
+    }
+  });
+
+  app.get('/api/projects/:id', requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const project = await storage.getProject(id);
+      if (!project) {
+        return res.status(404).json({ message: "Проект не найден" });
+      }
+      res.json(project);
+    } catch (err) {
+      console.error("Error getting project:", err);
+      res.status(500).json({ message: "Failed to get project" });
+    }
+  });
+
+  app.post('/api/projects', requireAuth, async (req, res) => {
+    try {
+      const { name } = req.body;
+      if (!name) {
+        return res.status(400).json({ message: "Название проекта обязательно" });
+      }
+      const userId = (req.user as any).id;
+      const project = await storage.createProject(name, userId);
+      res.status(201).json(project);
+    } catch (err) {
+      console.error("Error creating project:", err);
+      res.status(500).json({ message: "Failed to create project" });
+    }
+  });
+
+  app.put('/api/projects/:id', requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const userId = (req.user as any).id;
+      const { name } = req.body;
+      
+      const isAdmin = await storage.isProjectAdmin(userId, id);
+      if (!isAdmin) {
+        return res.status(403).json({ message: "Нет прав на редактирование проекта" });
+      }
+      
+      const updated = await storage.updateProject(id, name);
+      res.json(updated);
+    } catch (err) {
+      console.error("Error updating project:", err);
+      res.status(500).json({ message: "Failed to update project" });
+    }
+  });
+
+  app.delete('/api/projects/:id', requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const userId = (req.user as any).id;
+      
+      const isOwner = await storage.isProjectOwner(userId, id);
+      if (!isOwner) {
+        return res.status(403).json({ message: "Только владелец может удалить проект" });
+      }
+      
+      await storage.softDeleteProject(id);
+      res.status(204).send();
+    } catch (err) {
+      console.error("Error deleting project:", err);
+      res.status(500).json({ message: "Failed to delete project" });
+    }
+  });
+
+  app.post('/api/projects/:id/restore', requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const userId = (req.user as any).id;
+      
+      const isOwner = await storage.isProjectOwner(userId, id);
+      if (!isOwner) {
+        return res.status(403).json({ message: "Только владелец может восстановить проект" });
+      }
+      
+      await storage.restoreProject(id);
+      res.status(200).json({ message: "Проект восстановлен" });
+    } catch (err) {
+      console.error("Error restoring project:", err);
+      res.status(500).json({ message: "Failed to restore project" });
+    }
+  });
+
+  app.post('/api/projects/:id/duplicate', requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const userId = (req.user as any).id;
+      
+      const perm = await storage.getProjectPermission(userId, id);
+      if (!perm) {
+        return res.status(403).json({ message: "Нет доступа к проекту" });
+      }
+      
+      const sourceProject = await storage.getProject(id);
+      const newName = `${sourceProject?.name} (копия)`;
+      const newProject = await storage.duplicateProject(id, newName, userId);
+      res.status(201).json(newProject);
+    } catch (err) {
+      console.error("Error duplicating project:", err);
+      res.status(500).json({ message: "Failed to duplicate project" });
+    }
+  });
+
+  // === Project Permissions ===
+
+  app.get('/api/projects/:id/permissions', requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const userId = (req.user as any).id;
+      
+      const isAdmin = await storage.isProjectAdmin(userId, id);
+      if (!isAdmin) {
+        return res.status(403).json({ message: "Нет прав на просмотр разрешений" });
+      }
+      
+      const permissions = await storage.getProjectPermissions(id);
+      res.json(permissions);
+    } catch (err) {
+      console.error("Error getting project permissions:", err);
+      res.status(500).json({ message: "Failed to get project permissions" });
+    }
+  });
+
+  app.get('/api/projects/:id/my-permission', requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const userId = (req.user as any).id;
+      const permission = await storage.getProjectPermission(userId, id);
+      res.json(permission || null);
+    } catch (err) {
+      console.error("Error getting my permission:", err);
+      res.status(500).json({ message: "Failed to get permission" });
+    }
+  });
+
+  app.post('/api/projects/:id/permissions', requireAuth, async (req, res) => {
+    try {
+      const projectId = Number(req.params.id);
+      const userId = (req.user as any).id;
+      
+      const isAdmin = await storage.isProjectAdmin(userId, projectId);
+      if (!isAdmin) {
+        return res.status(403).json({ message: "Нет прав на управление разрешениями" });
+      }
+      
+      const permission = await storage.setProjectPermission({ ...req.body, projectId });
+      
+      await storage.createNotification({
+        userId: req.body.userId,
+        projectId,
+        type: "added_to_project",
+        message: `Вас добавили в проект`,
+        isRead: false
+      });
+      
+      res.status(201).json(permission);
+    } catch (err) {
+      console.error("Error setting project permission:", err);
+      res.status(500).json({ message: "Failed to set project permission" });
+    }
+  });
+
+  app.put('/api/project-permissions/:id', requireAuth, async (req, res) => {
+    try {
+      const permId = Number(req.params.id);
+      const userId = (req.user as any).id;
+      
+      const updated = await storage.updateProjectPermission(permId, req.body);
+      
+      await storage.createNotification({
+        userId: updated.userId,
+        projectId: updated.projectId,
+        type: "permissions_changed",
+        message: `Ваши права в проекте изменены`,
+        isRead: false
+      });
+      
+      res.json(updated);
+    } catch (err) {
+      console.error("Error updating project permission:", err);
+      res.status(500).json({ message: "Failed to update project permission" });
+    }
+  });
+
+  app.delete('/api/projects/:projectId/permissions/:userId', requireAuth, async (req, res) => {
+    try {
+      const projectId = Number(req.params.projectId);
+      const targetUserId = Number(req.params.userId);
+      const currentUserId = (req.user as any).id;
+      
+      const isAdmin = await storage.isProjectAdmin(currentUserId, projectId);
+      const targetIsOwner = await storage.isProjectOwner(targetUserId, projectId);
+      
+      if (!isAdmin) {
+        return res.status(403).json({ message: "Нет прав на удаление пользователя из проекта" });
+      }
+      
+      if (targetIsOwner) {
+        return res.status(403).json({ message: "Нельзя удалить владельца проекта" });
+      }
+      
+      await storage.deleteProjectPermission(targetUserId, projectId);
+      
+      const project = await storage.getProject(projectId);
+      await storage.createNotification({
+        userId: targetUserId,
+        projectId,
+        type: "removed_from_project",
+        message: `Вас удалили из проекта '${project?.name}'`,
+        isRead: false
+      });
+      
+      res.status(204).send();
+    } catch (err) {
+      console.error("Error deleting project permission:", err);
+      res.status(500).json({ message: "Failed to delete project permission" });
+    }
+  });
+
+  // === Notifications ===
+
+  app.get('/api/notifications', requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const notificationsList = await storage.getNotifications(userId);
+      res.json(notificationsList);
+    } catch (err) {
+      console.error("Error getting notifications:", err);
+      res.status(500).json({ message: "Failed to get notifications" });
+    }
+  });
+
+  app.get('/api/notifications/unread-count', requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const count = await storage.getUnreadNotificationCount(userId);
+      res.json({ count });
+    } catch (err) {
+      console.error("Error getting unread count:", err);
+      res.status(500).json({ message: "Failed to get unread count" });
+    }
+  });
+
+  app.post('/api/notifications/mark-read', requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      await storage.markNotificationsAsRead(userId);
+      res.status(200).json({ message: "Уведомления прочитаны" });
+    } catch (err) {
+      console.error("Error marking notifications as read:", err);
+      res.status(500).json({ message: "Failed to mark notifications as read" });
+    }
+  });
+
+  // Cleanup expired owners and old notifications periodically
+  setInterval(async () => {
+    try {
+      await storage.processExpiredOwners();
+      await storage.cleanupOldNotifications();
+      await storage.cleanupDeletedProjects();
+    } catch (err) {
+      console.error("Error in cleanup job:", err);
+    }
+  }, 60 * 60 * 1000); // Run every hour
+
   // Seed Data
   await seedDatabase();
 

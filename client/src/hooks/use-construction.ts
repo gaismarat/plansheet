@@ -465,3 +465,205 @@ export function useWorkMaterials(workId: number) {
     enabled: workId > 0,
   });
 }
+
+// ============================================
+// PROJECTS HOOKS
+// ============================================
+
+import type { Project, ProjectPermission, ProjectWithPermission, Notification } from "@shared/schema";
+
+export function useProjects() {
+  return useQuery<ProjectWithPermission[]>({
+    queryKey: ['/api/projects'],
+    queryFn: async () => {
+      const res = await fetch('/api/projects');
+      if (!res.ok) throw new Error("Failed to fetch projects");
+      return res.json();
+    },
+  });
+}
+
+export function useDeletedProjects() {
+  return useQuery<Project[]>({
+    queryKey: ['/api/projects/deleted'],
+    queryFn: async () => {
+      const res = await fetch('/api/projects/deleted');
+      if (!res.ok) throw new Error("Failed to fetch deleted projects");
+      return res.json();
+    },
+  });
+}
+
+export function useProject(id: number) {
+  return useQuery<Project>({
+    queryKey: ['/api/projects', id],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${id}`);
+      if (!res.ok) throw new Error("Failed to fetch project");
+      return res.json();
+    },
+    enabled: id > 0,
+  });
+}
+
+export function useMyProjectPermission(projectId: number) {
+  return useQuery<ProjectPermission | null>({
+    queryKey: ['/api/projects', projectId, 'my-permission'],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${projectId}/my-permission`);
+      if (!res.ok) throw new Error("Failed to fetch permission");
+      return res.json();
+    },
+    enabled: projectId > 0,
+  });
+}
+
+export function useCreateProject() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error("Failed to create project");
+      return res.json() as Promise<Project>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      toast({ title: "Проект создан" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useUpdateProject() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: number; name: string }) => {
+      const res = await fetch(`/api/projects/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error("Failed to update project");
+      return res.json() as Promise<Project>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      toast({ title: "Проект обновлён" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeleteProject() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error("Failed to delete project");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects/deleted'] });
+      toast({ title: "Проект удалён" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useRestoreProject() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/projects/${id}/restore`, { method: 'POST' });
+      if (!res.ok) throw new Error("Failed to restore project");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects/deleted'] });
+      toast({ title: "Проект восстановлен" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDuplicateProject() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/projects/${id}/duplicate`, { method: 'POST' });
+      if (!res.ok) throw new Error("Failed to duplicate project");
+      return res.json() as Promise<Project>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      toast({ title: "Проект дублирован" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+// ============================================
+// NOTIFICATIONS HOOKS
+// ============================================
+
+export function useNotifications() {
+  return useQuery<Notification[]>({
+    queryKey: ['/api/notifications'],
+    queryFn: async () => {
+      const res = await fetch('/api/notifications');
+      if (!res.ok) throw new Error("Failed to fetch notifications");
+      return res.json();
+    },
+  });
+}
+
+export function useUnreadNotificationCount() {
+  return useQuery<{ count: number }>({
+    queryKey: ['/api/notifications/unread-count'],
+    queryFn: async () => {
+      const res = await fetch('/api/notifications/unread-count');
+      if (!res.ok) throw new Error("Failed to fetch unread count");
+      return res.json();
+    },
+    refetchInterval: 30000,
+  });
+}
+
+export function useMarkNotificationsRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/notifications/mark-read', { method: 'POST' });
+      if (!res.ok) throw new Error("Failed to mark notifications as read");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications/unread-count'] });
+    },
+  });
+}

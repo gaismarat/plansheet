@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { ProjectProvider, useProjectContext } from "@/contexts/project-context";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import Analytics from "@/pages/analytics";
@@ -13,12 +14,14 @@ import PDC from "@/pages/pdc";
 import People from "@/pages/people";
 import Login from "@/pages/login";
 import Admin from "@/pages/admin";
+import NoProjects from "@/pages/no-projects";
 import { Loader2 } from "lucide-react";
 
 function ProtectedRoute({ component: Component, page }: { component: React.ComponentType; page?: string }) {
   const { user, isLoading, hasPageAccess } = useAuth();
+  const { hasNoProjects, isLoading: projectsLoading } = useProjectContext();
 
-  if (isLoading) {
+  if (isLoading || projectsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -28,6 +31,10 @@ function ProtectedRoute({ component: Component, page }: { component: React.Compo
 
   if (!user) {
     return <Redirect to="/login" />;
+  }
+
+  if (hasNoProjects && !user.isAdmin) {
+    return <NoProjects />;
   }
 
   if (page && !user.isAdmin && !hasPageAccess(page)) {
@@ -97,10 +104,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider delayDuration={0}>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <ProjectProvider>
+          <TooltipProvider delayDuration={0}>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </ProjectProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

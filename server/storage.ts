@@ -17,6 +17,9 @@ import {
   pdcElements,
   workPeople,
   progressSubmissions,
+  projects,
+  projectPermissions,
+  notifications,
   type Block,
   type Work,
   type WorkGroup,
@@ -68,9 +71,16 @@ import {
   type WorkTreeSection,
   type WorkTreeGroup,
   type WorkTreeItem,
-  type WorkMaterial
+  type WorkMaterial,
+  type Project,
+  type InsertProject,
+  type ProjectPermission,
+  type InsertProjectPermission,
+  type Notification,
+  type InsertNotification,
+  type ProjectWithPermission
 } from "@shared/schema";
-import { eq, and, isNull, asc } from "drizzle-orm";
+import { eq, and, isNull, asc, lt, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 export interface IStorage {
@@ -199,6 +209,37 @@ export interface IStorage {
 
   // Admin initialization
   initializeAdmin(): Promise<void>;
+
+  // Projects
+  getProjects(): Promise<Project[]>;
+  getProjectsForUser(userId: number): Promise<ProjectWithPermission[]>;
+  getDeletedProjectsForUser(userId: number): Promise<Project[]>;
+  getProject(id: number): Promise<Project | undefined>;
+  createProject(name: string, ownerId: number): Promise<Project>;
+  updateProject(id: number, name: string): Promise<Project>;
+  softDeleteProject(id: number): Promise<void>;
+  restoreProject(id: number): Promise<void>;
+  hardDeleteProject(id: number): Promise<void>;
+  duplicateProject(id: number, newName: string, userId: number): Promise<Project>;
+  cleanupDeletedProjects(): Promise<void>;
+
+  // Project Permissions
+  getProjectPermission(userId: number, projectId: number): Promise<ProjectPermission | undefined>;
+  getProjectPermissions(projectId: number): Promise<(ProjectPermission & { username: string })[]>;
+  setProjectPermission(permission: InsertProjectPermission): Promise<ProjectPermission>;
+  updateProjectPermission(id: number, updates: Partial<InsertProjectPermission>): Promise<ProjectPermission>;
+  deleteProjectPermission(userId: number, projectId: number): Promise<void>;
+  isProjectOwner(userId: number, projectId: number): Promise<boolean>;
+  isProjectAdmin(userId: number, projectId: number): Promise<boolean>;
+  transferOwnership(projectId: number, fromUserId: number, toUserId: number): Promise<void>;
+  processExpiredOwners(): Promise<void>;
+
+  // Notifications
+  getNotifications(userId: number): Promise<Notification[]>;
+  getUnreadNotificationCount(userId: number): Promise<number>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationsAsRead(userId: number): Promise<void>;
+  cleanupOldNotifications(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1303,6 +1344,355 @@ export class DatabaseStorage implements IStorage {
     }
 
     return result;
+  }
+
+  // === PROJECTS ===
+
+  async getProjects(): Promise<Project[]> {
+    return await db.select().from(projects).where(isNull(projects.deletedAt)).orderBy(asc(projects.id));
+  }
+
+  async getProjectsForUser(userId: number): Promise<ProjectWithPermission[]> {
+    const userPerms = await db.select().from(projectPermissions).where(eq(projectPermissions.userId, userId));
+    const projectIds = userPerms.map(p => p.projectId);
+    
+    if (projectIds.length === 0) return [];
+    
+    const allProjects = await db.select().from(projects).where(isNull(projects.deletedAt));
+    const result: ProjectWithPermission[] = [];
+    
+    for (const project of allProjects) {
+      const perm = userPerms.find(p => p.projectId === project.id);
+      if (perm) {
+        result.push({ ...project, permission: perm });
+      }
+    }
+    
+    return result.sort((a, b) => a.id - b.id);
+  }
+
+  async getDeletedProjectsForUser(userId: number): Promise<Project[]> {
+    const userPerms = await db.select().from(projectPermissions)
+      .where(and(eq(projectPermissions.userId, userId), eq(projectPermissions.isOwner, true)));
+    const ownerProjectIds = userPerms.map(p => p.projectId);
+    
+    if (ownerProjectIds.length === 0) return [];
+    
+    const allDeleted = await db.select().from(projects).where(sql`${projects.deletedAt} IS NOT NULL`);
+    return allDeleted.filter(p => ownerProjectIds.includes(p.id)).sort((a, b) => a.id - b.id);
+  }
+
+  async getProject(id: number): Promise<Project | undefined> {
+    const [project] = await db.select().from(projects).where(eq(projects.id, id));
+    return project;
+  }
+
+  async createProject(name: string, ownerId: number): Promise<Project> {
+    const [newProject] = await db.insert(projects).values({ name }).returning();
+    
+    await db.insert(projectPermissions).values({
+      userId: ownerId,
+      projectId: newProject.id,
+      isOwner: true,
+      isAdmin: true,
+      worksView: true,
+      worksEdit: true,
+      worksEditProgress: true,
+      worksSeeAmounts: true,
+      pdcView: true,
+      pdcEdit: true,
+      budgetView: true,
+      budgetEdit: true,
+      kspView: true,
+      kspEdit: true,
+      peopleView: true,
+      peopleEdit: true,
+      analyticsView: true,
+      calendarView: true,
+      calendarEdit: true
+    });
+    
+    return newProject;
+  }
+
+  async updateProject(id: number, name: string): Promise<Project> {
+    const [updated] = await db.update(projects).set({ name }).where(eq(projects.id, id)).returning();
+    return updated;
+  }
+
+  async softDeleteProject(id: number): Promise<void> {
+    await db.update(projects).set({ deletedAt: new Date() }).where(eq(projects.id, id));
+  }
+
+  async restoreProject(id: number): Promise<void> {
+    await db.update(projects).set({ deletedAt: null }).where(eq(projects.id, id));
+  }
+
+  async hardDeleteProject(id: number): Promise<void> {
+    await db.delete(projectPermissions).where(eq(projectPermissions.projectId, id));
+    await db.delete(notifications).where(eq(notifications.projectId, id));
+    await db.delete(pdcDocuments).where(eq(pdcDocuments.projectId, id));
+    await db.delete(projects).where(eq(projects.id, id));
+  }
+
+  async duplicateProject(id: number, newName: string, userId: number): Promise<Project> {
+    const sourceProject = await this.getProject(id);
+    if (!sourceProject) throw new Error("Project not found");
+
+    const [newProject] = await db.insert(projects).values({ name: newName }).returning();
+
+    const sourcePerms = await db.select().from(projectPermissions).where(eq(projectPermissions.projectId, id));
+    for (const perm of sourcePerms) {
+      await db.insert(projectPermissions).values({
+        ...perm,
+        id: undefined,
+        projectId: newProject.id,
+        createdAt: undefined
+      } as any);
+    }
+
+    const sourceDocs = await db.select().from(pdcDocuments).where(eq(pdcDocuments.projectId, id));
+    const docIdMap = new Map<number, number>();
+    
+    for (const doc of sourceDocs) {
+      const [newDoc] = await db.insert(pdcDocuments).values({
+        projectId: newProject.id,
+        name: doc.name,
+        headerText: doc.headerText,
+        vatRate: doc.vatRate,
+        order: doc.order
+      }).returning();
+      docIdMap.set(doc.id, newDoc.id);
+    }
+
+    const sourceBlocks = await db.select().from(pdcBlocks);
+    const blockIdMap = new Map<number, number>();
+    
+    for (const block of sourceBlocks) {
+      const newDocId = docIdMap.get(block.documentId);
+      if (newDocId) {
+        const [newBlock] = await db.insert(pdcBlocks).values({
+          documentId: newDocId,
+          name: block.name,
+          order: block.order
+        }).returning();
+        blockIdMap.set(block.id, newBlock.id);
+      }
+    }
+
+    const sourceSections = await db.select().from(pdcSections);
+    const sectionIdMap = new Map<number, number>();
+    
+    for (const section of sourceSections) {
+      const newBlockId = blockIdMap.get(section.blockId);
+      if (newBlockId) {
+        const [newSection] = await db.insert(pdcSections).values({
+          blockId: newBlockId,
+          name: section.name,
+          description: section.description,
+          order: section.order
+        }).returning();
+        sectionIdMap.set(section.id, newSection.id);
+      }
+    }
+
+    const sourceGroups = await db.select().from(pdcGroups);
+    const groupIdMap = new Map<number, number>();
+    
+    for (const group of sourceGroups) {
+      const newSectionId = sectionIdMap.get(group.sectionId);
+      if (newSectionId) {
+        const [newGroup] = await db.insert(pdcGroups).values({
+          sectionId: newSectionId,
+          name: group.name,
+          unit: group.unit,
+          quantity: group.quantity,
+          smrPnrPrice: group.smrPnrPrice,
+          order: group.order
+        }).returning();
+        groupIdMap.set(group.id, newGroup.id);
+      }
+    }
+
+    const sourceElements = await db.select().from(pdcElements);
+    for (const element of sourceElements) {
+      const newGroupId = groupIdMap.get(element.groupId);
+      if (newGroupId) {
+        await db.insert(pdcElements).values({
+          groupId: newGroupId,
+          name: element.name,
+          note: element.note,
+          unit: element.unit,
+          consumptionCoef: element.consumptionCoef,
+          quantity: element.quantity,
+          materialPrice: element.materialPrice,
+          order: element.order
+        });
+      }
+    }
+
+    const sourceWorks = await db.select().from(works);
+    const workIdMap = new Map<number, number>();
+    
+    for (const work of sourceWorks) {
+      if (work.pdcGroupId) {
+        const newPdcGroupId = groupIdMap.get(work.pdcGroupId);
+        if (newPdcGroupId) {
+          const [newWork] = await db.insert(works).values({
+            ...work,
+            id: undefined,
+            pdcGroupId: newPdcGroupId,
+            createdAt: undefined
+          } as any).returning();
+          workIdMap.set(work.id, newWork.id);
+        }
+      }
+    }
+
+    const sourceWorkPeople = await db.select().from(workPeople);
+    for (const wp of sourceWorkPeople) {
+      const newWorkId = workIdMap.get(wp.workId);
+      if (newWorkId) {
+        await db.insert(workPeople).values({
+          workId: newWorkId,
+          date: wp.date,
+          count: wp.count
+        });
+      }
+    }
+
+    return newProject;
+  }
+
+  async cleanupDeletedProjects(): Promise<void> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const toDelete = await db.select().from(projects)
+      .where(and(
+        sql`${projects.deletedAt} IS NOT NULL`,
+        lt(projects.deletedAt, thirtyDaysAgo)
+      ));
+    
+    for (const project of toDelete) {
+      await this.hardDeleteProject(project.id);
+    }
+  }
+
+  // === PROJECT PERMISSIONS ===
+
+  async getProjectPermission(userId: number, projectId: number): Promise<ProjectPermission | undefined> {
+    const [perm] = await db.select().from(projectPermissions)
+      .where(and(eq(projectPermissions.userId, userId), eq(projectPermissions.projectId, projectId)));
+    return perm;
+  }
+
+  async getProjectPermissions(projectId: number): Promise<(ProjectPermission & { username: string })[]> {
+    const perms = await db.select().from(projectPermissions).where(eq(projectPermissions.projectId, projectId));
+    const result: (ProjectPermission & { username: string })[] = [];
+    
+    for (const perm of perms) {
+      const user = await this.getUserById(perm.userId);
+      if (user) {
+        result.push({ ...perm, username: user.username });
+      }
+    }
+    
+    return result;
+  }
+
+  async setProjectPermission(permission: InsertProjectPermission): Promise<ProjectPermission> {
+    const existing = await this.getProjectPermission(permission.userId, permission.projectId);
+    
+    if (existing) {
+      const [updated] = await db.update(projectPermissions)
+        .set(permission)
+        .where(eq(projectPermissions.id, existing.id))
+        .returning();
+      return updated;
+    }
+    
+    const [created] = await db.insert(projectPermissions).values(permission).returning();
+    return created;
+  }
+
+  async updateProjectPermission(id: number, updates: Partial<InsertProjectPermission>): Promise<ProjectPermission> {
+    const [updated] = await db.update(projectPermissions).set(updates).where(eq(projectPermissions.id, id)).returning();
+    return updated;
+  }
+
+  async deleteProjectPermission(userId: number, projectId: number): Promise<void> {
+    await db.delete(projectPermissions)
+      .where(and(eq(projectPermissions.userId, userId), eq(projectPermissions.projectId, projectId)));
+  }
+
+  async isProjectOwner(userId: number, projectId: number): Promise<boolean> {
+    const perm = await this.getProjectPermission(userId, projectId);
+    return perm?.isOwner === true;
+  }
+
+  async isProjectAdmin(userId: number, projectId: number): Promise<boolean> {
+    const perm = await this.getProjectPermission(userId, projectId);
+    return perm?.isAdmin === true || perm?.isOwner === true;
+  }
+
+  async transferOwnership(projectId: number, fromUserId: number, toUserId: number): Promise<void> {
+    const fifteenDaysFromNow = new Date();
+    fifteenDaysFromNow.setDate(fifteenDaysFromNow.getDate() + 15);
+    
+    await db.update(projectPermissions)
+      .set({ ownerExpiresAt: fifteenDaysFromNow })
+      .where(and(eq(projectPermissions.userId, fromUserId), eq(projectPermissions.projectId, projectId)));
+    
+    await db.update(projectPermissions)
+      .set({ isOwner: true, isAdmin: true })
+      .where(and(eq(projectPermissions.userId, toUserId), eq(projectPermissions.projectId, projectId)));
+  }
+
+  async processExpiredOwners(): Promise<void> {
+    const now = new Date();
+    const expiredPerms = await db.select().from(projectPermissions)
+      .where(and(
+        eq(projectPermissions.isOwner, true),
+        sql`${projectPermissions.ownerExpiresAt} IS NOT NULL`,
+        lt(projectPermissions.ownerExpiresAt, now)
+      ));
+    
+    for (const perm of expiredPerms) {
+      await db.update(projectPermissions)
+        .set({ isOwner: false, ownerExpiresAt: null })
+        .where(eq(projectPermissions.id, perm.id));
+    }
+  }
+
+  // === NOTIFICATIONS ===
+
+  async getNotifications(userId: number): Promise<Notification[]> {
+    return await db.select().from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(sql`${notifications.createdAt} DESC`);
+  }
+
+  async getUnreadNotificationCount(userId: number): Promise<number> {
+    const unread = await db.select().from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+    return unread.length;
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [created] = await db.insert(notifications).values(notification).returning();
+    return created;
+  }
+
+  async markNotificationsAsRead(userId: number): Promise<void> {
+    await db.update(notifications).set({ isRead: true }).where(eq(notifications.userId, userId));
+  }
+
+  async cleanupOldNotifications(): Promise<void> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    await db.delete(notifications).where(lt(notifications.createdAt, thirtyDaysAgo));
   }
 }
 

@@ -26,7 +26,8 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { type WorkTreeDocument, type WorkTreeBlock, type WorkTreeSection, type WorkTreeGroup, type WorkTreeItem } from "@shared/schema";
-import logoImage from "@assets/Планшет_1767727492095.png";
+import { ProjectSwitcher } from "@/components/project-switcher";
+import { NotificationsBell } from "@/components/notifications-bell";
 
 export default function Dashboard() {
   useEffect(() => {
@@ -117,12 +118,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background/50">
       <header className="bg-card border-b border-border sticky top-0 z-10 backdrop-blur-sm bg-card/80">
         <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <img src={logoImage} alt="ПЛАНШЕТ" className="h-9 w-auto" />
-            <h1 className="text-xl font-bold font-display tracking-tight text-foreground">
-              ПЛАНШЕТ <span className="text-primary/60 font-sans font-normal text-sm ml-2 hidden sm:inline-block">v1.0</span>
-            </h1>
-          </div>
+          <ProjectSwitcher />
           <div className="flex items-center gap-2 flex-wrap">
             <Button variant="ghost" size="sm" className="gap-2" onClick={exportToExcel} data-testid="button-export">
               <Download className="w-4 h-4" />
@@ -159,6 +155,7 @@ export default function Dashboard() {
                 <span className="hidden sm:inline">Аналитика</span>
               </Button>
             </Link>
+            <NotificationsBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2" data-testid="button-user-menu">
