@@ -87,21 +87,45 @@ export function setupAuth(app: Express) {
       if (!user) {
         return res.status(401).json({ message: info?.message || "Ошибка авторизации" });
       }
-      req.logIn(user, (err) => {
-        if (err) {
-          return next(err);
+      
+      // Regenerate session before login to prevent session fixation
+      req.session.regenerate((regenerateErr) => {
+        if (regenerateErr) {
+          return next(regenerateErr);
         }
-        return res.json({ user });
+        
+        req.logIn(user, (loginErr) => {
+          if (loginErr) {
+            return next(loginErr);
+          }
+          
+          // Save session to ensure new session ID is persisted
+          req.session.save((saveErr) => {
+            if (saveErr) {
+              return next(saveErr);
+            }
+            return res.json({ user });
+          });
+        });
       });
     })(req, res, next);
   });
 
   app.post("/api/auth/logout", (req, res) => {
-    req.logout((err) => {
-      if (err) {
+    req.logout((logoutErr) => {
+      if (logoutErr) {
         return res.status(500).json({ message: "Ошибка выхода" });
       }
-      res.json({ message: "Выход выполнен" });
+      
+      // Destroy session completely on logout to ensure clean state
+      req.session.destroy((destroyErr) => {
+        if (destroyErr) {
+          console.error("Session destroy error:", destroyErr);
+        }
+        // Clear session cookie
+        res.clearCookie('connect.sid');
+        res.json({ message: "Выход выполнен" });
+      });
     });
   });
 
