@@ -265,8 +265,12 @@ function DocumentAccordionItem({ document, holidayDates, showCost = true, people
               <h3 className="font-display text-lg font-bold text-foreground">{document.name}</h3>
               <p className="text-xs text-muted-foreground font-sans font-medium flex gap-2">
                 <span>Блоков: {document.blocks.length}</span>
-                <span className="text-border">|</span>
-                <span>Стоимость: {document.costWithVat.toLocaleString('ru-RU')} руб.</span>
+                {showCost && (
+                  <>
+                    <span className="text-border">|</span>
+                    <span>Стоимость: {document.costWithVat.toLocaleString('ru-RU')} руб.</span>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -379,8 +383,12 @@ function BlockAccordionItem({ block, holidayDates, forceHide = false, showCost =
               <h3 className="font-display text-lg font-bold text-foreground">{block.number}. {block.name}</h3>
               <p className="text-xs text-muted-foreground font-sans font-medium flex gap-2">
                 <span>Разделов: {block.sections.length}</span>
-                <span className="text-border">|</span>
-                <span>Стоимость: {block.costWithVat.toLocaleString('ru-RU')} руб.</span>
+                {showCost && (
+                  <>
+                    <span className="text-border">|</span>
+                    <span>Стоимость: {block.costWithVat.toLocaleString('ru-RU')} руб.</span>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -489,8 +497,12 @@ function SectionAccordionItem({ section, holidayDates, forceHide = false, showCo
               <h4 className="font-semibold text-foreground">{section.number}. {section.name}</h4>
               <p className="text-xs text-muted-foreground flex gap-2">
                 <span>Групп: {section.groups.length}</span>
-                <span className="text-border">|</span>
-                <span>Стоимость: {section.costWithVat.toLocaleString('ru-RU')} руб.</span>
+                {showCost && (
+                  <>
+                    <span className="text-border">|</span>
+                    <span>Стоимость: {section.costWithVat.toLocaleString('ru-RU')} руб.</span>
+                  </>
+                )}
               </p>
             </div>
           </div>
