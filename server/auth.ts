@@ -80,6 +80,9 @@ export function setupAuth(app: Express) {
 
   // Auth routes
   app.post("/api/auth/login", (req, res, next) => {
+    // First destroy any existing session to ensure clean state
+    const oldSessionId = req.sessionID;
+    
     passport.authenticate("local", (err: Error | null, user: SafeUser | false, info: { message: string }) => {
       if (err) {
         return next(err);
@@ -88,23 +91,33 @@ export function setupAuth(app: Express) {
         return res.status(401).json({ message: info?.message || "Ошибка авторизации" });
       }
       
-      // Regenerate session before login to prevent session fixation
-      req.session.regenerate((regenerateErr) => {
-        if (regenerateErr) {
-          return next(regenerateErr);
+      // Destroy old session first, then create new one with login
+      req.session.destroy((destroyErr) => {
+        if (destroyErr) {
+          console.error("Session destroy on login error:", destroyErr);
         }
         
-        req.logIn(user, (loginErr) => {
-          if (loginErr) {
-            return next(loginErr);
+        // Regenerate creates a completely new session
+        req.session.regenerate((regenerateErr) => {
+          if (regenerateErr) {
+            return next(regenerateErr);
           }
           
-          // Save session to ensure new session ID is persisted
-          req.session.save((saveErr) => {
-            if (saveErr) {
-              return next(saveErr);
+          console.log(`[AUTH] Login: old session ${oldSessionId}, new session ${req.sessionID}, user ${user.username} (id: ${user.id})`);
+          
+          req.logIn(user, (loginErr) => {
+            if (loginErr) {
+              return next(loginErr);
             }
-            return res.json({ user });
+            
+            // Explicitly save session to ensure it's persisted
+            req.session.save((saveErr) => {
+              if (saveErr) {
+                return next(saveErr);
+              }
+              console.log(`[AUTH] Session saved for user ${user.username}, sessionID: ${req.sessionID}`);
+              return res.json({ user });
+            });
           });
         });
       });
@@ -112,6 +125,12 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/auth/logout", (req, res) => {
+    const userId = (req.user as any)?.id;
+    const username = (req.user as any)?.username;
+    const sessionId = req.sessionID;
+    
+    console.log(`[AUTH] Logout: user ${username} (id: ${userId}), sessionID: ${sessionId}`);
+    
     req.logout((logoutErr) => {
       if (logoutErr) {
         return res.status(500).json({ message: "Ошибка выхода" });
@@ -124,6 +143,7 @@ export function setupAuth(app: Express) {
         }
         // Clear session cookie
         res.clearCookie('connect.sid');
+        console.log(`[AUTH] Session destroyed, cookie cleared`);
         res.json({ message: "Выход выполнен" });
       });
     });
