@@ -995,10 +995,7 @@ export async function registerRoutes(
   app.get('/api/projects', requireAuth, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const username = (req.user as any).username;
-      console.log(`[DEBUG] GET /api/projects - userId: ${userId}, username: ${username}`);
       const projectsList = await storage.getProjectsForUser(userId);
-      console.log(`[DEBUG] Projects for user ${userId}: ${projectsList.length} projects found`);
       res.json(projectsList);
     } catch (err) {
       console.error("Error getting projects:", err);
