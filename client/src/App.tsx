@@ -15,11 +15,12 @@ import People from "@/pages/people";
 import Login from "@/pages/login";
 import Admin from "@/pages/admin";
 import NoProjects from "@/pages/no-projects";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, LogOut } from "lucide-react";
 
 function ProtectedRoute({ component: Component, page }: { component: React.ComponentType; page?: string }) {
-  const { user, isLoading, hasPageAccess } = useAuth();
-  const { hasNoProjects, isLoading: projectsLoading } = useProjectContext();
+  const { user, isLoading, logout } = useAuth();
+  const { hasNoProjects, isLoading: projectsLoading, canView } = useProjectContext();
 
   if (isLoading || projectsLoading) {
     return (
@@ -37,12 +38,16 @@ function ProtectedRoute({ component: Component, page }: { component: React.Compo
     return <NoProjects />;
   }
 
-  if (page && !user.isAdmin && !hasPageAccess(page)) {
+  if (page && !user.isAdmin && !canView(page)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">Нет доступа</h1>
-          <p className="text-muted-foreground">У вас нет разрешения на просмотр этой страницы</p>
+          <p className="text-muted-foreground mb-4">У вас нет разрешения на просмотр этой страницы</p>
+          <Button onClick={() => logout()} variant="outline" data-testid="button-logout-no-access">
+            <LogOut className="w-4 h-4 mr-2" />
+            Выйти
+          </Button>
         </div>
       </div>
     );
@@ -75,10 +80,10 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/">
-        <ProtectedRoute component={Dashboard} page="works" />
+        <ProtectedRoute component={Dashboard} />
       </Route>
       <Route path="/analytics">
-        <ProtectedRoute component={Analytics} page="works" />
+        <ProtectedRoute component={Analytics} page="analytics" />
       </Route>
       <Route path="/ksp">
         <ProtectedRoute component={KSP} page="ksp" />
