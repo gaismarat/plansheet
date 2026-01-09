@@ -28,6 +28,7 @@ import { motion } from "framer-motion";
 import { type WorkTreeDocument, type WorkTreeBlock, type WorkTreeSection, type WorkTreeGroup, type WorkTreeItem } from "@shared/schema";
 import { ProjectSwitcher } from "@/components/project-switcher";
 import { NotificationsBell } from "@/components/notifications-bell";
+import { useProjectContext } from "@/contexts/project-context";
 
 export default function Dashboard() {
   useEffect(() => {
@@ -42,9 +43,11 @@ export default function Dashboard() {
   const { data: progressSubmissions = {} } = useLatestProgressSubmissions();
   const holidayDates = new Set(holidays.map(h => h.date));
   const { user, logout, canViewField, hasPermission } = useAuth();
-  const showCostColumn = canViewField("cost");
+  const { myPermission, isOwner, isAdmin: isProjectAdmin, canEdit, canView } = useProjectContext();
+  
+  const showCostColumn = user?.isAdmin || isOwner || isProjectAdmin || myPermission?.worksSeeAmounts || false;
   const isAdmin = user?.isAdmin ?? false;
-  const canSetProgress = isAdmin || hasPermission("edit_data", "progress");
+  const canSetProgress = isAdmin || isOwner || isProjectAdmin || myPermission?.worksEditProgress || false;
 
   const documents = worksTree || [];
 
@@ -125,36 +128,46 @@ export default function Dashboard() {
               <span className="hidden sm:inline">Выгрузка</span>
             </Button>
             <CalendarDialog />
-            <Link href="/budget">
-              <Button variant="ghost" size="sm" className="gap-2" data-testid="button-budget">
-                <Wallet className="w-4 h-4" />
-                <span className="hidden sm:inline">Бюджет</span>
-              </Button>
-            </Link>
-            <Link href="/pdc">
-              <Button variant="ghost" size="sm" className="gap-2" data-testid="button-pdc">
-                <FileText className="w-4 h-4" />
-                <span className="hidden sm:inline">ПДЦ</span>
-              </Button>
-            </Link>
-            <Link href="/ksp">
-              <Button variant="ghost" size="sm" className="gap-2" data-testid="button-ksp">
-                <CalendarDays className="w-4 h-4" />
-                <span className="hidden sm:inline">КСП</span>
-              </Button>
-            </Link>
-            <Link href="/people">
-              <Button variant="ghost" size="sm" className="gap-2" data-testid="button-people">
-                <Users className="w-4 h-4" />
-                <span className="hidden sm:inline">Люди</span>
-              </Button>
-            </Link>
-            <Link href="/analytics">
-              <Button variant="ghost" size="sm" className="gap-2" data-testid="button-analytics">
-                <BarChart3 className="w-4 h-4" />
-                <span className="hidden sm:inline">Аналитика</span>
-              </Button>
-            </Link>
+            {canView('budget') && (
+              <Link href="/budget">
+                <Button variant="ghost" size="sm" className="gap-2" data-testid="button-budget">
+                  <Wallet className="w-4 h-4" />
+                  <span className="hidden sm:inline">Бюджет</span>
+                </Button>
+              </Link>
+            )}
+            {canView('pdc') && (
+              <Link href="/pdc">
+                <Button variant="ghost" size="sm" className="gap-2" data-testid="button-pdc">
+                  <FileText className="w-4 h-4" />
+                  <span className="hidden sm:inline">ПДЦ</span>
+                </Button>
+              </Link>
+            )}
+            {canView('ksp') && (
+              <Link href="/ksp">
+                <Button variant="ghost" size="sm" className="gap-2" data-testid="button-ksp">
+                  <CalendarDays className="w-4 h-4" />
+                  <span className="hidden sm:inline">КСП</span>
+                </Button>
+              </Link>
+            )}
+            {canView('people') && (
+              <Link href="/people">
+                <Button variant="ghost" size="sm" className="gap-2" data-testid="button-people">
+                  <Users className="w-4 h-4" />
+                  <span className="hidden sm:inline">Люди</span>
+                </Button>
+              </Link>
+            )}
+            {canView('analytics') && (
+              <Link href="/analytics">
+                <Button variant="ghost" size="sm" className="gap-2" data-testid="button-analytics">
+                  <BarChart3 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Аналитика</span>
+                </Button>
+              </Link>
+            )}
             <NotificationsBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

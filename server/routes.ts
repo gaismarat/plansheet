@@ -886,9 +886,22 @@ export async function registerRoutes(
     }
   });
 
-  // === User Management (Admin only) ===
+  // === User Management (Admin only, or project owners/admins for listing) ===
 
-  app.get('/api/users', requireAdmin, async (_req, res) => {
+  app.get('/api/users', requireAuth, async (req, res) => {
+    const user = req.user as any;
+    if (!user) {
+      return res.status(401).json({ message: "Не авторизован" });
+    }
+    
+    if (!user.isAdmin) {
+      const projectPermissions = await storage.getProjectPermissionsForUser(user.id);
+      const canManageAnyProject = projectPermissions.some(p => p.isOwner || p.isAdmin);
+      if (!canManageAnyProject) {
+        return res.status(403).json({ message: "Нет прав" });
+      }
+    }
+    
     const users = await storage.getUsers();
     res.json(users);
   });
@@ -1218,6 +1231,37 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Error deleting project permission:", err);
       res.status(500).json({ message: "Failed to delete project permission" });
+    }
+  });
+
+  // === Transfer Ownership ===
+  
+  app.post('/api/projects/:id/transfer-ownership', requireAuth, async (req, res) => {
+    try {
+      const projectId = Number(req.params.id);
+      const currentUserId = (req.user as any).id;
+      const { toUserId } = req.body;
+      
+      const isOwner = await storage.isProjectOwner(currentUserId, projectId);
+      if (!isOwner) {
+        return res.status(403).json({ message: "Только владелец может передать права" });
+      }
+      
+      await storage.transferOwnership(projectId, currentUserId, toUserId);
+      
+      const project = await storage.getProject(projectId);
+      await storage.createNotification({
+        userId: toUserId,
+        projectId,
+        type: "made_owner",
+        message: `Вам переданы права владельца проекта '${project?.name}'`,
+        isRead: false
+      });
+      
+      res.json({ message: "Права владельца переданы" });
+    } catch (err) {
+      console.error("Error transferring ownership:", err);
+      res.status(500).json({ message: "Failed to transfer ownership" });
     }
   });
 

@@ -667,3 +667,122 @@ export function useMarkNotificationsRead() {
     },
   });
 }
+
+// ============================================
+// PROJECT PERMISSIONS HOOKS
+// ============================================
+
+export function useProjectPermissions(projectId: number) {
+  return useQuery<(ProjectPermission & { username: string })[]>({
+    queryKey: ['/api/projects', projectId, 'permissions'],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${projectId}/permissions`);
+      if (!res.ok) throw new Error("Failed to fetch project permissions");
+      return res.json();
+    },
+    enabled: projectId > 0,
+  });
+}
+
+export function useAddProjectMember() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ projectId, permission }: { projectId: number; permission: any }) => {
+      const res = await fetch(`/api/projects/${projectId}/permissions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(permission),
+      });
+      if (!res.ok) throw new Error("Failed to add member");
+      return res.json();
+    },
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      toast({ title: "Участник добавлен" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useUpdateProjectPermission() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ permissionId, updates }: { permissionId: number; updates: any; projectId: number }) => {
+      const res = await fetch(`/api/project-permissions/${permissionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) throw new Error("Failed to update permission");
+      return res.json();
+    },
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      toast({ title: "Права обновлены" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useRemoveProjectMember() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ projectId, userId }: { projectId: number; userId: number }) => {
+      const res = await fetch(`/api/projects/${projectId}/permissions/${userId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to remove member");
+      }
+    },
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      toast({ title: "Участник удалён" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useTransferOwnership() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ projectId, toUserId }: { projectId: number; toUserId: number }) => {
+      const res = await fetch(`/api/projects/${projectId}/transfer-ownership`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toUserId }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to transfer ownership");
+      }
+      return res.json();
+    },
+    onSuccess: (_, { projectId }) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/projects', projectId, 'permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      toast({ title: "Права владельца переданы. Переход завершится через 15 дней." });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
