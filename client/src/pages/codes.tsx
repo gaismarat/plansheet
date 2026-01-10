@@ -275,10 +275,10 @@ export default function Codes() {
         </div>
       </header>
 
-      <main className="p-4">
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
+      <main className="p-4 pb-8">
+        <Card className="overflow-visible">
+          <div>
+            <table className="w-full border-collapse table-fixed">
               <thead>
                 <tr className="bg-muted/50">
                   <th className="border border-border px-3 py-2 text-left font-medium text-sm w-[400px]">
