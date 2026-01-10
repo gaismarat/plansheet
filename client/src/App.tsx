@@ -14,6 +14,7 @@ import PDC from "@/pages/pdc";
 import People from "@/pages/people";
 import Login from "@/pages/login";
 import Admin from "@/pages/admin";
+import Codes from "@/pages/codes";
 import NoProjects from "@/pages/no-projects";
 import { Button } from "@/components/ui/button";
 import { Loader2, LogOut } from "lucide-react";
@@ -99,6 +100,9 @@ function Router() {
       </Route>
       <Route path="/admin">
         <ProtectedRoute component={Admin} />
+      </Route>
+      <Route path="/codes">
+        <ProtectedRoute component={Codes} page="codes" />
       </Route>
       <Route component={NotFound} />
     </Switch>

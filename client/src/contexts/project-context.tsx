@@ -72,6 +72,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       case 'people': return myPermission.peopleView;
       case 'analytics': return myPermission.analyticsView;
       case 'calendar': return myPermission.calendarView;
+      case 'codes': return myPermission.codesView;
       default: return false;
     }
   };
@@ -87,6 +88,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       case 'ksp': return myPermission.kspEdit;
       case 'people': return myPermission.peopleEdit;
       case 'calendar': return myPermission.calendarEdit;
+      case 'codes': return myPermission.codesEdit;
       default: return false;
     }
   };
