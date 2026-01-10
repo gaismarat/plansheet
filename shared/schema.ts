@@ -55,6 +55,10 @@ export const projectPermissions = pgTable("project_permissions", {
   calendarView: boolean("calendar_view").default(true).notNull(),
   calendarEdit: boolean("calendar_edit").default(false).notNull(),
   
+  // Коды классификатора
+  codesView: boolean("codes_view").default(false).notNull(),
+  codesEdit: boolean("codes_edit").default(false).notNull(),
+  
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -470,6 +474,44 @@ export type PdcGroupWithElements = PdcGroup & { elements?: PdcElementWithData[] 
 export type PdcSectionWithGroups = PdcSection & { groups?: PdcGroupWithElements[] };
 export type PdcBlockWithSections = PdcBlock & { sections?: PdcSectionWithGroups[] };
 export type PdcDocumentWithData = PdcDocument & { blocks?: PdcBlockWithSections[] };
+
+// === CLASSIFIER CODES TABLE ===
+// Глобальный классификатор кодов (иерархия: Статья > Зона > Элемент > Деталь)
+
+export const classifierCodes = pgTable("classifier_codes", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(), // "article" | "zone" | "element" | "detail"
+  name: text("name").notNull(),
+  cipher: text("cipher").notNull(), // Шифр (короткий код)
+  parentId: integer("parent_id"), // Ссылка на родителя
+  orderIndex: integer("order_index").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// === CLASSIFIER CODES RELATIONS ===
+
+export const classifierCodesRelations = relations(classifierCodes, ({ one, many }) => ({
+  parent: one(classifierCodes, {
+    fields: [classifierCodes.parentId],
+    references: [classifierCodes.id],
+  }),
+  children: many(classifierCodes),
+}));
+
+// === CLASSIFIER CODES SCHEMAS ===
+
+export const insertClassifierCodeSchema = createInsertSchema(classifierCodes).omit({ id: true, createdAt: true }).extend({
+  type: z.enum(["article", "zone", "element", "detail"]),
+});
+
+export type ClassifierCode = typeof classifierCodes.$inferSelect;
+export type InsertClassifierCode = z.infer<typeof insertClassifierCodeSchema>;
+
+// Nested type for tree structure
+export type ClassifierCodeWithChildren = ClassifierCode & {
+  children?: ClassifierCodeWithChildren[];
+  fullCode?: string; // Computed from parent ciphers
+};
 
 // === PROGRESS SUBMISSIONS (Согласование прогресса) TABLE ===
 
