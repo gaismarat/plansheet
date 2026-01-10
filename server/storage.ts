@@ -20,6 +20,7 @@ import {
   projects,
   projectPermissions,
   notifications,
+  classifierCodes,
   type Block,
   type Work,
   type WorkGroup,
@@ -78,7 +79,9 @@ import {
   type InsertProjectPermission,
   type Notification,
   type InsertNotification,
-  type ProjectWithPermission
+  type ProjectWithPermission,
+  type ClassifierCode,
+  type InsertClassifierCode
 } from "@shared/schema";
 import { eq, and, isNull, asc, lt, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -240,6 +243,14 @@ export interface IStorage {
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationsAsRead(userId: number): Promise<void>;
   cleanupOldNotifications(): Promise<void>;
+
+  // Classifier Codes
+  getClassifierCodes(): Promise<ClassifierCode[]>;
+  getClassifierCode(id: number): Promise<ClassifierCode | undefined>;
+  createClassifierCode(code: InsertClassifierCode): Promise<ClassifierCode>;
+  updateClassifierCode(id: number, updates: Partial<InsertClassifierCode>): Promise<ClassifierCode>;
+  deleteClassifierCode(id: number): Promise<void>;
+  reorderClassifierCode(id: number, direction: 'up' | 'down'): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1705,6 +1716,73 @@ export class DatabaseStorage implements IStorage {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     await db.delete(notifications).where(lt(notifications.createdAt, thirtyDaysAgo));
+  }
+
+  // === CLASSIFIER CODES ===
+
+  async getClassifierCodes(): Promise<ClassifierCode[]> {
+    return await db.select().from(classifierCodes).orderBy(asc(classifierCodes.orderIndex), asc(classifierCodes.id));
+  }
+
+  async getClassifierCode(id: number): Promise<ClassifierCode | undefined> {
+    const [code] = await db.select().from(classifierCodes).where(eq(classifierCodes.id, id));
+    return code;
+  }
+
+  async createClassifierCode(code: InsertClassifierCode): Promise<ClassifierCode> {
+    const siblings = await db.select().from(classifierCodes)
+      .where(code.parentId ? eq(classifierCodes.parentId, code.parentId) : isNull(classifierCodes.parentId));
+    const maxOrder = Math.max(...siblings.map(s => s.orderIndex), -1);
+    
+    const [created] = await db.insert(classifierCodes).values({
+      ...code,
+      orderIndex: maxOrder + 1
+    }).returning();
+    return created;
+  }
+
+  async updateClassifierCode(id: number, updates: Partial<InsertClassifierCode>): Promise<ClassifierCode> {
+    const [updated] = await db.update(classifierCodes).set(updates).where(eq(classifierCodes.id, id)).returning();
+    return updated;
+  }
+
+  async deleteClassifierCode(id: number): Promise<void> {
+    const collectChildIds = async (parentId: number): Promise<number[]> => {
+      const children = await db.select().from(classifierCodes).where(eq(classifierCodes.parentId, parentId));
+      let ids: number[] = [];
+      for (const child of children) {
+        ids.push(child.id);
+        const grandChildren = await collectChildIds(child.id);
+        ids = ids.concat(grandChildren);
+      }
+      return ids;
+    };
+
+    const childIds = await collectChildIds(id);
+    const allIds = [id, ...childIds];
+    
+    for (const delId of allIds.reverse()) {
+      await db.delete(classifierCodes).where(eq(classifierCodes.id, delId));
+    }
+  }
+
+  async reorderClassifierCode(id: number, direction: 'up' | 'down'): Promise<void> {
+    const code = await this.getClassifierCode(id);
+    if (!code) return;
+
+    const siblings = await db.select().from(classifierCodes)
+      .where(code.parentId ? eq(classifierCodes.parentId, code.parentId) : isNull(classifierCodes.parentId))
+      .orderBy(asc(classifierCodes.orderIndex), asc(classifierCodes.id));
+
+    const currentIndex = siblings.findIndex(s => s.id === id);
+    if (currentIndex === -1) return;
+
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (swapIndex < 0 || swapIndex >= siblings.length) return;
+
+    const swapWith = siblings[swapIndex];
+    await db.update(classifierCodes).set({ orderIndex: swapWith.orderIndex }).where(eq(classifierCodes.id, id));
+    await db.update(classifierCodes).set({ orderIndex: code.orderIndex }).where(eq(classifierCodes.id, swapWith.id));
   }
 }
 

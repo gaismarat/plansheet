@@ -250,6 +250,59 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // === Classifier Codes ===
+
+  app.get('/api/classifier-codes', async (_req, res) => {
+    const codes = await storage.getClassifierCodes();
+    res.json(codes);
+  });
+
+  app.get('/api/classifier-codes/:id', async (req, res) => {
+    const code = await storage.getClassifierCode(Number(req.params.id));
+    if (!code) {
+      return res.status(404).json({ message: "Classifier code not found" });
+    }
+    res.json(code);
+  });
+
+  app.post('/api/classifier-codes', requireAuth, async (req, res) => {
+    try {
+      const code = await storage.createClassifierCode(req.body);
+      res.status(201).json(code);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.put('/api/classifier-codes/:id', requireAuth, async (req, res) => {
+    try {
+      const updated = await storage.updateClassifierCode(Number(req.params.id), req.body);
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.delete('/api/classifier-codes/:id', requireAuth, async (req, res) => {
+    await storage.deleteClassifierCode(Number(req.params.id));
+    res.status(204).send();
+  });
+
+  app.post('/api/classifier-codes/:id/reorder', requireAuth, async (req, res) => {
+    const { direction } = req.body;
+    if (direction !== 'up' && direction !== 'down') {
+      return res.status(400).json({ message: "Invalid direction" });
+    }
+    await storage.reorderClassifierCode(Number(req.params.id), direction);
+    res.json({ success: true });
+  });
+
   // === Contracts (Budgets) ===
 
   app.get('/api/contracts', async (_req, res) => {
