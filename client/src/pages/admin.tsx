@@ -42,6 +42,8 @@ const PROJECT_PERMISSIONS = [
   { key: "analyticsView", label: "Аналитика - просмотр", group: "analytics" },
   { key: "calendarView", label: "Календарь - просмотр", group: "calendar" },
   { key: "calendarEdit", label: "Календарь - редактирование", group: "calendar" },
+  { key: "codesView", label: "Коды - просмотр", group: "codes" },
+  { key: "codesEdit", label: "Коды - редактирование", group: "codes" },
 ];
 
 export default function Admin() {
@@ -172,6 +174,8 @@ export default function Admin() {
         analyticsView: false,
         calendarView: true,
         calendarEdit: false,
+        codesView: false,
+        codesEdit: false,
       }
     });
     setShowAddMember(false);

@@ -24,6 +24,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useProjectContext } from "@/contexts/project-context";
+import { useAuth } from "@/hooks/use-auth";
 
 type CodeType = "article" | "zone" | "element" | "detail";
 
@@ -108,6 +110,11 @@ function flattenTree(
 
 export default function Codes() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { canEdit, isOwner, isAdmin: isProjectAdmin } = useProjectContext();
+  
+  const canEditCodes = user?.isAdmin || isOwner || isProjectAdmin || canEdit('codes');
+  
   const [collapsedCodes, setCollapsedCodes] = useState<Set<number>>(new Set());
   const [eyeCollapsed, setEyeCollapsed] = useState<Set<number>>(new Set());
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -181,6 +188,7 @@ export default function Codes() {
   };
 
   const startEditing = (code: ClassifierCodeWithChildren) => {
+    if (!canEditCodes) return;
     setEditingId(code.id);
     setEditingName(code.name);
     setEditingCipher(code.cipher);
@@ -293,15 +301,17 @@ export default function Codes() {
                     <td colSpan={4} className="border border-border px-3 py-8 text-center text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <span>Таблица пуста</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => createCode.mutate({ type: "article", name: "...", cipher: "..." })}
-                          data-testid="button-add-first-code"
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Добавить статью
-                        </Button>
+                        {canEditCodes && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => createCode.mutate({ type: "article", name: "...", cipher: "..." })}
+                            data-testid="button-add-first-code"
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Добавить статью
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -396,39 +406,41 @@ export default function Codes() {
                           )}
                         </td>
                         <td className="border border-border px-3 py-2">
-                          <div className="flex items-center justify-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => reorderCode.mutate({ id: code.id, direction: 'up' })}
-                              data-testid={`button-up-${code.id}`}
-                            >
-                              <ChevronUp className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => reorderCode.mutate({ id: code.id, direction: 'down' })}
-                              data-testid={`button-down-${code.id}`}
-                            >
-                              <ChevronDown className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => deleteCode.mutate(code.id)}
-                              data-testid={`button-delete-${code.id}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          {canEditCodes && (
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => reorderCode.mutate({ id: code.id, direction: 'up' })}
+                                data-testid={`button-up-${code.id}`}
+                              >
+                                <ChevronUp className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => reorderCode.mutate({ id: code.id, direction: 'down' })}
+                                data-testid={`button-down-${code.id}`}
+                              >
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => deleteCode.mutate(code.id)}
+                                data-testid={`button-delete-${code.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                       
-                      {hoveredRowIndex === index && (
+                      {canEditCodes && hoveredRowIndex === index && (
                         <tr key={`add-${code.id}`} className="h-0">
                           <td colSpan={4} className="p-0 border-0 relative">
                             <div className="absolute left-0 right-0 top-0 flex items-center justify-center h-6 -translate-y-3 z-10">

@@ -4,7 +4,7 @@ import { queryClient } from "@/lib/queryClient";
 import { WorkItemRow } from "@/components/work-item-row";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { FolderOpen, HardHat, TrendingUp, BarChart3, Download, Layers, CalendarDays, Wallet, User, LogOut, Shield, FileText, Users, ChevronDown, ChevronRight } from "lucide-react";
+import { FolderOpen, HardHat, TrendingUp, BarChart3, Download, Layers, CalendarDays, Wallet, User, LogOut, Shield, FileText, Users, ChevronDown, ChevronRight, Tag } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   DropdownMenu,
@@ -165,6 +165,14 @@ export default function Dashboard() {
                 <Button variant="ghost" size="sm" className="gap-2" data-testid="button-analytics">
                   <BarChart3 className="w-4 h-4" />
                   <span className="hidden sm:inline">Аналитика</span>
+                </Button>
+              </Link>
+            )}
+            {canView('codes') && (
+              <Link href="/codes">
+                <Button variant="ghost" size="sm" className="gap-2" data-testid="button-codes">
+                  <Tag className="w-4 h-4" />
+                  <span className="hidden sm:inline">Коды</span>
                 </Button>
               </Link>
             )}
