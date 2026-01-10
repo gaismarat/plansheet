@@ -68,7 +68,8 @@ function buildTree(codes: ClassifierCode[]): ClassifierCodeWithChildren[] {
   });
 
   const computeFullCode = (node: ClassifierCodeWithChildren, parentFullCode: string) => {
-    node.fullCode = parentFullCode ? `${parentFullCode}_${node.cipher}` : node.cipher;
+    const cipher = node.cipher || "...";
+    node.fullCode = parentFullCode ? `${parentFullCode}_${cipher}` : cipher;
     node.children.forEach(child => computeFullCode(child, node.fullCode));
   };
 
@@ -120,7 +121,6 @@ export default function Codes() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState("");
   const [editingCipher, setEditingCipher] = useState("");
-  const [hoveredRowIndex, setHoveredRowIndex] = useState<number | null>(null);
   const [addTypePopoverOpen, setAddTypePopoverOpen] = useState<number | null>(null);
 
   const { data: codes = [], isLoading } = useQuery<ClassifierCode[]>({
@@ -219,8 +219,8 @@ export default function Codes() {
 
     createCode.mutate({
       type,
-      name: "...",
-      cipher: "...",
+      name: "",
+      cipher: "",
       parentId,
     });
     setAddTypePopoverOpen(null);
@@ -276,7 +276,7 @@ export default function Codes() {
       </header>
 
       <main className="p-4 pb-8">
-        <Card className="overflow-visible">
+        <Card className="overflow-visible rounded-none">
           <div>
             <table className="w-full border-collapse table-fixed">
               <thead>
@@ -290,7 +290,7 @@ export default function Codes() {
                   <th className="border border-border px-3 py-2 text-left font-medium text-sm w-[100px]">
                     Шифр
                   </th>
-                  <th className="border border-border px-3 py-2 text-center font-medium text-sm w-[120px]">
+                  <th className="border border-border px-3 py-2 text-center font-medium text-sm w-[180px]">
                     Действия
                   </th>
                 </tr>
@@ -305,7 +305,7 @@ export default function Codes() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => createCode.mutate({ type: "article", name: "...", cipher: "..." })}
+                            onClick={() => createCode.mutate({ type: "article", name: "", cipher: "" })}
                             data-testid="button-add-first-code"
                           >
                             <Plus className="h-4 w-4 mr-1" />
@@ -329,8 +329,6 @@ export default function Codes() {
                       <tr
                         key={code.id}
                         className={`hover:bg-muted/30 ${code.type === "article" ? "bg-primary/5 font-semibold" : ""}`}
-                        onMouseEnter={() => setHoveredRowIndex(index)}
-                        onMouseLeave={() => setHoveredRowIndex(null)}
                         data-testid={`row-code-${code.id}`}
                       >
                         <td className="border border-border px-3 py-2">
@@ -372,16 +370,17 @@ export default function Codes() {
                               onBlur={saveEditing}
                               onKeyDown={(e) => e.key === "Enter" && saveEditing()}
                               autoFocus
+                              placeholder="..."
                               className="h-8"
                               data-testid={`input-name-${code.id}`}
                             />
                           ) : (
                             <span
-                              className={`cursor-pointer hover:bg-muted/50 px-1 rounded ${code.type !== "article" ? "italic" : ""}`}
+                              className={`cursor-pointer hover:bg-muted/50 px-1 rounded whitespace-normal break-words ${code.type !== "article" ? "italic" : ""}`}
                               onClick={() => startEditing(code)}
                               data-testid={`text-name-${code.id}`}
                             >
-                              {code.name}
+                              {code.name || "..."}
                             </span>
                           )}
                         </td>
@@ -392,6 +391,7 @@ export default function Codes() {
                               onChange={(e) => setEditingCipher(e.target.value)}
                               onBlur={saveEditing}
                               onKeyDown={(e) => e.key === "Enter" && saveEditing()}
+                              placeholder="..."
                               className="h-8"
                               data-testid={`input-cipher-${code.id}`}
                             />
@@ -401,13 +401,50 @@ export default function Codes() {
                               onClick={() => startEditing(code)}
                               data-testid={`text-cipher-${code.id}`}
                             >
-                              {code.cipher}
+                              {code.cipher || "..."}
                             </span>
                           )}
                         </td>
                         <td className="border border-border px-3 py-2">
                           {canEditCodes && (
                             <div className="flex items-center justify-center gap-1">
+                              <Popover 
+                                open={addTypePopoverOpen === index} 
+                                onOpenChange={(open) => setAddTypePopoverOpen(open ? index : null)}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    data-testid={`button-add-${code.id}`}
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-40 p-1" align="start">
+                                  {getAvailableTypes(index).map(type => (
+                                    <Button
+                                      key={type}
+                                      variant="ghost"
+                                      className="w-full justify-start text-sm"
+                                      onClick={() => handleAddCode(index, type)}
+                                      data-testid={`button-add-type-${type}`}
+                                    >
+                                      {TYPE_LABELS[type]}
+                                    </Button>
+                                  ))}
+                                </PopoverContent>
+                              </Popover>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleDuplicateRow(code)}
+                                data-testid={`button-duplicate-${code.id}`}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -439,55 +476,6 @@ export default function Codes() {
                           )}
                         </td>
                       </tr>
-                      
-                      {canEditCodes && hoveredRowIndex === index && (
-                        <tr key={`add-${code.id}`} className="h-0">
-                          <td colSpan={4} className="p-0 border-0 relative">
-                            <div className="absolute left-0 right-0 top-0 flex items-center justify-center h-6 -translate-y-3 z-10">
-                              <div className="flex items-center gap-2">
-                                <Popover 
-                                  open={addTypePopoverOpen === index} 
-                                  onOpenChange={(open) => setAddTypePopoverOpen(open ? index : null)}
-                                >
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 opacity-50 hover:opacity-100 bg-background border border-border rounded-full"
-                                      data-testid={`button-add-left-${index}`}
-                                    >
-                                      <Plus className="h-3 w-3" />
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-40 p-1" align="start">
-                                    {getAvailableTypes(index).map(type => (
-                                      <Button
-                                        key={type}
-                                        variant="ghost"
-                                        className="w-full justify-start text-sm"
-                                        onClick={() => handleAddCode(index, type)}
-                                        data-testid={`button-add-type-${type}`}
-                                      >
-                                        {TYPE_LABELS[type]}
-                                      </Button>
-                                    ))}
-                                  </PopoverContent>
-                                </Popover>
-                                
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6 opacity-50 hover:opacity-100 bg-background border border-border rounded-full"
-                                  onClick={() => handleDuplicateRow(code)}
-                                  data-testid={`button-duplicate-${index}`}
-                                >
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
                     </>
                   );
                 })}
