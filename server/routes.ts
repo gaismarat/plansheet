@@ -303,6 +303,11 @@ export async function registerRoutes(
     res.json({ success: true });
   });
 
+  app.post('/api/classifier-codes/:id/duplicate', requireAuth, async (req, res) => {
+    const result = await storage.duplicateClassifierCodeWithChildren(Number(req.params.id));
+    res.json(result);
+  });
+
   // === Contracts (Budgets) ===
 
   app.get('/api/contracts', async (_req, res) => {

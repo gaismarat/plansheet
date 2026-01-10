@@ -91,21 +91,21 @@ function flattenTree(
 ): ClassifierCodeWithChildren[] {
   const result: ClassifierCodeWithChildren[] = [];
 
-  const traverse = (nodeList: ClassifierCodeWithChildren[], depth: number, parentCollapsed: boolean, grandparentEyeCollapsed: boolean) => {
+  const traverse = (nodeList: ClassifierCodeWithChildren[], parentCollapsed: boolean, anyAncestorEyeCollapsed: boolean) => {
     for (const node of nodeList) {
       if (parentCollapsed) continue;
-      if (grandparentEyeCollapsed && depth >= 2) continue;
+      if (anyAncestorEyeCollapsed) continue;
       
       result.push(node);
       
       const isCodeCollapsed = collapsedCodes.has(node.id);
       const isEyeCollapsed = eyeCollapsed.has(node.id);
       
-      traverse(node.children, depth + 1, isCodeCollapsed, isEyeCollapsed);
+      traverse(node.children, isCodeCollapsed, isEyeCollapsed);
     }
   };
 
-  traverse(nodes, 0, false, false);
+  traverse(nodes, false, false);
   return result;
 }
 
@@ -118,7 +118,8 @@ export default function Codes() {
   
   const [collapsedCodes, setCollapsedCodes] = useState<Set<number>>(new Set());
   const [eyeCollapsed, setEyeCollapsed] = useState<Set<number>>(new Set());
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingNameId, setEditingNameId] = useState<number | null>(null);
+  const [editingCipherId, setEditingCipherId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState("");
   const [editingCipher, setEditingCipher] = useState("");
   const [addTypePopoverOpen, setAddTypePopoverOpen] = useState<number | null>(null);
@@ -146,7 +147,8 @@ export default function Codes() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/classifier-codes"] });
-      setEditingId(null);
+      setEditingNameId(null);
+      setEditingCipherId(null);
     },
   });
 
@@ -169,6 +171,16 @@ export default function Codes() {
     },
   });
 
+  const duplicateCode = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest("POST", `/api/classifier-codes/${id}/duplicate`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/classifier-codes"] });
+      toast({ title: "Код скопирован с дочерними элементами" });
+    },
+  });
+
   const toggleCodeCollapse = (id: number) => {
     setCollapsedCodes(prev => {
       const next = new Set(prev);
@@ -187,17 +199,24 @@ export default function Codes() {
     });
   };
 
-  const startEditing = (code: ClassifierCodeWithChildren) => {
+  const startEditingName = (code: ClassifierCodeWithChildren) => {
     if (!canEditCodes) return;
-    setEditingId(code.id);
-    setEditingName(code.name);
-    setEditingCipher(code.cipher);
+    setEditingNameId(code.id);
+    setEditingName(code.name === "..." ? "" : code.name);
   };
 
-  const saveEditing = () => {
-    if (editingId !== null) {
-      updateCode.mutate({ id: editingId, updates: { name: editingName, cipher: editingCipher } });
-    }
+  const startEditingCipher = (code: ClassifierCodeWithChildren) => {
+    if (!canEditCodes) return;
+    setEditingCipherId(code.id);
+    setEditingCipher(code.cipher === "..." ? "" : code.cipher);
+  };
+
+  const saveEditingName = (id: number, currentName: string) => {
+    updateCode.mutate({ id, updates: { name: editingName } });
+  };
+
+  const saveEditingCipher = (id: number) => {
+    updateCode.mutate({ id, updates: { cipher: editingCipher } });
   };
 
   const handleAddCode = (insertAfterIndex: number, type: CodeType) => {
@@ -227,12 +246,7 @@ export default function Codes() {
   };
 
   const handleDuplicateRow = (code: ClassifierCodeWithChildren) => {
-    createCode.mutate({
-      type: code.type as CodeType,
-      name: code.name,
-      cipher: code.cipher + "_копия",
-      parentId: code.parentId || undefined,
-    });
+    duplicateCode.mutate(code.id);
   };
 
   const getAvailableTypes = (insertAfterIndex: number): CodeType[] => {
@@ -319,18 +333,16 @@ export default function Codes() {
                 
                 {flatList.map((code, index) => {
                   const indent = TYPE_INDENT[code.type as CodeType] * 24;
-                  const isEditing = editingId === code.id;
                   const isCollapsed = collapsedCodes.has(code.id);
                   const isEyeCollapsedState = eyeCollapsed.has(code.id);
                   const showChildren = hasChildren(code);
 
                   return (
-                    <>
-                      <tr
-                        key={code.id}
-                        className={`hover:bg-muted/30 ${code.type === "article" ? "bg-primary/5 font-semibold" : ""}`}
-                        data-testid={`row-code-${code.id}`}
-                      >
+                    <tr
+                      key={code.id}
+                      className={`hover:bg-muted/30 ${code.type === "article" ? "bg-primary/5 font-semibold" : ""}`}
+                      data-testid={`row-code-${code.id}`}
+                    >
                         <td className="border border-border px-3 py-2">
                           <div className="flex items-center gap-2" style={{ paddingLeft: indent }}>
                             {showChildren && (
@@ -363,12 +375,12 @@ export default function Codes() {
                           </div>
                         </td>
                         <td className="border border-border px-3 py-2">
-                          {isEditing ? (
+                          {editingNameId === code.id ? (
                             <Input
                               value={editingName}
                               onChange={(e) => setEditingName(e.target.value)}
-                              onBlur={saveEditing}
-                              onKeyDown={(e) => e.key === "Enter" && saveEditing()}
+                              onBlur={() => saveEditingName(code.id, code.name)}
+                              onKeyDown={(e) => e.key === "Enter" && saveEditingName(code.id, code.name)}
                               autoFocus
                               placeholder="..."
                               className="h-8"
@@ -377,7 +389,7 @@ export default function Codes() {
                           ) : (
                             <span
                               className={`cursor-pointer hover:bg-muted/50 px-1 rounded whitespace-normal break-words ${code.type !== "article" ? "italic" : ""}`}
-                              onClick={() => startEditing(code)}
+                              onClick={() => startEditingName(code)}
                               data-testid={`text-name-${code.id}`}
                             >
                               {code.name || "..."}
@@ -385,12 +397,13 @@ export default function Codes() {
                           )}
                         </td>
                         <td className="border border-border px-3 py-2">
-                          {isEditing ? (
+                          {editingCipherId === code.id ? (
                             <Input
                               value={editingCipher}
                               onChange={(e) => setEditingCipher(e.target.value)}
-                              onBlur={saveEditing}
-                              onKeyDown={(e) => e.key === "Enter" && saveEditing()}
+                              onBlur={() => saveEditingCipher(code.id)}
+                              onKeyDown={(e) => e.key === "Enter" && saveEditingCipher(code.id)}
+                              autoFocus
                               placeholder="..."
                               className="h-8"
                               data-testid={`input-cipher-${code.id}`}
@@ -398,7 +411,7 @@ export default function Codes() {
                           ) : (
                             <span
                               className="cursor-pointer hover:bg-muted/50 px-1 rounded"
-                              onClick={() => startEditing(code)}
+                              onClick={() => startEditingCipher(code)}
                               data-testid={`text-cipher-${code.id}`}
                             >
                               {code.cipher || "..."}
@@ -475,8 +488,7 @@ export default function Codes() {
                             </div>
                           )}
                         </td>
-                      </tr>
-                    </>
+                    </tr>
                   );
                 })}
               </tbody>

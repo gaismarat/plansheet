@@ -251,6 +251,7 @@ export interface IStorage {
   updateClassifierCode(id: number, updates: Partial<InsertClassifierCode>): Promise<ClassifierCode>;
   deleteClassifierCode(id: number): Promise<void>;
   reorderClassifierCode(id: number, direction: 'up' | 'down'): Promise<void>;
+  duplicateClassifierCodeWithChildren(id: number): Promise<ClassifierCode[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1783,6 +1784,39 @@ export class DatabaseStorage implements IStorage {
     const swapWith = siblings[swapIndex];
     await db.update(classifierCodes).set({ orderIndex: swapWith.orderIndex }).where(eq(classifierCodes.id, id));
     await db.update(classifierCodes).set({ orderIndex: code.orderIndex }).where(eq(classifierCodes.id, swapWith.id));
+  }
+
+  async duplicateClassifierCodeWithChildren(id: number): Promise<ClassifierCode[]> {
+    const allCodes = await this.getClassifierCodes();
+    const codeMap = new Map<number, ClassifierCode>();
+    allCodes.forEach(c => codeMap.set(c.id, c));
+
+    const original = codeMap.get(id);
+    if (!original) return [];
+
+    const createdCodes: ClassifierCode[] = [];
+
+    const duplicateRecursive = async (originalId: number, newParentId: number | null): Promise<void> => {
+      const orig = codeMap.get(originalId);
+      if (!orig) return;
+
+      const isRoot = originalId === id;
+      const newCode = await this.createClassifierCode({
+        type: orig.type as "article" | "zone" | "element" | "detail",
+        name: orig.name,
+        cipher: isRoot ? orig.cipher + "_копия" : orig.cipher,
+        parentId: newParentId,
+      });
+      createdCodes.push(newCode);
+
+      const children = allCodes.filter(c => c.parentId === originalId);
+      for (const child of children) {
+        await duplicateRecursive(child.id, newCode.id);
+      }
+    };
+
+    await duplicateRecursive(id, original.parentId);
+    return createdCodes;
   }
 }
 
