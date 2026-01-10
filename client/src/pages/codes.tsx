@@ -91,21 +91,32 @@ function flattenTree(
 ): ClassifierCodeWithChildren[] {
   const result: ClassifierCodeWithChildren[] = [];
 
-  const traverse = (nodeList: ClassifierCodeWithChildren[], parentCollapsed: boolean, anyAncestorEyeCollapsed: boolean) => {
+  // hideByEye: true если у "дедушки" или выше есть глаз (скрываем этот узел)
+  // parentHasEye: у прямого родителя есть глаз (не скрываем, но внуки будут скрыты)
+  const traverse = (
+    nodeList: ClassifierCodeWithChildren[], 
+    parentCollapsed: boolean, 
+    hideByEye: boolean,
+    parentHasEye: boolean
+  ) => {
     for (const node of nodeList) {
       if (parentCollapsed) continue;
-      if (anyAncestorEyeCollapsed) continue;
+      // Скрываем если hideByEye true (у дедушки+ был глаз)
+      if (hideByEye) continue;
       
       result.push(node);
       
       const isCodeCollapsed = collapsedCodes.has(node.id);
-      const isEyeCollapsed = eyeCollapsed.has(node.id);
+      const nodeHasEye = eyeCollapsed.has(node.id);
       
-      traverse(node.children, isCodeCollapsed, isEyeCollapsed);
+      // Для детей:
+      // - hideByEye = старый hideByEye ИЛИ parentHasEye (если у родителя был глаз, внуки скрыты)
+      // - parentHasEye = текущий узел имеет глаз
+      traverse(node.children, isCodeCollapsed, hideByEye || parentHasEye, nodeHasEye);
     }
   };
 
-  traverse(nodes, false, false);
+  traverse(nodes, false, false, false);
   return result;
 }
 
