@@ -577,17 +577,6 @@ export default function Budget() {
       if (isGroup) {
         return (
           <div className="flex items-center gap-2">
-            {hasChildren && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-5 w-5 shrink-0"
-                data-testid={`button-eye-${row.id}`}
-                onClick={toggleEye}
-              >
-                {hasEye ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-              </Button>
-            )}
             <span className="text-sm font-semibold">{row.name}</span>
           </div>
         );
