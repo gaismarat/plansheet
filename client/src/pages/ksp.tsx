@@ -299,7 +299,6 @@ export default function KSP() {
           </div>
         </div>
       </header>
-
       <RowHeightsContext.Provider value={{ registerLeftRow, getRowHeight }}>
         <div className="flex-1 flex overflow-hidden">
           <div className="flex-shrink-0 border-r border-border bg-card overflow-y-auto" style={{ width: leftTableWidth }}>
@@ -390,7 +389,6 @@ export default function KSP() {
           </div>
         </div>
       </RowHeightsContext.Provider>
-
       <div className="bg-card border-t border-border p-3">
         <div className="container mx-auto flex items-center gap-6 text-sm flex-wrap">
           <div className="flex items-center gap-2">
@@ -398,7 +396,7 @@ export default function KSP() {
             <span className="text-muted-foreground">План</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-3 bg-amber-500 rounded-sm" />
+            <div className="w-4 h-3 rounded-sm bg-[#c8a2c8]" />
             <span className="text-muted-foreground">Факт</span>
           </div>
           <div className="flex items-center gap-2">
