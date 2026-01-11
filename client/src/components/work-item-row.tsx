@@ -348,7 +348,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                 {displayName}
               </span>
               <span className="text-xs text-muted-foreground font-mono">
-                ID: {work.id.toString().padStart(4, '0')} | {work.responsiblePerson}
+                ID: {work.id.toString().padStart(4, '0')}{isPdcWork && work.executorName ? ` | ${work.executorName}` : ''}
               </span>
             </div>
 
@@ -454,7 +454,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
 
           {/* Data Row */}
           <div className="grid grid-cols-12 gap-2 items-start text-xs" onClick={(e) => e.stopPropagation()}>
-            {/* Name & ID & Responsible */}
+            {/* Name & ID & Executor */}
             <div className="col-span-2 flex flex-col justify-center">
               <span 
                 className="font-semibold text-foreground text-sm line-clamp-3 break-words" 
@@ -467,9 +467,11 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
               <span className="text-xs text-muted-foreground font-mono mt-0.5">
                 ID: {work.id.toString().padStart(4, '0')}
               </span>
-              <span className="text-xs text-muted-foreground truncate" title={work.responsiblePerson}>
-                {work.responsiblePerson}
-              </span>
+              {isPdcWork && work.executorName && (
+                <span className="text-xs text-muted-foreground truncate" title={work.executorName}>
+                  {work.executorName}
+                </span>
+              )}
             </div>
 
             {/* Volume column */}

@@ -700,6 +700,7 @@ export type WorkTreeItem = Work & {
   pdcUnit: string;
   pdcQuantity: number;
   pdcCostWithVat: number;
+  executorName: string | null;
   materials?: WorkMaterial[];
 };
 

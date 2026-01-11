@@ -1380,12 +1380,18 @@ export class DatabaseStorage implements IStorage {
     const allSections = await db.select().from(pdcSections).orderBy(asc(pdcSections.order), asc(pdcSections.id));
     const allPdcGroups = await db.select().from(pdcGroups).orderBy(asc(pdcGroups.order), asc(pdcGroups.id));
     const allWorks = await db.select().from(works).orderBy(asc(works.order), asc(works.id));
+    const allExecutors = await db.select().from(executors);
 
     const worksByPdcGroupId = new Map<number, Work>();
     for (const w of allWorks) {
       if (w.pdcGroupId) {
         worksByPdcGroupId.set(w.pdcGroupId, w);
       }
+    }
+
+    const executorsById = new Map<number, string>();
+    for (const e of allExecutors) {
+      executorsById.set(e.id, e.name);
     }
 
     const result: WorksTreeResponse = [];
@@ -1427,12 +1433,14 @@ export class DatabaseStorage implements IStorage {
 
             const treeWorks: WorkTreeItem[] = [];
             if (work) {
+              const executorName = pdcGroup.executorId ? executorsById.get(pdcGroup.executorId) || null : null;
               treeWorks.push({
                 ...work,
                 pdcName: pdcGroup.name,
                 pdcUnit: pdcGroup.unit || "шт.",
                 pdcQuantity: quantity,
-                pdcCostWithVat: groupCostWithVat
+                pdcCostWithVat: groupCostWithVat,
+                executorName
               });
               sectionProgress += work.progressPercentage;
               sectionWorkCount++;

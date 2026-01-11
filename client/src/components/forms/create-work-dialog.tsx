@@ -43,7 +43,6 @@ export function CreateWorkDialog({ groupId }: CreateWorkDialogProps) {
     defaultValues: {
       groupId,
       name: "",
-      responsiblePerson: "",
       daysEstimated: 0,
       volumeAmount: 0,
       volumeUnit: "м3",
@@ -56,7 +55,7 @@ export function CreateWorkDialog({ groupId }: CreateWorkDialogProps) {
     mutate(values, {
       onSuccess: () => {
         setOpen(false);
-        form.reset({ ...values, name: "", responsiblePerson: "" }); // keep some defaults
+        form.reset({ ...values, name: "" });
       },
     });
   }
@@ -93,7 +92,7 @@ export function CreateWorkDialog({ groupId }: CreateWorkDialogProps) {
               )}
             />
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="daysEstimated"
@@ -102,20 +101,6 @@ export function CreateWorkDialog({ groupId }: CreateWorkDialogProps) {
                     <FormLabel>Дней (оценка)</FormLabel>
                     <FormControl>
                       <Input type="number" min="0" {...field} data-testid="input-days-estimated" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="responsiblePerson"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ответственный</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Иванов И.И." {...field} data-testid="input-responsible-person" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

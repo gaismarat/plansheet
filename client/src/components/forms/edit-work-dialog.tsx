@@ -26,7 +26,6 @@ import { Button } from "@/components/ui/button";
 import { Edit2 } from "lucide-react";
 
 const editWorkFormSchema = z.object({
-  responsiblePerson: z.string(),
   plannedPeople: z.coerce.number().min(0).max(9999),
   volumeActual: z.coerce.number().min(0),
   planStartDate: z.string(),
@@ -48,7 +47,6 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
   const form = useForm<EditWorkFormValues>({
     resolver: zodResolver(editWorkFormSchema),
     defaultValues: {
-      responsiblePerson: work.responsiblePerson || '',
       plannedPeople: work.plannedPeople ?? 0,
       volumeActual: work.volumeActual ?? 0,
       planStartDate: work.planStartDate || '',
@@ -61,7 +59,6 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
   function onSubmit(values: EditWorkFormValues) {
     mutate({ 
       id: work.id, 
-      responsiblePerson: values.responsiblePerson,
       plannedPeople: values.plannedPeople,
       volumeActual: values.volumeActual,
       planStartDate: values.planStartDate || undefined,
@@ -110,46 +107,26 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
               </FormControl>
             </FormItem>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="responsiblePerson"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ответственный</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Иванов И.И." 
-                        {...field} 
-                        data-testid={`input-responsible-person-${work.id}`}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="plannedPeople"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Людей (план)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        min="0" 
-                        max="9999"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                        data-testid={`input-planned-people-${work.id}`}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="plannedPeople"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Людей (план)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      min="0" 
+                      max="9999"
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                      data-testid={`input-planned-people-${work.id}`}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

@@ -21,7 +21,8 @@ import {
   X,
   Check,
   Tag,
-  Eye
+  Eye,
+  User
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import type { 
@@ -32,7 +33,8 @@ import type {
   PdcGroupWithElements,
   PdcElement,
   Stage,
-  ClassifierCode
+  ClassifierCode,
+  Executor
 } from "@shared/schema";
 import { useProjectContext } from "@/contexts/project-context";
 import {
@@ -1332,6 +1334,7 @@ function PDCGroupRow({
   documentId
 }: PDCGroupRowProps) {
   const { toast } = useToast();
+  const { currentProject, isOwner, isAdmin } = useProjectContext();
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(group.name);
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -1341,12 +1344,21 @@ function PDCGroupRow({
   const [codePickerOpen, setCodePickerOpen] = useState(false);
   const [expandedCodeNodes, setExpandedCodeNodes] = useState<Set<number>>(new Set());
   const [hiddenCodeNodes, setHiddenCodeNodes] = useState<Set<number>>(new Set());
+  const [executorPickerOpen, setExecutorPickerOpen] = useState(false);
+  const [newExecutorName, setNewExecutorName] = useState("");
 
   const { data: classifierCodes = [] } = useQuery<ClassifierCode[]>({
     queryKey: ["/api/classifier-codes"],
   });
 
+  const { data: executors = [] } = useQuery<Executor[]>({
+    queryKey: ["/api/projects", currentProject?.id, "executors"],
+    enabled: !!currentProject,
+  });
+
   const currentCode = classifierCodes.find(c => c.id === group.classifierCodeId);
+  const currentExecutor = executors.find(e => e.id === group.executorId);
+  const canManageExecutors = isOwner || isAdmin;
 
   const updateGroup = useMutation({
     mutationFn: async (updates: Partial<typeof group>) => {
@@ -1387,6 +1399,29 @@ function PDCGroupRow({
       setAddElementOpen(false);
       setNewElementName("");
       toast({ title: "Элемент добавлен" });
+    },
+  });
+
+  const createExecutor = useMutation({
+    mutationFn: async (name: string) => {
+      if (!currentProject) throw new Error("No project selected");
+      return await apiRequest("POST", `/api/projects/${currentProject.id}/executors`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", currentProject?.id, "executors"] });
+      setNewExecutorName("");
+      toast({ title: "Исполнитель добавлен" });
+    },
+  });
+
+  const deleteExecutor = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest("DELETE", `/api/executors/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", currentProject?.id, "executors"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pdc-documents", documentId] });
+      toast({ title: "Исполнитель удалён" });
     },
   });
 
@@ -1444,6 +1479,12 @@ function PDCGroupRow({
                     {currentCode.cipher} - {currentCode.name}
                   </span>
                 )}
+                {currentExecutor && (
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <User className="w-3 h-3" />
+                    {currentExecutor.name}
+                  </span>
+                )}
               </div>
               <div className="flex gap-1 shrink-0 invisible group-hover:visible">
                 <Dialog open={codePickerOpen} onOpenChange={setCodePickerOpen}>
@@ -1483,6 +1524,80 @@ function PDCGroupRow({
                     </div>
                   </DialogContent>
                 </Dialog>
+                <Popover open={executorPickerOpen} onOpenChange={setExecutorPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className={`h-6 w-6 ${currentExecutor ? 'text-primary' : ''}`} onClick={(e) => e.stopPropagation()} data-testid={`button-executor-picker-${group.id}`}>
+                      <User className="w-3 h-3" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-60 p-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Исполнитель</div>
+                      <div
+                        className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer hover:bg-muted ${!group.executorId ? 'bg-muted' : ''}`}
+                        onClick={() => {
+                          updateGroup.mutate({ executorId: null } as any);
+                          setExecutorPickerOpen(false);
+                        }}
+                      >
+                        <span className="text-sm text-muted-foreground">Не выбран</span>
+                      </div>
+                      {executors.map(executor => (
+                        <div
+                          key={executor.id}
+                          className={`flex items-center justify-between px-2 py-1.5 rounded ${group.executorId === executor.id ? 'bg-muted' : 'hover:bg-muted/50'}`}
+                        >
+                          <span
+                            className="flex-1 cursor-pointer text-sm"
+                            onClick={() => {
+                              updateGroup.mutate({ executorId: executor.id } as any);
+                              setExecutorPickerOpen(false);
+                            }}
+                          >
+                            {executor.name}
+                          </span>
+                          {canManageExecutors && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteExecutor.mutate(executor.id);
+                              }}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                      {canManageExecutors && (
+                        <div className="flex gap-1 pt-2 border-t">
+                          <Input
+                            placeholder="Новый исполнитель"
+                            value={newExecutorName}
+                            onChange={(e) => setNewExecutorName(e.target.value)}
+                            className="h-7 text-xs"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && newExecutorName.trim()) {
+                                createExecutor.mutate(newExecutorName);
+                              }
+                            }}
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => newExecutorName.trim() && createExecutor.mutate(newExecutorName)}
+                            disabled={!newExecutorName.trim()}
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingName(true); setName(group.name); }}>
                   <Pencil className="w-3 h-3" />
                 </Button>
