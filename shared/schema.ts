@@ -357,11 +357,22 @@ export type InsertPermission = z.infer<typeof insertPermissionSchema>;
 export type SafeUser = Omit<User, "passwordHash">;
 export type UserWithPermissions = SafeUser & { permissions: Permission[] };
 
+// === STAGES (Этапы проекта) TABLE ===
+
+export const stages = pgTable("stages", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  order: integer("order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === PDC (Protocol of Cost Agreement) TABLES ===
 
 export const pdcDocuments = pgTable("pdc_documents", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  stageId: integer("stage_id").references(() => stages.id, { onDelete: "set null" }), // Этап проекта
   name: text("name").notNull(),
   headerText: text("header_text"),
   vatRate: numeric("vat_rate", { precision: 5, scale: 2 }).default("20"),
@@ -387,6 +398,7 @@ export const pdcSections = pgTable("pdc_sections", {
 export const pdcGroups = pgTable("pdc_groups", {
   id: serial("id").primaryKey(),
   sectionId: integer("section_id").notNull().references(() => pdcSections.id, { onDelete: "cascade" }),
+  classifierCodeId: integer("classifier_code_id").references(() => classifierCodes.id, { onDelete: "set null" }), // Код классификатора
   name: text("name").notNull(),
   unit: text("unit").default("шт."),
   quantity: numeric("quantity", { precision: 18, scale: 4 }).default("0"),
@@ -406,10 +418,24 @@ export const pdcElements = pgTable("pdc_elements", {
   order: integer("order").default(0).notNull(),
 });
 
+// === STAGES RELATIONS ===
+
+export const stagesRelations = relations(stages, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [stages.projectId],
+    references: [projects.id],
+  }),
+  pdcDocuments: many(pdcDocuments),
+}));
+
 // === PDC RELATIONS ===
 
-export const pdcDocumentsRelations = relations(pdcDocuments, ({ many }) => ({
+export const pdcDocumentsRelations = relations(pdcDocuments, ({ one, many }) => ({
   blocks: many(pdcBlocks),
+  stage: one(stages, {
+    fields: [pdcDocuments.stageId],
+    references: [stages.id],
+  }),
 }));
 
 export const pdcBlocksRelations = relations(pdcBlocks, ({ one, many }) => ({
@@ -434,6 +460,10 @@ export const pdcGroupsRelations = relations(pdcGroups, ({ one, many }) => ({
     references: [pdcSections.id],
   }),
   elements: many(pdcElements),
+  classifierCode: one(classifierCodes, {
+    fields: [pdcGroups.classifierCodeId],
+    references: [classifierCodes.id],
+  }),
 }));
 
 export const pdcElementsRelations = relations(pdcElements, ({ one }) => ({
@@ -442,6 +472,12 @@ export const pdcElementsRelations = relations(pdcElements, ({ one }) => ({
     references: [pdcGroups.id],
   }),
 }));
+
+// === STAGES SCHEMAS ===
+
+export const insertStageSchema = createInsertSchema(stages).omit({ id: true, createdAt: true });
+export type Stage = typeof stages.$inferSelect;
+export type InsertStage = z.infer<typeof insertStageSchema>;
 
 // === PDC SCHEMAS ===
 
