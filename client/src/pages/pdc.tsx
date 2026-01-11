@@ -714,7 +714,7 @@ function PDCDocumentCard({
                         <div 
                           className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer hover:bg-muted ${!document.executorId ? 'bg-muted' : ''}`}
                           onClick={() => {
-                            updateDocument.mutate({ id: document.id, updates: { executorId: null } });
+                            updateDocument.mutate({ executorId: null });
                             setExecutorsMenuOpen(false);
                           }}
                           data-testid={`executor-option-none-${document.id}`}
@@ -752,7 +752,7 @@ function PDCDocumentCard({
                                 <span 
                                   className="text-sm cursor-pointer flex-1"
                                   onClick={() => {
-                                    updateDocument.mutate({ id: document.id, updates: { executorId: executor.id } });
+                                    updateDocument.mutate({ executorId: executor.id });
                                     setExecutorsMenuOpen(false);
                                   }}
                                   data-testid={`executor-option-${document.id}-${executor.id}`}
