@@ -102,7 +102,7 @@ export function PriceHistoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md" data-testid="dialog-price-history">
+      <DialogContent className="max-w-[550px]" data-testid="dialog-price-history">
         <DialogHeader>
           <DialogTitle data-testid="text-price-history-title">{title}</DialogTitle>
         </DialogHeader>
@@ -113,7 +113,7 @@ export function PriceHistoryDialog({
               <tbody>
                 <tr className="border-b bg-muted/50">
                   <td className="px-3 py-2 font-medium">Начальная цена</td>
-                  <td className="px-3 py-2 text-right font-mono">{initialPrice.toFixed(2)} ₽</td>
+                  <td className="px-3 py-2 text-right font-mono min-w-[100px]">{initialPrice.toFixed(2)} ₽</td>
                   <td className="px-3 py-2"></td>
                   <td className="px-3 py-2"></td>
                 </tr>
