@@ -125,7 +125,7 @@ export default function Budget() {
     if (contracts.length > 0 && !selectedContractId) {
       setSelectedContractId(contracts[0].id);
     }
-  }, [contracts, selectedContractId]);
+  }, [contracts]);
 
   const createContract = useMutation({
     mutationFn: async (name: string) => {
