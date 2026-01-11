@@ -537,18 +537,31 @@ export default function Budget() {
 
     const toggleEye = (e: React.MouseEvent) => {
       e.stopPropagation();
-      setEyeCollapsedRows(prev => {
-        const next = new Set(prev);
-        if (next.has(row.id)) {
-          // Removing eye - also remove eyes from all descendants
+      const descendantIds = getAllDescendantIds(row);
+      
+      if (eyeCollapsedRows.has(row.id)) {
+        // Removing eye - also expand all descendants and remove their eyes
+        setEyeCollapsedRows(prev => {
+          const next = new Set(prev);
           next.delete(row.id);
-          const descendantIds = getAllDescendantIds(row);
           descendantIds.forEach(id => next.delete(id));
-        } else {
+          return next;
+        });
+        // Also expand all descendants so collapsed groups become visible
+        setExpandedRows(prev => {
+          const next = new Set(prev);
           next.add(row.id);
-        }
-        return next;
-      });
+          descendantIds.forEach(id => next.add(id));
+          return next;
+        });
+      } else {
+        // Adding eye
+        setEyeCollapsedRows(prev => {
+          const next = new Set(prev);
+          next.add(row.id);
+          return next;
+        });
+      }
     };
 
     const getRowContent = () => {
