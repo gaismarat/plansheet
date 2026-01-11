@@ -308,6 +308,40 @@ export async function registerRoutes(
     res.json(result);
   });
 
+  // === Stages (Этапы проекта) ===
+
+  app.get('/api/projects/:projectId/stages', requireAuth, async (req, res) => {
+    const stagesList = await storage.getStages(Number(req.params.projectId));
+    res.json(stagesList);
+  });
+
+  app.post('/api/projects/:projectId/stages', requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const projectId = Number(req.params.projectId);
+    
+    // Проверяем права (только Owner/Admin)
+    const perm = await storage.getProjectPermission(user.id, projectId);
+    if (!perm || (!perm.isOwner && !perm.isAdmin)) {
+      return res.status(403).json({ message: "Только владелец или администратор может управлять этапами" });
+    }
+    
+    const stage = await storage.createStage({
+      projectId,
+      name: req.body.name || "Новый этап"
+    });
+    res.status(201).json(stage);
+  });
+
+  app.put('/api/stages/:id', requireAuth, async (req, res) => {
+    const updated = await storage.updateStage(Number(req.params.id), req.body);
+    res.json(updated);
+  });
+
+  app.delete('/api/stages/:id', requireAuth, async (req, res) => {
+    await storage.deleteStage(Number(req.params.id));
+    res.status(204).send();
+  });
+
   // === Contracts (Budgets) ===
 
   app.get('/api/contracts', async (_req, res) => {

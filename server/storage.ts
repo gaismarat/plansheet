@@ -21,6 +21,7 @@ import {
   projectPermissions,
   notifications,
   classifierCodes,
+  stages,
   type Block,
   type Work,
   type WorkGroup,
@@ -81,7 +82,9 @@ import {
   type InsertNotification,
   type ProjectWithPermission,
   type ClassifierCode,
-  type InsertClassifierCode
+  type InsertClassifierCode,
+  type Stage,
+  type InsertStage
 } from "@shared/schema";
 import { eq, and, isNull, asc, lt, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -252,6 +255,13 @@ export interface IStorage {
   deleteClassifierCode(id: number): Promise<void>;
   reorderClassifierCode(id: number, direction: 'up' | 'down'): Promise<void>;
   duplicateClassifierCodeWithChildren(id: number): Promise<ClassifierCode[]>;
+
+  // Stages (Этапы проекта)
+  getStages(projectId: number): Promise<Stage[]>;
+  createStage(stage: InsertStage): Promise<Stage>;
+  updateStage(id: number, updates: Partial<InsertStage>): Promise<Stage>;
+  deleteStage(id: number): Promise<void>;
+  createDefaultStages(projectId: number): Promise<Stage[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1424,6 +1434,9 @@ export class DatabaseStorage implements IStorage {
       calendarEdit: true
     });
     
+    // Создаём базовые этапы для нового проекта
+    await this.createDefaultStages(newProject.id);
+    
     return newProject;
   }
 
@@ -1817,6 +1830,52 @@ export class DatabaseStorage implements IStorage {
 
     await duplicateRecursive(id, original.parentId);
     return createdCodes;
+  }
+
+  // === STAGES (Этапы проекта) ===
+
+  async getStages(projectId: number): Promise<Stage[]> {
+    return await db.select().from(stages)
+      .where(eq(stages.projectId, projectId))
+      .orderBy(asc(stages.order), asc(stages.id));
+  }
+
+  async createStage(stage: InsertStage): Promise<Stage> {
+    const existingStages = await db.select().from(stages)
+      .where(eq(stages.projectId, stage.projectId));
+    const maxOrder = Math.max(...existingStages.map(s => s.order ?? 0), -1);
+    
+    const [newStage] = await db.insert(stages).values({
+      ...stage,
+      order: maxOrder + 1
+    }).returning();
+    return newStage;
+  }
+
+  async updateStage(id: number, updates: Partial<InsertStage>): Promise<Stage> {
+    const [updated] = await db.update(stages).set(updates).where(eq(stages.id, id)).returning();
+    return updated;
+  }
+
+  async deleteStage(id: number): Promise<void> {
+    // При удалении этапа, документы ПДЦ сбрасывают stageId на null (ON DELETE SET NULL)
+    await db.delete(stages).where(eq(stages.id, id));
+  }
+
+  async createDefaultStages(projectId: number): Promise<Stage[]> {
+    const [stage1] = await db.insert(stages).values({
+      projectId,
+      name: "Этап 1",
+      order: 0
+    }).returning();
+    
+    const [stage2] = await db.insert(stages).values({
+      projectId,
+      name: "Этап 2",
+      order: 1
+    }).returning();
+    
+    return [stage1, stage2];
   }
 }
 
