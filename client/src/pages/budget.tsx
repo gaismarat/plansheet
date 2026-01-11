@@ -322,12 +322,36 @@ export default function Budget() {
     return [];
   };
 
+  // Get all descendant row IDs (for expanding entire hierarchy)
+  const getAllDescendantIds = (row: BudgetRowWithChildren): number[] => {
+    let ids: number[] = [];
+    for (const child of row.children || []) {
+      ids.push(child.id);
+      ids = ids.concat(getAllDescendantIds(child));
+    }
+    return ids;
+  };
+
   const toggleRow = (rowId: number) => {
+    const row = contractData?.rows ? findRowById(contractData.rows, rowId) : null;
+    const isChapter = row?.level === "chapter";
+    
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(rowId)) {
       newExpanded.delete(rowId);
     } else {
       newExpanded.add(rowId);
+      
+      // For chapter: expand all descendants and reset their eyes
+      if (isChapter && row) {
+        const descendantIds = getAllDescendantIds(row);
+        descendantIds.forEach(id => newExpanded.add(id));
+        
+        // Reset eyes for all descendants
+        const newEyeCollapsed = new Set(eyeCollapsedRows);
+        descendantIds.forEach(id => newEyeCollapsed.delete(id));
+        setEyeCollapsedRows(newEyeCollapsed);
+      }
     }
     setExpandedRows(newExpanded);
   };
