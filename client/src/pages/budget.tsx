@@ -88,7 +88,7 @@ export default function Budget() {
   });
 
   const { data: stages = [] } = useQuery<Stage[]>({
-    queryKey: ["/api/project", currentProjectId, "stages"],
+    queryKey: [`/api/projects/${currentProjectId}/stages`],
     enabled: !!currentProjectId,
   });
 
