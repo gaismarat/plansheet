@@ -4,6 +4,9 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { requireAuth, requireAdmin } from "./auth";
+import { db } from "./db";
+import { stages } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -333,12 +336,44 @@ export async function registerRoutes(
   });
 
   app.put('/api/stages/:id', requireAuth, async (req, res) => {
-    const updated = await storage.updateStage(Number(req.params.id), req.body);
+    const user = req.user as any;
+    const stageId = Number(req.params.id);
+    
+    // Получаем stage чтобы узнать projectId
+    const allStages = await db.select().from(stages).where(eq(stages.id, stageId));
+    const stage = allStages[0];
+    if (!stage) {
+      return res.status(404).json({ message: "Этап не найден" });
+    }
+    
+    // Проверяем права (только Owner/Admin)
+    const perm = await storage.getProjectPermission(user.id, stage.projectId);
+    if (!perm || (!perm.isOwner && !perm.isAdmin)) {
+      return res.status(403).json({ message: "Только владелец или администратор может управлять этапами" });
+    }
+    
+    const updated = await storage.updateStage(stageId, req.body);
     res.json(updated);
   });
 
   app.delete('/api/stages/:id', requireAuth, async (req, res) => {
-    await storage.deleteStage(Number(req.params.id));
+    const user = req.user as any;
+    const stageId = Number(req.params.id);
+    
+    // Получаем stage чтобы узнать projectId
+    const allStages = await db.select().from(stages).where(eq(stages.id, stageId));
+    const stage = allStages[0];
+    if (!stage) {
+      return res.status(404).json({ message: "Этап не найден" });
+    }
+    
+    // Проверяем права (только Owner/Admin)
+    const perm = await storage.getProjectPermission(user.id, stage.projectId);
+    if (!perm || (!perm.isOwner && !perm.isAdmin)) {
+      return res.status(403).json({ message: "Только владелец или администратор может управлять этапами" });
+    }
+    
+    await storage.deleteStage(stageId);
     res.status(204).send();
   });
 

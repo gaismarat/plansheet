@@ -19,7 +19,9 @@ import {
   Pencil,
   Trash2,
   X,
-  Check
+  Check,
+  Tag,
+  Eye
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import type { 
@@ -28,8 +30,11 @@ import type {
   PdcBlockWithSections,
   PdcSectionWithGroups,
   PdcGroupWithElements,
-  PdcElement
+  PdcElement,
+  Stage,
+  ClassifierCode
 } from "@shared/schema";
+import { useProjectContext } from "@/contexts/project-context";
 import {
   Dialog,
   DialogContent,
@@ -49,6 +54,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const UNIT_OPTIONS = ["шт.", "п.м", "м²", "м³", "кг", "компл."];
 
@@ -298,6 +309,7 @@ function PDCDocumentCard({
   calculateDocumentTotal
 }: PDCDocumentCardProps) {
   const { toast } = useToast();
+  const { currentProject, isOwner, isAdmin } = useProjectContext();
   const [editingName, setEditingName] = useState(false);
   const [docName, setDocName] = useState(document.name);
   const [editingHeader, setEditingHeader] = useState(false);
@@ -306,10 +318,21 @@ function PDCDocumentCard({
   const [vatRate, setVatRate] = useState(document.vatRate || "20");
   const [addBlockDialogOpen, setAddBlockDialogOpen] = useState(false);
   const [newBlockName, setNewBlockName] = useState("");
+  const [stagesMenuOpen, setStagesMenuOpen] = useState(false);
+  const [editingStageId, setEditingStageId] = useState<number | null>(null);
+  const [editingStageName, setEditingStageName] = useState("");
+  const [newStageName, setNewStageName] = useState("");
+
+  const canManageStages = isOwner || isAdmin;
 
   const { data: documentData } = useQuery<PdcDocumentWithData>({
     queryKey: ["/api/pdc-documents", document.id],
     enabled: isExpanded,
+  });
+
+  const { data: stages = [] } = useQuery<Stage[]>({
+    queryKey: ["/api/projects", currentProject?.id, "stages"],
+    enabled: !!currentProject?.id,
   });
 
   const updateDocument = useMutation({
@@ -345,6 +368,41 @@ function PDCDocumentCard({
       toast({ title: "Блок добавлен" });
     },
   });
+
+  const createStage = useMutation({
+    mutationFn: async (name: string) => {
+      return await apiRequest("POST", `/api/projects/${currentProject?.id}/stages`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", currentProject?.id, "stages"] });
+      setNewStageName("");
+      toast({ title: "Этап добавлен" });
+    },
+  });
+
+  const updateStage = useMutation({
+    mutationFn: async ({ id, name }: { id: number; name: string }) => {
+      return await apiRequest("PUT", `/api/stages/${id}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", currentProject?.id, "stages"] });
+      setEditingStageId(null);
+      setEditingStageName("");
+    },
+  });
+
+  const deleteStage = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest("DELETE", `/api/stages/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects", currentProject?.id, "stages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pdc-documents"] });
+      toast({ title: "Этап удалён" });
+    },
+  });
+
+  const currentStage = stages.find(s => s.id === document.stageId);
 
   const total = documentData ? calculateDocumentTotal(documentData) : 0;
   const vat = parseNumeric(documentData?.vatRate || document.vatRate || "20");
@@ -441,7 +499,7 @@ function PDCDocumentCard({
         <CollapsibleContent>
           <div className="border-t border-border">
             <div className="flex justify-between items-start p-4 border-b border-border">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Dialog open={addBlockDialogOpen} onOpenChange={setAddBlockDialogOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
@@ -468,6 +526,127 @@ function PDCDocumentCard({
                     </div>
                   </DialogContent>
                 </Dialog>
+
+                {canManageStages ? (
+                  <Popover open={stagesMenuOpen} onOpenChange={setStagesMenuOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2" data-testid={`button-stage-select-${document.id}`}>
+                        Этап: {currentStage?.name || "не выбран"}
+                        <ChevronDown className="w-3 h-3" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[260px] p-2" align="start">
+                      <div className="space-y-1">
+                        <div 
+                          className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer hover:bg-muted ${!document.stageId ? 'bg-muted' : ''}`}
+                          onClick={() => {
+                            updateDocument.mutate({ stageId: null } as any);
+                            setStagesMenuOpen(false);
+                          }}
+                          data-testid="stage-option-none"
+                        >
+                          <span className="text-sm">не выбран</span>
+                        </div>
+                        
+                        {stages.map(stage => (
+                          <div 
+                            key={stage.id} 
+                            className={`flex items-center justify-between px-2 py-1.5 rounded ${document.stageId === stage.id ? 'bg-muted' : 'hover:bg-muted/50'}`}
+                          >
+                            {editingStageId === stage.id ? (
+                              <div className="flex items-center gap-1 flex-1">
+                                <Input
+                                  value={editingStageName}
+                                  onChange={(e) => setEditingStageName(e.target.value)}
+                                  className="h-7 text-sm"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && editingStageName.trim()) {
+                                      updateStage.mutate({ id: stage.id, name: editingStageName });
+                                    }
+                                    if (e.key === 'Escape') {
+                                      setEditingStageId(null);
+                                    }
+                                  }}
+                                />
+                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateStage.mutate({ id: stage.id, name: editingStageName })}>
+                                  <Check className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <span 
+                                  className="text-sm cursor-pointer flex-1"
+                                  onClick={() => {
+                                    updateDocument.mutate({ stageId: stage.id } as any);
+                                    setStagesMenuOpen(false);
+                                  }}
+                                  data-testid={`stage-option-${stage.id}`}
+                                >
+                                  {stage.name}
+                                </span>
+                                <div className="flex items-center gap-0.5">
+                                  <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    className="h-6 w-6"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingStageId(stage.id);
+                                      setEditingStageName(stage.name);
+                                    }}
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </Button>
+                                  <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    className="h-6 w-6 text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteStage.mutate(stage.id);
+                                    }}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        ))}
+
+                        <div className="pt-2 border-t mt-2">
+                          <div className="flex items-center gap-1">
+                            <Input
+                              placeholder="Новый этап..."
+                              value={newStageName}
+                              onChange={(e) => setNewStageName(e.target.value)}
+                              className="h-7 text-sm"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newStageName.trim()) {
+                                  createStage.mutate(newStageName);
+                                }
+                              }}
+                            />
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-7 w-7"
+                              onClick={() => newStageName.trim() && createStage.mutate(newStageName)}
+                              disabled={!newStageName.trim()}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <div className="text-sm text-muted-foreground px-2 py-1 bg-muted/50 rounded">
+                    Этап: {currentStage?.name || "не выбран"}
+                  </div>
+                )}
               </div>
               <div className="text-right max-w-[400px]">
                 {editingHeader ? (
@@ -985,6 +1164,9 @@ function PDCSectionRow({
 
   const sectionNumber = `${blockNumber}.${sectionIdx + 1}`;
   const sectionTotal = calculateSectionTotal(section);
+  
+  const groups = section.groups || [];
+  const allGroupsHaveCode = groups.length > 0 && groups.every(g => g.classifierCodeId != null);
 
   return (
     <>
@@ -996,7 +1178,11 @@ function PDCSectionRow({
           className="flex-1 min-w-[170px] flex gap-2 pl-6 pr-3 py-2 cursor-pointer border-l border-border"
           onClick={onToggle}
         >
-          <div className="w-1 self-stretch bg-primary rounded-sm shrink-0" />
+          <div 
+            className="w-1 self-stretch rounded-sm shrink-0" 
+            style={{ backgroundColor: allGroupsHaveCode ? '#35682d' : 'hsl(var(--primary))' }}
+            title={allGroupsHaveCode ? 'Все группы имеют код классификатора' : 'Не все группы имеют код классификатора'}
+          />
           <div className="flex flex-col flex-1 gap-0.5 min-w-0">
             {editingName ? (
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -1147,6 +1333,15 @@ function PDCGroupRow({
   const [fieldValue, setFieldValue] = useState("");
   const [addElementOpen, setAddElementOpen] = useState(false);
   const [newElementName, setNewElementName] = useState("");
+  const [codePickerOpen, setCodePickerOpen] = useState(false);
+  const [expandedCodeNodes, setExpandedCodeNodes] = useState<Set<number>>(new Set());
+  const [hiddenCodeNodes, setHiddenCodeNodes] = useState<Set<number>>(new Set());
+
+  const { data: classifierCodes = [] } = useQuery<ClassifierCode[]>({
+    queryKey: ["/api/classifier-codes"],
+  });
+
+  const currentCode = classifierCodes.find(c => c.id === group.classifierCodeId);
 
   const updateGroup = useMutation({
     mutationFn: async (updates: Partial<typeof group>) => {
@@ -1237,8 +1432,52 @@ function PDCGroupRow({
             </div>
           ) : (
             <>
-              <span className="text-sm font-medium whitespace-pre-wrap break-words flex-1">{group.name}</span>
+              <div className="flex-1 flex flex-col gap-0.5">
+                <span className="text-sm font-medium whitespace-pre-wrap break-words">{group.name}</span>
+                {currentCode && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {currentCode.cipher} - {currentCode.name}
+                  </span>
+                )}
+              </div>
               <div className="flex gap-1 shrink-0 invisible group-hover:visible">
+                <Dialog open={codePickerOpen} onOpenChange={setCodePickerOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className={`h-6 w-6 ${currentCode ? 'text-primary' : ''}`} onClick={(e) => e.stopPropagation()} data-testid={`button-code-picker-${group.id}`}>
+                      <Tag className="w-3 h-3" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
+                    <DialogHeader>
+                      <DialogTitle>Выбор кода классификатора</DialogTitle>
+                    </DialogHeader>
+                    <ScrollArea className="h-[60vh]">
+                      <ClassifierCodeTree
+                        codes={classifierCodes}
+                        selectedCodeId={group.classifierCodeId}
+                        expandedNodes={expandedCodeNodes}
+                        setExpandedNodes={setExpandedCodeNodes}
+                        hiddenNodes={hiddenCodeNodes}
+                        setHiddenNodes={setHiddenCodeNodes}
+                        onSelect={(codeId) => {
+                          updateGroup.mutate({ classifierCodeId: codeId } as any);
+                          setCodePickerOpen(false);
+                        }}
+                      />
+                    </ScrollArea>
+                    <div className="flex justify-between pt-2">
+                      <Button variant="outline" onClick={() => {
+                        updateGroup.mutate({ classifierCodeId: null } as any);
+                        setCodePickerOpen(false);
+                      }}>
+                        Очистить
+                      </Button>
+                      <Button variant="ghost" onClick={() => setCodePickerOpen(false)}>
+                        Закрыть
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setEditingName(true); setName(group.name); }}>
                   <Pencil className="w-3 h-3" />
                 </Button>
@@ -1546,6 +1785,167 @@ function PDCElementRow({
         {formatRubles(elementTotal)}
       </div>
       <div className="w-[200px] shrink-0 border-l border-border" />
+    </div>
+  );
+}
+
+// === Classifier Code Tree Component for selection ===
+interface ClassifierCodeTreeProps {
+  codes: ClassifierCode[];
+  selectedCodeId: number | null;
+  expandedNodes: Set<number>;
+  setExpandedNodes: React.Dispatch<React.SetStateAction<Set<number>>>;
+  hiddenNodes: Set<number>;
+  setHiddenNodes: React.Dispatch<React.SetStateAction<Set<number>>>;
+  onSelect: (codeId: number) => void;
+}
+
+interface FlatTreeNode {
+  code: ClassifierCode;
+  level: number;
+  hasChildren: boolean;
+  isHidden: boolean;
+  canSelect: boolean;
+}
+
+function ClassifierCodeTree({
+  codes,
+  selectedCodeId,
+  expandedNodes,
+  setExpandedNodes,
+  hiddenNodes,
+  setHiddenNodes,
+  onSelect
+}: ClassifierCodeTreeProps) {
+  const codeMap = new Map<number, ClassifierCode>();
+  codes.forEach(c => codeMap.set(c.id, c));
+
+  const getChildren = (parentId: number | null): ClassifierCode[] => {
+    return codes.filter(c => c.parentId === parentId).sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+  };
+
+  const hasChildren = (codeId: number): boolean => {
+    return codes.some(c => c.parentId === codeId);
+  };
+
+  const getAllDescendants = (codeId: number): number[] => {
+    const result: number[] = [];
+    const children = codes.filter(c => c.parentId === codeId);
+    for (const child of children) {
+      result.push(child.id);
+      result.push(...getAllDescendants(child.id));
+    }
+    return result;
+  };
+
+  const flattenTree = (parentId: number | null, level: number, parentHasEye: boolean, hideByEye: boolean): FlatTreeNode[] => {
+    const result: FlatTreeNode[] = [];
+    const children = getChildren(parentId);
+    
+    for (const code of children) {
+      const hasEye = hiddenNodes.has(code.id);
+      const isExpanded = expandedNodes.has(code.id);
+      const codeHasChildren = hasChildren(code.id);
+      
+      if (hideByEye) continue;
+      
+      result.push({
+        code,
+        level,
+        hasChildren: codeHasChildren,
+        isHidden: hasEye,
+        canSelect: code.type === 'detail'
+      });
+      
+      if (isExpanded && codeHasChildren) {
+        result.push(...flattenTree(code.id, level + 1, hasEye, hasEye && parentHasEye));
+      }
+    }
+    return result;
+  };
+
+  const flatNodes = flattenTree(null, 0, false, false);
+
+  const toggleExpand = (codeId: number) => {
+    const newSet = new Set(expandedNodes);
+    if (newSet.has(codeId)) {
+      newSet.delete(codeId);
+    } else {
+      newSet.add(codeId);
+    }
+    setExpandedNodes(newSet);
+  };
+
+  const toggleHide = (codeId: number) => {
+    const newSet = new Set(hiddenNodes);
+    if (newSet.has(codeId)) {
+      newSet.delete(codeId);
+    } else {
+      newSet.add(codeId);
+    }
+    setHiddenNodes(newSet);
+  };
+
+  const TYPE_LABELS: Record<string, string> = {
+    article: "Статья",
+    zone: "Зона",
+    element: "Элемент",
+    detail: "Деталь"
+  };
+
+  return (
+    <div className="space-y-0.5">
+      {flatNodes.length === 0 && (
+        <div className="text-sm text-muted-foreground p-4 text-center">
+          Нет кодов классификатора. Создайте их на странице "Коды".
+        </div>
+      )}
+      {flatNodes.map(node => (
+        <div 
+          key={node.code.id}
+          className={`flex items-center gap-2 px-2 py-1.5 rounded ${
+            selectedCodeId === node.code.id ? 'bg-primary/10' : 'hover:bg-muted/50'
+          } ${node.canSelect ? 'cursor-pointer' : ''}`}
+          style={{ paddingLeft: `${node.level * 16 + 8}px` }}
+          onClick={() => node.canSelect && onSelect(node.code.id)}
+        >
+          {node.hasChildren ? (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-5 w-5"
+              onClick={(e) => { e.stopPropagation(); toggleExpand(node.code.id); }}
+            >
+              {expandedNodes.has(node.code.id) ? (
+                <ChevronDown className="w-3 h-3" />
+              ) : (
+                <ChevronRight className="w-3 h-3" />
+              )}
+            </Button>
+          ) : (
+            <div className="w-5" />
+          )}
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-5 w-5 ${node.isHidden ? 'text-muted-foreground' : ''}`}
+            onClick={(e) => { e.stopPropagation(); toggleHide(node.code.id); }}
+          >
+            <Eye className={`w-3 h-3 ${node.isHidden ? 'opacity-40' : ''}`} />
+          </Button>
+          
+          <span className="text-xs text-muted-foreground w-16">
+            {TYPE_LABELS[node.code.type] || node.code.type}
+          </span>
+          <span className="text-sm font-medium">{node.code.cipher}</span>
+          <span className="text-sm flex-1">{node.code.name}</span>
+          
+          {node.canSelect && (
+            <span className="text-xs text-primary">Выбрать</span>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
