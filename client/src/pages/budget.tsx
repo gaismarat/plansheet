@@ -540,7 +540,10 @@ export default function Budget() {
       setEyeCollapsedRows(prev => {
         const next = new Set(prev);
         if (next.has(row.id)) {
+          // Removing eye - also remove eyes from all descendants
           next.delete(row.id);
+          const descendantIds = getAllDescendantIds(row);
+          descendantIds.forEach(id => next.delete(id));
         } else {
           next.add(row.id);
         }
