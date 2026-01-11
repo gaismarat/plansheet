@@ -372,7 +372,7 @@ export default function Budget() {
     return ids;
   };
 
-  const calculateAggregatedValues = (row: BudgetRowWithChildren, columnId: number): { manual: number; pdc: number } => {
+  const calculateAggregatedValues = (row: BudgetRowWithChildren, columnId: number): { manual: number; pdc: number; hasActual: boolean } => {
     const stageId = getColumnStageId(columnId);
     
     if (row.level === "item") {
@@ -380,9 +380,11 @@ export default function Budget() {
       const manualVal = parseValue(value?.manualValue);
       // Get actual cost from PDC for this row and stage
       const actualFromPdc = stageId ? (actualCostMap.get(`${row.id}-${stageId}`) || 0) : 0;
+      const hasActual = actualFromPdc > 0;
       return { 
         manual: manualVal, 
-        pdc: actualFromPdc > 0 ? actualFromPdc : manualVal  // Use actual from PDC if available
+        pdc: actualFromPdc,
+        hasActual
       };
     }
 
@@ -391,9 +393,10 @@ export default function Budget() {
     for (const child of row.children || []) {
       const childValues = calculateAggregatedValues(child, columnId);
       manual += childValues.manual;
-      pdc += childValues.pdc;
+      // For parent rows: use actual if available, otherwise use plan
+      pdc += childValues.hasActual ? childValues.pdc : childValues.manual;
     }
-    return { manual, pdc };
+    return { manual, pdc, hasActual: true };
   };
 
   const getDeviationColor = (row: BudgetRowWithChildren, manual: number, pdc: number): string => {
@@ -418,15 +421,23 @@ export default function Budget() {
     return rubles.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  const calculateTotalAcrossColumns = (row: BudgetRowWithChildren, stageColumns: BudgetColumn[]): { manual: number; pdc: number } => {
+  const calculateTotalAcrossColumns = (row: BudgetRowWithChildren, stageColumns: BudgetColumn[]): { manual: number; pdc: number; hasActual: boolean } => {
     let totalManual = 0;
     let totalPdc = 0;
+    let hasAnyActual = false;
     for (const col of stageColumns) {
       const values = calculateAggregatedValues(row, col.id);
       totalManual += values.manual;
-      totalPdc += values.pdc;
+      // For items: add actual if exists, otherwise add plan; for parents: values.pdc already has correct logic
+      if (row.level === "item") {
+        totalPdc += values.hasActual ? values.pdc : values.manual;
+        if (values.hasActual) hasAnyActual = true;
+      } else {
+        totalPdc += values.pdc;
+        hasAnyActual = true;
+      }
     }
-    return { manual: totalManual, pdc: totalPdc };
+    return { manual: totalManual, pdc: totalPdc, hasActual: hasAnyActual };
   };
 
   const getStageColumns = () => {
@@ -662,63 +673,82 @@ export default function Budget() {
             const totalCol = columns.find(c => c.isTotal);
             if (!totalCol) return null;
             const totalValues = calculateTotalAcrossColumns(row, stageColumns);
-            const showPdc = row.level !== "item" || row.rowType === "linked";
+            const isItemRow = row.level === "item";
+            const showPdc = !isItemRow || totalValues.hasActual;
             const deviation = totalValues.manual !== 0 ? ((totalValues.pdc - totalValues.manual) / totalValues.manual * 100) : 0;
             const deviationColor = getDeviationColor(row, totalValues.manual, totalValues.pdc);
             return (
               <div key={totalCol.id} className="w-[120px] shrink-0 border-l border-border flex flex-col justify-center px-2 py-1 text-right bg-muted/30">
                 <div className="text-xs font-mono font-semibold">{formatNumber(totalValues.manual)}</div>
-                {showPdc && totalValues.pdc !== totalValues.manual && (
+                {isItemRow && !totalValues.hasActual ? (
+                  <div className="text-xs font-mono text-muted-foreground">—</div>
+                ) : showPdc && totalValues.pdc !== totalValues.manual ? (
                   <div className={`text-xs font-mono ${deviationColor}`}>
                     {formatNumber(totalValues.pdc)} 
                     <span className="ml-1">
                       ({deviation > 0 ? "+" : ""}{deviation.toFixed(1)}%)
                     </span>
                   </div>
-                )}
+                ) : null}
               </div>
             );
           })()}
           {columns.filter(c => !c.isTotal).map(col => {
             const values = calculateAggregatedValues(row, col.id);
-            const showPdc = row.level !== "item" || row.rowType === "linked";
-            const deviation = values.manual !== 0 ? ((values.pdc - values.manual) / values.manual * 100) : 0;
-            const deviationColor = getDeviationColor(row, values.manual, values.pdc);
+            const isItemRow = row.level === "item";
+            const showPdc = !isItemRow || values.hasActual;
+            const pdcForCalc = isItemRow ? (values.hasActual ? values.pdc : values.manual) : values.pdc;
+            const deviation = values.manual !== 0 ? ((pdcForCalc - values.manual) / values.manual * 100) : 0;
+            const deviationColor = getDeviationColor(row, values.manual, pdcForCalc);
 
             return (
               <div key={col.id} className="w-[120px] shrink-0 border-l border-border flex flex-col justify-center px-2 py-1 text-right group/cell">
                 {isItem && row.rowType === "manual" ? (
-                  <div className="flex items-center justify-end gap-1">
-                    <div className="text-xs font-mono">{formatNumber(values.manual)}</div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-5 w-5 invisible group-hover/cell:visible"
-                      data-testid={`button-edit-value-${row.id}-${col.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const currentValue = parseValue(row.values?.find(v => v.columnId === col.id)?.manualValue);
-                        setEditingValueRowId(row.id);
-                        setEditingValueColumnId(col.id);
-                        setEditingValueRubles(currentValue.toFixed(2));
-                        setEditingValueRowName(row.name);
-                        setShowValueDrawer(true);
-                      }}
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </Button>
-                  </div>
-                ) : (
                   <>
-                    <div className="text-xs font-mono">{formatNumber(values.manual)}</div>
-                    {showPdc && values.pdc !== values.manual && (
+                    <div className="flex items-center justify-end gap-1">
+                      <div className="text-xs font-mono">{formatNumber(values.manual)}</div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-5 w-5 invisible group-hover/cell:visible"
+                        data-testid={`button-edit-value-${row.id}-${col.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const currentValue = parseValue(row.values?.find(v => v.columnId === col.id)?.manualValue);
+                          setEditingValueRowId(row.id);
+                          setEditingValueColumnId(col.id);
+                          setEditingValueRubles(currentValue.toFixed(2));
+                          setEditingValueRowName(row.name);
+                          setShowValueDrawer(true);
+                        }}
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    {values.hasActual ? (
                       <div className={`text-xs font-mono ${deviationColor}`}>
                         {formatNumber(values.pdc)} 
                         <span className="ml-1">
                           ({deviation > 0 ? "+" : ""}{deviation.toFixed(1)}%)
                         </span>
                       </div>
+                    ) : (
+                      <div className="text-xs font-mono text-muted-foreground">—</div>
                     )}
+                  </>
+                ) : (
+                  <>
+                    <div className="text-xs font-mono">{formatNumber(values.manual)}</div>
+                    {isItemRow && !values.hasActual ? (
+                      <div className="text-xs font-mono text-muted-foreground">—</div>
+                    ) : showPdc && pdcForCalc !== values.manual ? (
+                      <div className={`text-xs font-mono ${deviationColor}`}>
+                        {formatNumber(pdcForCalc)} 
+                        <span className="ml-1">
+                          ({deviation > 0 ? "+" : ""}{deviation.toFixed(1)}%)
+                        </span>
+                      </div>
+                    ) : null}
                   </>
                 )}
               </div>
