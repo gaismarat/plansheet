@@ -22,6 +22,7 @@ import {
   notifications,
   classifierCodes,
   stages,
+  executors,
   budgetRowCodes,
   type Block,
   type Work,
@@ -86,6 +87,8 @@ import {
   type InsertClassifierCode,
   type Stage,
   type InsertStage,
+  type Executor,
+  type InsertExecutor,
   type BudgetRowCode,
   type InsertBudgetRowCode,
   type BudgetRowCodeWithCode
@@ -244,6 +247,7 @@ export interface IStorage {
 
   // Project Permissions
   getProjectPermission(userId: number, projectId: number): Promise<ProjectPermission | undefined>;
+  getProjectPermissionsForUser(userId: number): Promise<ProjectPermission[]>;
   getProjectPermissions(projectId: number): Promise<(ProjectPermission & { username: string })[]>;
   setProjectPermission(permission: InsertProjectPermission): Promise<ProjectPermission>;
   updateProjectPermission(id: number, updates: Partial<InsertProjectPermission>): Promise<ProjectPermission>;
@@ -275,6 +279,12 @@ export interface IStorage {
   updateStage(id: number, updates: Partial<InsertStage>): Promise<Stage>;
   deleteStage(id: number): Promise<void>;
   createDefaultStages(projectId: number): Promise<Stage[]>;
+
+  // Executors (Исполнители проекта)
+  getExecutors(projectId: number): Promise<Executor[]>;
+  createExecutor(executor: InsertExecutor): Promise<Executor>;
+  updateExecutor(id: number, updates: Partial<InsertExecutor>): Promise<Executor>;
+  deleteExecutor(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1739,6 +1749,11 @@ export class DatabaseStorage implements IStorage {
     return perm;
   }
 
+  async getProjectPermissionsForUser(userId: number): Promise<ProjectPermission[]> {
+    return await db.select().from(projectPermissions)
+      .where(eq(projectPermissions.userId, userId));
+  }
+
   async getProjectPermissions(projectId: number): Promise<(ProjectPermission & { username: string })[]> {
     const perms = await db.select().from(projectPermissions).where(eq(projectPermissions.projectId, projectId));
     const result: (ProjectPermission & { username: string })[] = [];
@@ -2003,6 +2018,35 @@ export class DatabaseStorage implements IStorage {
     }).returning();
     
     return [stage1, stage2];
+  }
+
+  // === EXECUTORS (Исполнители проекта) ===
+
+  async getExecutors(projectId: number): Promise<Executor[]> {
+    return await db.select().from(executors)
+      .where(eq(executors.projectId, projectId))
+      .orderBy(asc(executors.order), asc(executors.id));
+  }
+
+  async createExecutor(executor: InsertExecutor): Promise<Executor> {
+    const existingExecutors = await db.select().from(executors)
+      .where(eq(executors.projectId, executor.projectId));
+    const maxOrder = Math.max(...existingExecutors.map(e => e.order ?? 0), -1);
+    
+    const [newExecutor] = await db.insert(executors).values({
+      ...executor,
+      order: maxOrder + 1
+    }).returning();
+    return newExecutor;
+  }
+
+  async updateExecutor(id: number, updates: Partial<InsertExecutor>): Promise<Executor> {
+    const [updated] = await db.update(executors).set(updates).where(eq(executors.id, id)).returning();
+    return updated;
+  }
+
+  async deleteExecutor(id: number): Promise<void> {
+    await db.delete(executors).where(eq(executors.id, id));
   }
 }
 

@@ -5,7 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { requireAuth, requireAdmin } from "./auth";
 import { db } from "./db";
-import { stages } from "@shared/schema";
+import { stages, executors } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export async function registerRoutes(
@@ -374,6 +374,67 @@ export async function registerRoutes(
     }
     
     await storage.deleteStage(stageId);
+    res.status(204).send();
+  });
+
+  // === Executors (Исполнители проекта) ===
+
+  app.get('/api/projects/:projectId/executors', requireAuth, async (req, res) => {
+    const executorsList = await storage.getExecutors(Number(req.params.projectId));
+    res.json(executorsList);
+  });
+
+  app.post('/api/projects/:projectId/executors', requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const projectId = Number(req.params.projectId);
+    
+    const perm = await storage.getProjectPermission(user.id, projectId);
+    if (!perm || (!perm.isOwner && !perm.isAdmin)) {
+      return res.status(403).json({ message: "Только владелец или администратор может управлять исполнителями" });
+    }
+    
+    const executor = await storage.createExecutor({
+      projectId,
+      name: req.body.name || "Новый исполнитель"
+    });
+    res.status(201).json(executor);
+  });
+
+  app.put('/api/executors/:id', requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const executorId = Number(req.params.id);
+    
+    const allExecutors = await db.select().from(executors).where(eq(executors.id, executorId));
+    const executor = allExecutors[0];
+    if (!executor) {
+      return res.status(404).json({ message: "Исполнитель не найден" });
+    }
+    
+    const perm = await storage.getProjectPermission(user.id, executor.projectId);
+    if (!perm || (!perm.isOwner && !perm.isAdmin)) {
+      return res.status(403).json({ message: "Только владелец или администратор может управлять исполнителями" });
+    }
+    
+    const updated = await storage.updateExecutor(executorId, req.body);
+    res.json(updated);
+  });
+
+  app.delete('/api/executors/:id', requireAuth, async (req, res) => {
+    const user = req.user as any;
+    const executorId = Number(req.params.id);
+    
+    const allExecutors = await db.select().from(executors).where(eq(executors.id, executorId));
+    const executor = allExecutors[0];
+    if (!executor) {
+      return res.status(404).json({ message: "Исполнитель не найден" });
+    }
+    
+    const perm = await storage.getProjectPermission(user.id, executor.projectId);
+    if (!perm || (!perm.isOwner && !perm.isAdmin)) {
+      return res.status(403).json({ message: "Только владелец или администратор может управлять исполнителями" });
+    }
+    
+    await storage.deleteExecutor(executorId);
     res.status(204).send();
   });
 
