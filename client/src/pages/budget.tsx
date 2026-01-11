@@ -20,7 +20,9 @@ import {
   Trash2,
   X,
   Check,
-  Link2
+  Link2,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import type { Contract, ContractWithData, BudgetColumn, BudgetRowWithChildren, BudgetValue, Stage, ClassifierCodeWithChildren, BudgetRowCodeWithCode } from "@shared/schema";
@@ -58,6 +60,7 @@ export default function Budget() {
   const [editingHeaderText, setEditingHeaderText] = useState(false);
   const [headerText, setHeaderText] = useState("");
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [eyeCollapsedRows, setEyeCollapsedRows] = useState<Set<number>>(new Set());
   const [editingColumnId, setEditingColumnId] = useState<number | null>(null);
   const [editingColumnName, setEditingColumnName] = useState("");
   const [newContractName, setNewContractName] = useState("");
@@ -125,7 +128,7 @@ export default function Budget() {
     if (contracts.length > 0 && !selectedContractId) {
       setSelectedContractId(contracts[0].id);
     }
-  }, [contracts]);
+  }, [contracts, selectedContractId]);
 
   const createContract = useMutation({
     mutationFn: async (name: string) => {
@@ -490,13 +493,17 @@ export default function Budget() {
     XLSX.writeFile(wb, `budget_${contractData.name}.xlsx`);
   };
 
-  const renderRow = (row: BudgetRowWithChildren, columns: BudgetColumn[], depth: number = 0, siblingIndex: number = 0, totalSiblings: number = 1) => {
+  const renderRow = (row: BudgetRowWithChildren, columns: BudgetColumn[], depth: number = 0, siblingIndex: number = 0, totalSiblings: number = 1, hideByEye: boolean = false) => {
+    // Eye-collapse pattern: hide grandchildren and below when parent has eye
+    if (hideByEye) return null;
+    
     const isExpanded = expandedRows.has(row.id);
     const hasChildren = row.children && row.children.length > 0;
     const isChapter = row.level === "chapter";
     const isSection = row.level === "section";
     const isGroup = row.level === "group";
     const isItem = row.level === "item";
+    const hasEye = eyeCollapsedRows.has(row.id);
 
     const canMoveUp = siblingIndex > 0;
     const canMoveDown = siblingIndex < totalSiblings - 1;
@@ -633,6 +640,28 @@ export default function Budget() {
                       <Link2 className="w-3 h-3" />
                     </Button>
                   )}
+                  {(isSection || isGroup) && hasChildren && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6"
+                      data-testid={`button-eye-${row.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEyeCollapsedRows(prev => {
+                          const next = new Set(prev);
+                          if (next.has(row.id)) {
+                            next.delete(row.id);
+                          } else {
+                            next.add(row.id);
+                          }
+                          return next;
+                        });
+                      }}
+                    >
+                      {hasEye ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    </Button>
+                  )}
                   {!isChapter && row.level !== "item" && (
                     <Button 
                       variant="ghost" 
@@ -757,7 +786,7 @@ export default function Budget() {
           <div className="w-[120px] shrink-0 border-l border-transparent" />
         </div>
 
-        {isExpanded && row.children?.map((child, idx) => renderRow(child, columns, depth + 1, idx, row.children?.length || 1))}
+        {isExpanded && row.children?.map((child, idx) => renderRow(child, columns, depth + 1, idx, row.children?.length || 1, hasEye))}
       </div>
     );
   };
