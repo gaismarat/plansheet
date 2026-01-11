@@ -413,6 +413,7 @@ export const pdcDocuments = pgTable("pdc_documents", {
   id: serial("id").primaryKey(),
   projectId: integer("project_id").references(() => projects.id, { onDelete: "cascade" }),
   stageId: integer("stage_id").references(() => stages.id, { onDelete: "set null" }), // Этап проекта
+  executorId: integer("executor_id").references(() => executors.id, { onDelete: "set null" }), // Исполнитель
   name: text("name").notNull(),
   headerText: text("header_text"),
   vatRate: numeric("vat_rate", { precision: 5, scale: 2 }).default("20"),
@@ -439,7 +440,6 @@ export const pdcGroups = pgTable("pdc_groups", {
   id: serial("id").primaryKey(),
   sectionId: integer("section_id").notNull().references(() => pdcSections.id, { onDelete: "cascade" }),
   classifierCodeId: integer("classifier_code_id").references(() => classifierCodes.id, { onDelete: "set null" }), // Код классификатора
-  executorId: integer("executor_id").references(() => executors.id, { onDelete: "set null" }), // Исполнитель
   name: text("name").notNull(),
   unit: text("unit").default("шт."),
   quantity: numeric("quantity", { precision: 18, scale: 4 }).default("0"),
@@ -476,7 +476,7 @@ export const executorsRelations = relations(executors, ({ one, many }) => ({
     fields: [executors.projectId],
     references: [projects.id],
   }),
-  pdcGroups: many(pdcGroups),
+  pdcDocuments: many(pdcDocuments),
 }));
 
 // === PDC RELATIONS ===
@@ -486,6 +486,10 @@ export const pdcDocumentsRelations = relations(pdcDocuments, ({ one, many }) => 
   stage: one(stages, {
     fields: [pdcDocuments.stageId],
     references: [stages.id],
+  }),
+  executor: one(executors, {
+    fields: [pdcDocuments.executorId],
+    references: [executors.id],
   }),
 }));
 
@@ -514,10 +518,6 @@ export const pdcGroupsRelations = relations(pdcGroups, ({ one, many }) => ({
   classifierCode: one(classifierCodes, {
     fields: [pdcGroups.classifierCodeId],
     references: [classifierCodes.id],
-  }),
-  executor: one(executors, {
-    fields: [pdcGroups.executorId],
-    references: [executors.id],
   }),
 }));
 

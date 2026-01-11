@@ -1433,7 +1433,7 @@ export class DatabaseStorage implements IStorage {
 
             const treeWorks: WorkTreeItem[] = [];
             if (work) {
-              const executorName = pdcGroup.executorId ? executorsById.get(pdcGroup.executorId) || null : null;
+              const executorName = doc.executorId ? executorsById.get(doc.executorId) || null : null;
               treeWorks.push({
                 ...work,
                 pdcName: pdcGroup.name,
