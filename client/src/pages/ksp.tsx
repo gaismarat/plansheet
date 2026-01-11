@@ -849,7 +849,7 @@ function GroupRightRow({
               <div className={`flex-1 ${
                 isDelay ? 'bg-red-500' : 
                 isAhead ? 'bg-green-500' : 
-                isInActualRange ? 'bg-amber-500' : ''
+                isInActualRange ? 'bg-[#c8a2c8]' : ''
               }`} />
             </div>
             {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
