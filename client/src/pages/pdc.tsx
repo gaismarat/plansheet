@@ -714,10 +714,10 @@ function PDCDocumentCard({
                         <div 
                           className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer hover:bg-muted ${!document.executorId ? 'bg-muted' : ''}`}
                           onClick={() => {
-                            updateDocument.mutate({ executorId: null } as any);
+                            updateDocument.mutate({ id: document.id, updates: { executorId: null } });
                             setExecutorsMenuOpen(false);
                           }}
-                          data-testid="executor-option-none"
+                          data-testid={`executor-option-none-${document.id}`}
                         >
                           <span className="text-sm">не выбран</span>
                         </div>
@@ -743,7 +743,7 @@ function PDCDocumentCard({
                                     }
                                   }}
                                 />
-                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateExecutor.mutate({ id: executor.id, name: editingExecutorName })}>
+                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateExecutor.mutate({ id: executor.id, name: editingExecutorName })} data-testid={`button-executor-confirm-${executor.id}`}>
                                   <Check className="w-3 h-3" />
                                 </Button>
                               </div>
@@ -752,10 +752,10 @@ function PDCDocumentCard({
                                 <span 
                                   className="text-sm cursor-pointer flex-1"
                                   onClick={() => {
-                                    updateDocument.mutate({ executorId: executor.id } as any);
+                                    updateDocument.mutate({ id: document.id, updates: { executorId: executor.id } });
                                     setExecutorsMenuOpen(false);
                                   }}
-                                  data-testid={`executor-option-${executor.id}`}
+                                  data-testid={`executor-option-${document.id}-${executor.id}`}
                                 >
                                   {executor.name}
                                 </span>
@@ -769,6 +769,7 @@ function PDCDocumentCard({
                                       setEditingExecutorId(executor.id);
                                       setEditingExecutorName(executor.name);
                                     }}
+                                    data-testid={`button-executor-edit-${executor.id}`}
                                   >
                                     <Pencil className="w-3 h-3" />
                                   </Button>
@@ -780,6 +781,7 @@ function PDCDocumentCard({
                                       e.stopPropagation();
                                       deleteExecutor.mutate(executor.id);
                                     }}
+                                    data-testid={`button-executor-delete-${executor.id}`}
                                   >
                                     <Trash2 className="w-3 h-3" />
                                   </Button>
@@ -808,6 +810,7 @@ function PDCDocumentCard({
                               className="h-7 w-7"
                               onClick={() => newExecutorName.trim() && createExecutor.mutate(newExecutorName)}
                               disabled={!newExecutorName.trim()}
+                              data-testid={`button-executor-add-${document.id}`}
                             >
                               <Plus className="w-4 h-4" />
                             </Button>
@@ -817,7 +820,7 @@ function PDCDocumentCard({
                     </PopoverContent>
                   </Popover>
                 ) : (
-                  <div className="text-sm text-muted-foreground px-2 py-1 bg-muted/50 rounded flex items-center gap-1">
+                  <div className="text-sm text-muted-foreground px-2 py-1 bg-muted/50 rounded flex items-center gap-1" data-testid={`text-executor-${document.id}`}>
                     <User className="w-4 h-4" />
                     Исполнитель: {currentExecutor?.name || "не выбран"}
                   </div>
