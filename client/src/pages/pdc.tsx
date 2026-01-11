@@ -1858,7 +1858,9 @@ function ClassifierCodeTree({
       });
       
       if (isExpanded && codeHasChildren) {
-        result.push(...flattenTree(code.id, level + 1, hasEye, hasEye && parentHasEye));
+        // hideByEye = hideByEye || parentHasEye (если у родителя был глаз, внуки скрыты)
+        // parentHasEye = текущий узел имеет глаз
+        result.push(...flattenTree(code.id, level + 1, hasEye, hideByEye || parentHasEye));
       }
     }
     return result;
