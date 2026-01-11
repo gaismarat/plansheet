@@ -493,8 +493,9 @@ export default function Budget() {
     XLSX.writeFile(wb, `budget_${contractData.name}.xlsx`);
   };
 
-  const renderRow = (row: BudgetRowWithChildren, columns: BudgetColumn[], depth: number = 0, siblingIndex: number = 0, totalSiblings: number = 1, hideByEye: boolean = false) => {
-    // Eye-collapse pattern: hide grandchildren and below when parent has eye
+  const renderRow = (row: BudgetRowWithChildren, columns: BudgetColumn[], depth: number = 0, siblingIndex: number = 0, totalSiblings: number = 1, hideByEye: boolean = false, parentHasEye: boolean = false) => {
+    // Eye-collapse pattern: hide grandchildren and below when grandparent has eye
+    // hideByEye comes from grandparent (parent's parent had eye)
     if (hideByEye) return null;
     
     const isExpanded = expandedRows.has(row.id);
@@ -510,6 +511,19 @@ export default function Budget() {
 
     const paddingLeft = isChapter ? 12 : isSection ? 24 : isGroup ? 36 : 48;
 
+    const toggleEye = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setEyeCollapsedRows(prev => {
+        const next = new Set(prev);
+        if (next.has(row.id)) {
+          next.delete(row.id);
+        } else {
+          next.add(row.id);
+        }
+        return next;
+      });
+    };
+
     const getRowContent = () => {
       if (isChapter) {
         return <span className="text-sm font-bold uppercase">{row.name}</span>;
@@ -517,13 +531,39 @@ export default function Budget() {
       if (isSection) {
         return (
           <div className="flex items-center gap-2">
+            {hasChildren && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-5 w-5 shrink-0"
+                data-testid={`button-eye-${row.id}`}
+                onClick={toggleEye}
+              >
+                {hasEye ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              </Button>
+            )}
             <div className="w-1 self-stretch bg-primary rounded-sm shrink-0" />
             <span className="text-sm font-semibold uppercase">{row.name}</span>
           </div>
         );
       }
       if (isGroup) {
-        return <span className="text-sm font-semibold">{row.name}</span>;
+        return (
+          <div className="flex items-center gap-2">
+            {hasChildren && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-5 w-5 shrink-0"
+                data-testid={`button-eye-${row.id}`}
+                onClick={toggleEye}
+              >
+                {hasEye ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              </Button>
+            )}
+            <span className="text-sm font-semibold">{row.name}</span>
+          </div>
+        );
       }
       return (
         <span className="text-sm">
@@ -638,28 +678,6 @@ export default function Budget() {
                       }}
                     >
                       <Link2 className="w-3 h-3" />
-                    </Button>
-                  )}
-                  {(isSection || isGroup) && hasChildren && (
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-6 w-6"
-                      data-testid={`button-eye-${row.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEyeCollapsedRows(prev => {
-                          const next = new Set(prev);
-                          if (next.has(row.id)) {
-                            next.delete(row.id);
-                          } else {
-                            next.add(row.id);
-                          }
-                          return next;
-                        });
-                      }}
-                    >
-                      {hasEye ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                     </Button>
                   )}
                   {!isChapter && row.level !== "item" && (
@@ -786,7 +804,7 @@ export default function Budget() {
           <div className="w-[120px] shrink-0 border-l border-transparent" />
         </div>
 
-        {isExpanded && row.children?.map((child, idx) => renderRow(child, columns, depth + 1, idx, row.children?.length || 1, hasEye))}
+        {isExpanded && row.children?.map((child, idx) => renderRow(child, columns, depth + 1, idx, row.children?.length || 1, parentHasEye, hasEye))}
       </div>
     );
   };
