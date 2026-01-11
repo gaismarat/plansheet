@@ -19,10 +19,13 @@ import {
   Pencil,
   Trash2,
   X,
-  Check
+  Check,
+  Link2
 } from "lucide-react";
 import * as XLSX from "xlsx";
-import type { Contract, ContractWithData, BudgetColumn, BudgetRowWithChildren, BudgetValue } from "@shared/schema";
+import type { Contract, ContractWithData, BudgetColumn, BudgetRowWithChildren, BudgetValue, Stage, ClassifierCodeWithChildren, BudgetRowCodeWithCode } from "@shared/schema";
+import { useProjectContext } from "@/contexts/project-context";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +53,7 @@ import { Label } from "@/components/ui/label";
 
 export default function Budget() {
   const { toast } = useToast();
+  const { currentProjectId } = useProjectContext();
   const [selectedContractId, setSelectedContractId] = useState<number | null>(null);
   const [editingHeaderText, setEditingHeaderText] = useState(false);
   const [headerText, setHeaderText] = useState("");
@@ -70,6 +74,9 @@ export default function Budget() {
   const [editingValueRubles, setEditingValueRubles] = useState<string>("");
   const [editingValueRowName, setEditingValueRowName] = useState<string>("");
   const [showValueDrawer, setShowValueDrawer] = useState(false);
+  const [codesDialogRowId, setCodesDialogRowId] = useState<number | null>(null);
+  const [selectedCodeIds, setSelectedCodeIds] = useState<Set<number>>(new Set());
+  const [expandedCodeNodes, setExpandedCodeNodes] = useState<Set<number>>(new Set());
 
   const { data: contracts = [], isLoading: contractsLoading } = useQuery<Contract[]>({
     queryKey: ["/api/contracts"],
@@ -79,6 +86,34 @@ export default function Budget() {
     queryKey: ["/api/contracts", selectedContractId],
     enabled: !!selectedContractId,
   });
+
+  const { data: stages = [] } = useQuery<Stage[]>({
+    queryKey: ["/api/project", currentProjectId, "stages"],
+    enabled: !!currentProjectId,
+  });
+
+  const { data: classifierCodes = [] } = useQuery<ClassifierCodeWithChildren[]>({
+    queryKey: ["/api/classifier-codes"],
+  });
+
+  const { data: rowCodes = [] } = useQuery<BudgetRowCodeWithCode[]>({
+    queryKey: ["/api/budget-rows", codesDialogRowId, "codes"],
+    enabled: !!codesDialogRowId,
+  });
+
+  // Actual costs from PDC (grouped by rowId and stageId)
+  const { data: actualCosts = [] } = useQuery<{ rowId: number; stageId: number; actualCost: number }[]>({
+    queryKey: [`/api/budget-actual-costs/${currentProjectId}`],
+    enabled: !!currentProjectId,
+  });
+
+  useEffect(() => {
+    if (codesDialogRowId && rowCodes.length > 0) {
+      setSelectedCodeIds(new Set(rowCodes.map(rc => rc.codeId)));
+    } else if (!codesDialogRowId) {
+      setSelectedCodeIds(new Set());
+    }
+  }, [rowCodes, codesDialogRowId]);
 
   useEffect(() => {
     if (contractData?.headerText) {
@@ -209,6 +244,28 @@ export default function Budget() {
     },
   });
 
+  const updateColumnStage = useMutation({
+    mutationFn: async ({ id, stageId }: { id: number; stageId: number | null }) => {
+      return await apiRequest("PUT", `/api/budget-columns/${id}`, { stageId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", selectedContractId] });
+    },
+  });
+
+  const updateRowCodes = useMutation({
+    mutationFn: async ({ rowId, codeIds }: { rowId: number; codeIds: number[] }) => {
+      return await apiRequest("PUT", `/api/budget-rows/${rowId}/codes`, { codeIds });
+    },
+    onSuccess: () => {
+      if (codesDialogRowId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/budget-rows", codesDialogRowId, "codes"] });
+      }
+      setCodesDialogRowId(null);
+      toast({ title: "Коды сохранены" });
+    },
+  });
+
   const findRowById = (rows: BudgetRowWithChildren[], id: number): BudgetRowWithChildren | null => {
     for (const row of rows) {
       if (row.id === id) return row;
@@ -284,14 +341,48 @@ export default function Budget() {
     return typeof val === 'string' ? parseFloat(val) || 0 : val;
   };
 
+  // Build actual cost map: key = "rowId-stageId", value = actualCost
+  const actualCostMap = new Map<string, number>();
+  actualCosts.forEach(ac => {
+    actualCostMap.set(`${ac.rowId}-${ac.stageId}`, ac.actualCost);
+  });
+
+  // Get stageId for a column
+  const getColumnStageId = (columnId: number): number | null => {
+    const col = contractData?.columns?.find(c => c.id === columnId);
+    return col?.stageId ?? null;
+  };
+
+  // Get actual cost for row+column from PDC data
+  const getActualCostForCell = (rowId: number, columnId: number): number => {
+    const stageId = getColumnStageId(columnId);
+    if (!stageId) return 0;
+    return actualCostMap.get(`${rowId}-${stageId}`) || 0;
+  };
+
+  // Recursive function to get all descendant item row IDs
+  const getDescendantItemRowIds = (row: BudgetRowWithChildren): number[] => {
+    if (row.level === "item") {
+      return [row.id];
+    }
+    let ids: number[] = [];
+    for (const child of row.children || []) {
+      ids = ids.concat(getDescendantItemRowIds(child));
+    }
+    return ids;
+  };
+
   const calculateAggregatedValues = (row: BudgetRowWithChildren, columnId: number): { manual: number; pdc: number } => {
+    const stageId = getColumnStageId(columnId);
+    
     if (row.level === "item") {
       const value = row.values?.find(v => v.columnId === columnId);
       const manualVal = parseValue(value?.manualValue);
-      const pdcVal = parseValue(value?.pdcValue);
+      // Get actual cost from PDC for this row and stage
+      const actualFromPdc = stageId ? (actualCostMap.get(`${row.id}-${stageId}`) || 0) : 0;
       return { 
         manual: manualVal, 
-        pdc: row.rowType === "linked" ? pdcVal : manualVal
+        pdc: actualFromPdc > 0 ? actualFromPdc : manualVal  // Use actual from PDC if available
       };
     }
 
@@ -515,6 +606,20 @@ export default function Budget() {
                       }}
                     >
                       <ChevronDown className="w-3 h-3" />
+                    </Button>
+                  )}
+                  {isItem && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6"
+                      data-testid={`button-link-codes-${row.id}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCodesDialogRowId(row.id);
+                      }}
+                    >
+                      <Link2 className="w-3 h-3" />
                     </Button>
                   )}
                   {!isChapter && row.level !== "item" && (
@@ -747,7 +852,7 @@ export default function Budget() {
                     </div>
                   )}
                   {contractData.columns?.filter(c => !c.isTotal).map(col => (
-                    <div key={col.id} className="w-[120px] shrink-0 border-l border-border px-2 py-2 text-center">
+                    <div key={col.id} className="w-[120px] shrink-0 border-l border-border px-2 py-1 text-center flex flex-col gap-1">
                       {editingColumnId === col.id ? (
                         <div className="flex gap-1">
                           <Input
@@ -790,6 +895,20 @@ export default function Budget() {
                           </div>
                         </div>
                       )}
+                      <Select 
+                        value={col.stageId?.toString() || "none"} 
+                        onValueChange={(v) => updateColumnStage.mutate({ id: col.id, stageId: v === "none" ? null : parseInt(v) })}
+                      >
+                        <SelectTrigger className="h-5 text-[10px] px-1" data-testid={`select-stage-${col.id}`}>
+                          <SelectValue placeholder="Этап..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Нет этапа</SelectItem>
+                          {stages.map(stage => (
+                            <SelectItem key={stage.id} value={stage.id.toString()}>{stage.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   ))}
                   <div className="w-[120px] shrink-0 border-l border-border px-2 py-2">
@@ -986,6 +1105,134 @@ export default function Budget() {
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      <Dialog open={!!codesDialogRowId} onOpenChange={(open) => !open && setCodesDialogRowId(null)}>
+        <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Привязка кодов классификатора</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            {classifierCodes.filter(c => c.type === "article").map(article => (
+              <ClassifierCodeTree
+                key={article.id}
+                code={article}
+                allCodes={classifierCodes}
+                selectedIds={selectedCodeIds}
+                expandedIds={expandedCodeNodes}
+                onToggleSelect={(id) => {
+                  const newSelected = new Set(selectedCodeIds);
+                  if (newSelected.has(id)) {
+                    newSelected.delete(id);
+                  } else {
+                    newSelected.add(id);
+                  }
+                  setSelectedCodeIds(newSelected);
+                }}
+                onToggleExpand={(id) => {
+                  const newExpanded = new Set(expandedCodeNodes);
+                  if (newExpanded.has(id)) {
+                    newExpanded.delete(id);
+                  } else {
+                    newExpanded.add(id);
+                  }
+                  setExpandedCodeNodes(newExpanded);
+                }}
+              />
+            ))}
+            {classifierCodes.filter(c => c.type === "article").length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Нет кодов классификатора. Создайте их на странице "Коды".</p>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setCodesDialogRowId(null)}>
+              Отмена
+            </Button>
+            <Button 
+              onClick={() => {
+                if (codesDialogRowId) {
+                  updateRowCodes.mutate({ rowId: codesDialogRowId, codeIds: Array.from(selectedCodeIds) });
+                }
+              }}
+              data-testid="button-save-codes"
+            >
+              Сохранить
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function ClassifierCodeTree({
+  code,
+  allCodes,
+  selectedIds,
+  expandedIds,
+  onToggleSelect,
+  onToggleExpand,
+  depth = 0,
+}: {
+  code: ClassifierCodeWithChildren;
+  allCodes: ClassifierCodeWithChildren[];
+  selectedIds: Set<number>;
+  expandedIds: Set<number>;
+  onToggleSelect: (id: number) => void;
+  onToggleExpand: (id: number) => void;
+  depth?: number;
+}) {
+  const children = allCodes.filter(c => c.parentId === code.id);
+  const hasChildren = children.length > 0;
+  const isExpanded = expandedIds.has(code.id);
+  const isSelected = selectedIds.has(code.id);
+  const isLeaf = code.type === "detail" || !hasChildren;
+
+  return (
+    <div className="space-y-1">
+      <div 
+        className="flex items-center gap-2 py-1 px-2 rounded hover:bg-muted/50"
+        style={{ paddingLeft: depth * 16 + 8 }}
+      >
+        {hasChildren ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 shrink-0"
+            onClick={() => onToggleExpand(code.id)}
+          >
+            {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          </Button>
+        ) : (
+          <div className="w-5 shrink-0" />
+        )}
+        {isLeaf && (
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => onToggleSelect(code.id)}
+            data-testid={`checkbox-code-${code.id}`}
+          />
+        )}
+        <span className="text-sm">
+          <span className="font-mono text-xs text-muted-foreground mr-2">{code.cipher}</span>
+          {code.name}
+        </span>
+      </div>
+      {hasChildren && isExpanded && (
+        <div>
+          {children.map(child => (
+            <ClassifierCodeTree
+              key={child.id}
+              code={child}
+              allCodes={allCodes}
+              selectedIds={selectedIds}
+              expandedIds={expandedIds}
+              onToggleSelect={onToggleSelect}
+              onToggleExpand={onToggleExpand}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

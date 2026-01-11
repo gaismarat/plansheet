@@ -34,6 +34,16 @@ Preferred communication style: Simple, everyday language.
   - `work_groups`: Categories of construction work (e.g., "Earthworks", "Foundation")
   - `works`: Individual work items with planned/actual metrics (days, volume, cost, dates, progress)
   - `holidays`: Calendar of non-working days for scheduling
+  - `budget_columns`: Budget table columns with optional `stageId` to link with project stages
+  - `budget_row_codes`: Many-to-many relationship linking budget rows with classifier codes for PDC integration
+  - `stages`: Project stages for organizing PDC documents and budget columns
+
+### Budget-PDC Integration (January 2026)
+- **Budget columns** can be linked to project stages (`stageId` field)
+- **Budget rows** (items) can be mapped to multiple classifier codes via `budget_row_codes` table
+- **Actual cost calculation**: When a budget row has linked classifier codes, and a column has a linked stage, the system calculates actual costs from PDC groups that match both criteria
+- **API endpoint**: `GET /api/budget-actual-costs/:projectId` returns aggregated actual costs by rowId + stageId
+- **Display logic**: Budget cells show plan value (manual) and actual value from PDC with percentage variance; color-coded (red = over budget for expenses, green = under budget)
 
 ### Shared Code Structure
 - **`shared/schema.ts`**: Database schema definitions, Zod validation schemas, and TypeScript types

@@ -22,6 +22,7 @@ import {
   notifications,
   classifierCodes,
   stages,
+  budgetRowCodes,
   type Block,
   type Work,
   type WorkGroup,
@@ -84,7 +85,10 @@ import {
   type ClassifierCode,
   type InsertClassifierCode,
   type Stage,
-  type InsertStage
+  type InsertStage,
+  type BudgetRowCode,
+  type InsertBudgetRowCode,
+  type BudgetRowCodeWithCode
 } from "@shared/schema";
 import { eq, and, isNull, asc, lt, sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -145,6 +149,15 @@ export interface IStorage {
   getBudgetValues(rowId: number): Promise<BudgetValue[]>;
   upsertBudgetValue(value: InsertBudgetValue): Promise<BudgetValue>;
   deleteBudgetValue(id: number): Promise<void>;
+
+  // Budget Row Codes (связь строк бюджета с кодами классификатора)
+  getBudgetRowCodes(rowId: number): Promise<BudgetRowCodeWithCode[]>;
+  addBudgetRowCode(rowId: number, codeId: number): Promise<BudgetRowCode>;
+  removeBudgetRowCode(rowId: number, codeId: number): Promise<void>;
+  setBudgetRowCodes(rowId: number, codeIds: number[]): Promise<BudgetRowCodeWithCode[]>;
+
+  // Budget PDC Actual Costs (расчёт факта из ПДЦ)
+  calculateBudgetActualCosts(projectId: number): Promise<{ rowId: number; stageId: number; actualCost: number }[]>;
 
   // Users
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -678,6 +691,120 @@ export class DatabaseStorage implements IStorage {
 
   async deleteBudgetValue(id: number): Promise<void> {
     await db.delete(budgetValues).where(eq(budgetValues.id, id));
+  }
+
+  // === BUDGET ROW CODES ===
+
+  async getBudgetRowCodes(rowId: number): Promise<BudgetRowCodeWithCode[]> {
+    const rowCodesData = await db.select().from(budgetRowCodes)
+      .where(eq(budgetRowCodes.rowId, rowId));
+    
+    const result: BudgetRowCodeWithCode[] = [];
+    for (const rc of rowCodesData) {
+      const [code] = await db.select().from(classifierCodes)
+        .where(eq(classifierCodes.id, rc.codeId));
+      result.push({ ...rc, code: code || undefined });
+    }
+    return result;
+  }
+
+  async addBudgetRowCode(rowId: number, codeId: number): Promise<BudgetRowCode> {
+    const [existing] = await db.select().from(budgetRowCodes)
+      .where(and(eq(budgetRowCodes.rowId, rowId), eq(budgetRowCodes.codeId, codeId)));
+    if (existing) return existing;
+    
+    const [created] = await db.insert(budgetRowCodes).values({ rowId, codeId }).returning();
+    return created;
+  }
+
+  async removeBudgetRowCode(rowId: number, codeId: number): Promise<void> {
+    await db.delete(budgetRowCodes)
+      .where(and(eq(budgetRowCodes.rowId, rowId), eq(budgetRowCodes.codeId, codeId)));
+  }
+
+  async setBudgetRowCodes(rowId: number, codeIds: number[]): Promise<BudgetRowCodeWithCode[]> {
+    // Delete existing codes
+    await db.delete(budgetRowCodes).where(eq(budgetRowCodes.rowId, rowId));
+    
+    // Add new codes
+    for (const codeId of codeIds) {
+      await db.insert(budgetRowCodes).values({ rowId, codeId });
+    }
+    
+    return await this.getBudgetRowCodes(rowId);
+  }
+
+  async calculateBudgetActualCosts(projectId: number): Promise<{ rowId: number; stageId: number; actualCost: number }[]> {
+    // Get all PDC documents for this project with their groups and elements
+    const projectDocs = await db.select().from(pdcDocuments)
+      .where(eq(pdcDocuments.projectId, projectId));
+    
+    // Build a map: stageId -> classifierCodeId -> total cost
+    // stageId null means unassigned stage
+    const stageCostMap = new Map<number, Map<number, number>>();
+    
+    for (const doc of projectDocs) {
+      if (!doc.stageId) continue; // Skip documents without stage
+      
+      // Get full document data with blocks, sections, groups, elements
+      const docData = await this.getPdcDocumentWithData(doc.id);
+      if (!docData) continue;
+      
+      for (const block of docData.blocks || []) {
+        for (const section of block.sections || []) {
+          for (const group of section.groups || []) {
+            if (!group.classifierCodeId) continue;
+            
+            // Calculate group total cost (sum of elements material costs)
+            let groupTotal = 0;
+            for (const element of group.elements || []) {
+              const qty = parseFloat(String(element.quantity || 0));
+              const price = parseFloat(String(element.materialPrice || 0));
+              groupTotal += qty * price;
+            }
+            
+            // Add to map
+            if (!stageCostMap.has(doc.stageId)) {
+              stageCostMap.set(doc.stageId, new Map());
+            }
+            const codeMap = stageCostMap.get(doc.stageId)!;
+            const currentCost = codeMap.get(group.classifierCodeId) || 0;
+            codeMap.set(group.classifierCodeId, currentCost + groupTotal);
+          }
+        }
+      }
+    }
+    
+    // Get all budget rows with their codes
+    const allRowCodes = await db.select().from(budgetRowCodes);
+    
+    // Build results: for each budget row + stage combination, calculate actual cost
+    const results: { rowId: number; stageId: number; actualCost: number }[] = [];
+    
+    // Group row codes by rowId
+    const rowToCodeIds = new Map<number, number[]>();
+    for (const rc of allRowCodes) {
+      if (!rowToCodeIds.has(rc.rowId)) {
+        rowToCodeIds.set(rc.rowId, []);
+      }
+      rowToCodeIds.get(rc.rowId)!.push(rc.codeId);
+    }
+    
+    // For each row and stage, sum up costs for all matching codes
+    rowToCodeIds.forEach((codeIds, rowId) => {
+      stageCostMap.forEach((codeMap, stageId) => {
+        let totalActual = 0;
+        for (const codeId of codeIds) {
+          const cost = codeMap.get(codeId) || 0;
+          totalActual += cost;
+        }
+        if (totalActual > 0) {
+          results.push({ rowId, stageId, actualCost: totalActual });
+        }
+      });
+    });
+    
+    return results;
   }
 
   // === USERS ===

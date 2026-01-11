@@ -527,6 +527,38 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // === Budget Row Codes (связь строк бюджета с кодами классификатора) ===
+
+  app.get('/api/budget-rows/:rowId/codes', async (req, res) => {
+    const codes = await storage.getBudgetRowCodes(Number(req.params.rowId));
+    res.json(codes);
+  });
+
+  app.post('/api/budget-rows/:rowId/codes', async (req, res) => {
+    const { codeId } = req.body;
+    const code = await storage.addBudgetRowCode(Number(req.params.rowId), codeId);
+    res.status(201).json(code);
+  });
+
+  app.delete('/api/budget-rows/:rowId/codes/:codeId', async (req, res) => {
+    await storage.removeBudgetRowCode(Number(req.params.rowId), Number(req.params.codeId));
+    res.status(204).send();
+  });
+
+  app.put('/api/budget-rows/:rowId/codes', async (req, res) => {
+    const { codeIds } = req.body;
+    const codes = await storage.setBudgetRowCodes(Number(req.params.rowId), codeIds || []);
+    res.json(codes);
+  });
+
+  // === Budget PDC Actual Costs (расчёт фактической стоимости из ПДЦ) ===
+
+  app.get('/api/budget-actual-costs/:projectId', async (req, res) => {
+    const projectId = Number(req.params.projectId);
+    const actualCosts = await storage.calculateBudgetActualCosts(projectId);
+    res.json(actualCosts);
+  });
+
   // === PDC Documents ===
 
   app.get('/api/pdc-documents', async (_req, res) => {

@@ -152,6 +152,7 @@ export const budgetColumns = pgTable("budget_columns", {
   id: serial("id").primaryKey(),
   contractId: integer("contract_id").notNull().references(() => contracts.id, { onDelete: "cascade" }),
   name: text("name").notNull(), // Название столбца (Этап 1, Этап 2...)
+  stageId: integer("stage_id"), // Привязка к этапу проекта (FK добавляется в relations)
   order: integer("order").default(0).notNull(), // Порядок столбца
   isTotal: integer("is_total").default(0).notNull(), // 1 = суммирующий столбец "ВСЕГО"
 });
@@ -174,6 +175,13 @@ export const budgetValues = pgTable("budget_values", {
   columnId: integer("column_id").notNull().references(() => budgetColumns.id, { onDelete: "cascade" }),
   manualValue: numeric("manual_value", { precision: 18, scale: 2 }).default("0"), // Ручное значение в рублях
   pdcValue: numeric("pdc_value", { precision: 18, scale: 2 }).default("0"), // Значение из ПДЦ в рублях
+});
+
+// Связь статей бюджета с кодами классификатора (many-to-many)
+export const budgetRowCodes = pgTable("budget_row_codes", {
+  id: serial("id").primaryKey(),
+  rowId: integer("row_id").notNull().references(() => budgetRows.id, { onDelete: "cascade" }),
+  codeId: integer("code_id").notNull().references(() => classifierCodes.id, { onDelete: "cascade" }),
 });
 
 // === RELATIONS ===
@@ -213,6 +221,10 @@ export const budgetColumnsRelations = relations(budgetColumns, ({ one, many }) =
     fields: [budgetColumns.contractId],
     references: [contracts.id],
   }),
+  stage: one(stages, {
+    fields: [budgetColumns.stageId],
+    references: [stages.id],
+  }),
   values: many(budgetValues),
 }));
 
@@ -226,6 +238,18 @@ export const budgetRowsRelations = relations(budgetRows, ({ one, many }) => ({
     references: [budgetRows.id],
   }),
   values: many(budgetValues),
+  rowCodes: many(budgetRowCodes),
+}));
+
+export const budgetRowCodesRelations = relations(budgetRowCodes, ({ one }) => ({
+  row: one(budgetRows, {
+    fields: [budgetRowCodes.rowId],
+    references: [budgetRows.id],
+  }),
+  code: one(classifierCodes, {
+    fields: [budgetRowCodes.codeId],
+    references: [classifierCodes.id],
+  }),
 }));
 
 export const budgetValuesRelations = relations(budgetValues, ({ one }) => ({
@@ -299,6 +323,7 @@ export const insertBudgetRowSchema = createInsertSchema(budgetRows).omit({ id: t
   rowType: z.enum(["manual", "linked"]).default("manual"),
 });
 export const insertBudgetValueSchema = createInsertSchema(budgetValues).omit({ id: true });
+export const insertBudgetRowCodeSchema = createInsertSchema(budgetRowCodes).omit({ id: true });
 
 // === BUDGET TYPES ===
 export type Contract = typeof contracts.$inferSelect;
@@ -313,11 +338,16 @@ export type InsertBudgetRow = z.infer<typeof insertBudgetRowSchema>;
 export type BudgetValue = typeof budgetValues.$inferSelect;
 export type InsertBudgetValue = z.infer<typeof insertBudgetValueSchema>;
 
+export type BudgetRowCode = typeof budgetRowCodes.$inferSelect;
+export type InsertBudgetRowCode = z.infer<typeof insertBudgetRowCodeSchema>;
+
 // Budget response types with nested data
 export type BudgetValueWithColumn = BudgetValue & { column?: BudgetColumn };
+export type BudgetRowCodeWithCode = BudgetRowCode & { code?: ClassifierCode };
 export type BudgetRowWithChildren = BudgetRow & { 
   children?: BudgetRowWithChildren[];
   values?: BudgetValue[];
+  rowCodes?: BudgetRowCodeWithCode[];
 };
 export type ContractWithData = Contract & {
   columns?: BudgetColumn[];
