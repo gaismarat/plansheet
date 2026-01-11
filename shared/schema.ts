@@ -397,6 +397,16 @@ export const stages = pgTable("stages", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// === EXECUTORS (Исполнители проекта) TABLE ===
+
+export const executors = pgTable("executors", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  order: integer("order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === PDC (Protocol of Cost Agreement) TABLES ===
 
 export const pdcDocuments = pgTable("pdc_documents", {
@@ -429,6 +439,7 @@ export const pdcGroups = pgTable("pdc_groups", {
   id: serial("id").primaryKey(),
   sectionId: integer("section_id").notNull().references(() => pdcSections.id, { onDelete: "cascade" }),
   classifierCodeId: integer("classifier_code_id").references(() => classifierCodes.id, { onDelete: "set null" }), // Код классификатора
+  executorId: integer("executor_id").references(() => executors.id, { onDelete: "set null" }), // Исполнитель
   name: text("name").notNull(),
   unit: text("unit").default("шт."),
   quantity: numeric("quantity", { precision: 18, scale: 4 }).default("0"),
@@ -456,6 +467,16 @@ export const stagesRelations = relations(stages, ({ one, many }) => ({
     references: [projects.id],
   }),
   pdcDocuments: many(pdcDocuments),
+}));
+
+// === EXECUTORS RELATIONS ===
+
+export const executorsRelations = relations(executors, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [executors.projectId],
+    references: [projects.id],
+  }),
+  pdcGroups: many(pdcGroups),
 }));
 
 // === PDC RELATIONS ===
@@ -494,6 +515,10 @@ export const pdcGroupsRelations = relations(pdcGroups, ({ one, many }) => ({
     fields: [pdcGroups.classifierCodeId],
     references: [classifierCodes.id],
   }),
+  executor: one(executors, {
+    fields: [pdcGroups.executorId],
+    references: [executors.id],
+  }),
 }));
 
 export const pdcElementsRelations = relations(pdcElements, ({ one }) => ({
@@ -508,6 +533,12 @@ export const pdcElementsRelations = relations(pdcElements, ({ one }) => ({
 export const insertStageSchema = createInsertSchema(stages).omit({ id: true, createdAt: true });
 export type Stage = typeof stages.$inferSelect;
 export type InsertStage = z.infer<typeof insertStageSchema>;
+
+// === EXECUTORS SCHEMAS ===
+
+export const insertExecutorSchema = createInsertSchema(executors).omit({ id: true, createdAt: true });
+export type Executor = typeof executors.$inferSelect;
+export type InsertExecutor = z.infer<typeof insertExecutorSchema>;
 
 // === PDC SCHEMAS ===
 
