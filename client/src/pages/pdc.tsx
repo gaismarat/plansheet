@@ -62,6 +62,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { PriceHistoryDialog } from "@/components/price-history-dialog";
 
 const UNIT_OPTIONS = ["шт.", "п.м", "м²", "м³", "кг", "компл."];
 
@@ -335,6 +336,20 @@ function PDCDocumentCard({
   const { data: documentData } = useQuery<PdcDocumentWithData>({
     queryKey: ["/api/pdc-documents", document.id],
     enabled: isExpanded,
+  });
+
+  // Initial prices for color indication
+  type InitialPriceEntry = { groupId?: number; elementId?: number; priceType: string; initialPrice: string };
+  const { data: initialPrices = [] } = useQuery<InitialPriceEntry[]>({
+    queryKey: ["/api/initial-prices", document.id],
+    enabled: isExpanded,
+  });
+
+  // Create lookup maps for initial prices
+  const initialPriceMap = new Map<string, string>();
+  initialPrices.forEach(p => {
+    const key = `${p.groupId || ''}-${p.elementId || ''}-${p.priceType}`;
+    initialPriceMap.set(key, p.initialPrice);
   });
 
   const { data: stages = [] } = useQuery<Stage[]>({
@@ -868,6 +883,7 @@ function PDCDocumentCard({
                 calculateBlockTotal={calculateBlockTotal}
                 calculateSectionTotal={calculateSectionTotal}
                 calculateGroupTotal={calculateGroupTotal}
+                initialPriceMap={initialPriceMap}
               />
             </div>
 
@@ -976,6 +992,7 @@ interface PDCTableProps {
   calculateBlockTotal: (block: PdcBlockWithSections) => number;
   calculateSectionTotal: (section: PdcSectionWithGroups) => number;
   calculateGroupTotal: (group: PdcGroupWithElements) => number;
+  initialPriceMap: Map<string, string>;
 }
 
 function PDCTable({
@@ -990,7 +1007,8 @@ function PDCTable({
   parseNumeric,
   calculateBlockTotal,
   calculateSectionTotal,
-  calculateGroupTotal
+  calculateGroupTotal,
+  initialPriceMap
 }: PDCTableProps) {
   const { toast } = useToast();
 
@@ -1067,6 +1085,7 @@ function PDCTable({
           calculateSectionTotal={calculateSectionTotal}
           calculateGroupTotal={calculateGroupTotal}
           documentId={documentData.id}
+          initialPriceMap={initialPriceMap}
         />
       ))}
     </div>
@@ -1088,6 +1107,7 @@ interface PDCBlockRowProps {
   calculateSectionTotal: (section: PdcSectionWithGroups) => number;
   calculateGroupTotal: (group: PdcGroupWithElements) => number;
   documentId: number;
+  initialPriceMap: Map<string, string>;
 }
 
 function PDCBlockRow({
@@ -1104,7 +1124,8 @@ function PDCBlockRow({
   calculateBlockTotal,
   calculateSectionTotal,
   calculateGroupTotal,
-  documentId
+  documentId,
+  initialPriceMap
 }: PDCBlockRowProps) {
   const { toast } = useToast();
   const [editingName, setEditingName] = useState(false);
@@ -1255,6 +1276,7 @@ function PDCBlockRow({
           calculateSectionTotal={calculateSectionTotal}
           calculateGroupTotal={calculateGroupTotal}
           documentId={documentId}
+          initialPriceMap={initialPriceMap}
         />
       ))}
     </>
@@ -1274,6 +1296,7 @@ interface PDCSectionRowProps {
   calculateSectionTotal: (section: PdcSectionWithGroups) => number;
   calculateGroupTotal: (group: PdcGroupWithElements) => number;
   documentId: number;
+  initialPriceMap: Map<string, string>;
 }
 
 function PDCSectionRow({
@@ -1288,7 +1311,8 @@ function PDCSectionRow({
   parseNumeric,
   calculateSectionTotal,
   calculateGroupTotal,
-  documentId
+  documentId,
+  initialPriceMap
 }: PDCSectionRowProps) {
   const { toast } = useToast();
   const [editingName, setEditingName] = useState(false);
@@ -1475,6 +1499,7 @@ function PDCSectionRow({
           parseNumeric={parseNumeric}
           calculateGroupTotal={calculateGroupTotal}
           documentId={documentId}
+          initialPriceMap={initialPriceMap}
         />
       ))}
     </>
@@ -1491,6 +1516,7 @@ interface PDCGroupRowProps {
   parseNumeric: (val: string | number | null | undefined) => number;
   calculateGroupTotal: (group: PdcGroupWithElements) => number;
   documentId: number;
+  initialPriceMap: Map<string, string>;
 }
 
 function PDCGroupRow({
@@ -1502,7 +1528,8 @@ function PDCGroupRow({
   formatRubles,
   parseNumeric,
   calculateGroupTotal,
-  documentId
+  documentId,
+  initialPriceMap
 }: PDCGroupRowProps) {
   const { toast } = useToast();
   const { currentProject, isOwner, isAdmin } = useProjectContext();
@@ -1515,6 +1542,7 @@ function PDCGroupRow({
   const [codePickerOpen, setCodePickerOpen] = useState(false);
   const [expandedCodeNodes, setExpandedCodeNodes] = useState<Set<number>>(new Set());
   const [hiddenCodeNodes, setHiddenCodeNodes] = useState<Set<number>>(new Set());
+  const [priceHistoryOpen, setPriceHistoryOpen] = useState(false);
 
   const { data: classifierCodes = [] } = useQuery<ClassifierCode[]>({
     queryKey: ["/api/classifier-codes"],
@@ -1569,6 +1597,14 @@ function PDCGroupRow({
   const smrPnr = parseNumeric(group.smrPnrPrice);
   const groupSmrTotal = quantity * smrPnr;
   const groupTotal = calculateGroupTotal(group);
+
+  // Color indication for SMR price
+  const smrInitialKey = `${group.id}--smr`;
+  const smrInitialPriceStr = initialPriceMap.get(smrInitialKey);
+  const smrInitialPrice = smrInitialPriceStr !== undefined ? parseFloat(smrInitialPriceStr) : null;
+  const smrPriceColor = smrInitialPrice !== null
+    ? (smrPnr > smrInitialPrice ? 'text-red-600' : smrPnr < smrInitialPrice ? 'text-green-600' : '')
+    : '';
 
   const handleFieldClick = (field: string, currentValue: string | number | null | undefined) => {
     setEditingField(field);
@@ -1727,22 +1763,11 @@ function PDCGroupRow({
         </div>
         <div className="w-[100px] shrink-0 border-l border-border" />
         <div 
-          className="w-[100px] shrink-0 border-l border-border px-2 py-2 text-right text-xs cursor-pointer hover:bg-muted/50"
-          onClick={(e) => { e.stopPropagation(); handleFieldClick('smrPnrPrice', group.smrPnrPrice); }}
+          className={`w-[100px] shrink-0 border-l border-border px-2 py-2 text-right text-xs cursor-pointer hover:bg-muted/50 ${smrPriceColor}`}
+          onClick={(e) => { e.stopPropagation(); setPriceHistoryOpen(true); }}
+          data-testid={`cell-smr-price-group-${group.id}`}
         >
-          {editingField === 'smrPnrPrice' ? (
-            <Input 
-              value={fieldValue}
-              onChange={(e) => setFieldValue(e.target.value)}
-              className="h-6 text-xs text-right"
-              autoFocus
-              onBlur={() => handleFieldSave('smrPnrPrice')}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleFieldSave('smrPnrPrice'); if (e.key === 'Escape') setEditingField(null); }}
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            formatRubles(smrPnr)
-          )}
+          {formatRubles(smrPnr)}
         </div>
         <div className="w-[130px] shrink-0 border-l border-border px-2 py-2 text-right text-xs font-mono">
           {formatRubles(groupSmrTotal)}
@@ -1761,8 +1786,21 @@ function PDCGroupRow({
           formatRubles={formatRubles}
           parseNumeric={parseNumeric}
           documentId={documentId}
+          initialPriceMap={initialPriceMap}
         />
       ))}
+
+      <PriceHistoryDialog
+        open={priceHistoryOpen}
+        onOpenChange={setPriceHistoryOpen}
+        groupId={group.id}
+        priceType="smr"
+        currentPrice={smrPnr}
+        onPriceUpdated={(newPrice) => {
+          updateGroup.mutate({ smrPnrPrice: newPrice.toString() });
+        }}
+        title={`СМР, ПНР: ${group.name}`}
+      />
     </>
   );
 }
@@ -1774,6 +1812,7 @@ interface PDCElementRowProps {
   formatRubles: (value: number) => string;
   parseNumeric: (val: string | number | null | undefined) => number;
   documentId: number;
+  initialPriceMap: Map<string, string>;
 }
 
 function PDCElementRow({
@@ -1782,12 +1821,14 @@ function PDCElementRow({
   elementIdx,
   formatRubles,
   parseNumeric,
-  documentId
+  documentId,
+  initialPriceMap
 }: PDCElementRowProps) {
   const { toast } = useToast();
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(element.name);
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [priceHistoryOpen, setPriceHistoryOpen] = useState(false);
   const [fieldValue, setFieldValue] = useState("");
 
   const updateElement = useMutation({
@@ -1825,6 +1866,14 @@ function PDCElementRow({
   const quantity = parseNumeric(element.quantity);
   const materialPrice = parseNumeric(element.materialPrice);
   const elementTotal = coef * quantity * materialPrice;
+
+  // Color indication for material price
+  const materialInitialKey = `-${element.id}-materials`;
+  const materialInitialPriceStr = initialPriceMap.get(materialInitialKey);
+  const materialInitialPrice = materialInitialPriceStr !== undefined ? parseFloat(materialInitialPriceStr) : null;
+  const materialPriceColor = materialInitialPrice !== null
+    ? (materialPrice > materialInitialPrice ? 'text-red-600' : materialPrice < materialInitialPrice ? 'text-green-600' : '')
+    : '';
 
   const handleFieldClick = (field: string, currentValue: string | number | null | undefined) => {
     setEditingField(field);
@@ -1943,27 +1992,29 @@ function PDCElementRow({
         )}
       </div>
       <div 
-        className="w-[100px] shrink-0 border-l border-border px-2 py-2 text-right text-xs cursor-pointer hover:bg-muted/50"
-        onClick={() => handleFieldClick('materialPrice', element.materialPrice)}
+        className={`w-[100px] shrink-0 border-l border-border px-2 py-2 text-right text-xs cursor-pointer hover:bg-muted/50 ${materialPriceColor}`}
+        onClick={() => setPriceHistoryOpen(true)}
+        data-testid={`cell-material-price-element-${element.id}`}
       >
-        {editingField === 'materialPrice' ? (
-          <Input 
-            value={fieldValue}
-            onChange={(e) => setFieldValue(e.target.value)}
-            className="h-6 text-xs text-right"
-            autoFocus
-            onBlur={() => handleFieldSave('materialPrice')}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleFieldSave('materialPrice'); if (e.key === 'Escape') setEditingField(null); }}
-          />
-        ) : (
-          formatRubles(materialPrice)
-        )}
+        {formatRubles(materialPrice)}
       </div>
       <div className="w-[100px] shrink-0 border-l border-border" />
       <div className="w-[130px] shrink-0 border-l border-border px-2 py-2 text-right text-xs font-mono">
         {formatRubles(elementTotal)}
       </div>
       <div className="w-[200px] shrink-0 border-l border-border" />
+
+      <PriceHistoryDialog
+        open={priceHistoryOpen}
+        onOpenChange={setPriceHistoryOpen}
+        elementId={element.id}
+        priceType="materials"
+        currentPrice={materialPrice}
+        onPriceUpdated={(newPrice) => {
+          updateElement.mutate({ materialPrice: newPrice.toString() });
+        }}
+        title={`Материалы: ${element.name}`}
+      />
     </div>
   );
 }

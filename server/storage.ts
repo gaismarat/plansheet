@@ -24,6 +24,7 @@ import {
   stages,
   executors,
   budgetRowCodes,
+  priceChanges,
   type Block,
   type Work,
   type WorkGroup,
@@ -89,11 +90,14 @@ import {
   type InsertStage,
   type Executor,
   type InsertExecutor,
+  type PriceChange,
+  type InsertPriceChange,
+  type PriceChangeWithUser,
   type BudgetRowCode,
   type InsertBudgetRowCode,
   type BudgetRowCodeWithCode
 } from "@shared/schema";
-import { eq, and, isNull, asc, lt, sql } from "drizzle-orm";
+import { eq, and, isNull, asc, lt, sql, or, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 export interface IStorage {
@@ -285,6 +289,11 @@ export interface IStorage {
   createExecutor(executor: InsertExecutor): Promise<Executor>;
   updateExecutor(id: number, updates: Partial<InsertExecutor>): Promise<Executor>;
   deleteExecutor(id: number): Promise<void>;
+
+  // Price Changes (История изменений цен)
+  getPriceHistory(params: { groupId?: number; elementId?: number; priceType: string }): Promise<PriceChangeWithUser[]>;
+  createPriceChange(change: InsertPriceChange): Promise<PriceChange>;
+  getInitialPricesForDocument(documentId: number): Promise<{ groupId?: number; elementId?: number; priceType: string; initialPrice: string }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2055,6 +2064,122 @@ export class DatabaseStorage implements IStorage {
 
   async deleteExecutor(id: number): Promise<void> {
     await db.delete(executors).where(eq(executors.id, id));
+  }
+
+  // === PRICE CHANGES (История изменений цен) ===
+
+  async getPriceHistory(params: { groupId?: number; elementId?: number; priceType: string }): Promise<PriceChangeWithUser[]> {
+    const conditions = [eq(priceChanges.priceType, params.priceType)];
+    
+    if (params.groupId) {
+      conditions.push(eq(priceChanges.groupId, params.groupId));
+    }
+    if (params.elementId) {
+      conditions.push(eq(priceChanges.elementId, params.elementId));
+    }
+
+    const history = await db.select({
+      id: priceChanges.id,
+      groupId: priceChanges.groupId,
+      elementId: priceChanges.elementId,
+      priceType: priceChanges.priceType,
+      price: priceChanges.price,
+      reason: priceChanges.reason,
+      userId: priceChanges.userId,
+      createdAt: priceChanges.createdAt,
+      user: {
+        id: users.id,
+        username: users.username,
+      },
+    })
+    .from(priceChanges)
+    .leftJoin(users, eq(priceChanges.userId, users.id))
+    .where(and(...conditions))
+    .orderBy(asc(priceChanges.createdAt));
+
+    return history.map(h => ({
+      ...h,
+      user: h.user?.id ? h.user : null,
+    }));
+  }
+
+  async createPriceChange(change: InsertPriceChange): Promise<PriceChange> {
+    const [newChange] = await db.insert(priceChanges).values(change).returning();
+    return newChange;
+  }
+
+  async getInitialPricesForDocument(documentId: number): Promise<{ groupId?: number; elementId?: number; priceType: string; initialPrice: string }[]> {
+    // Get all groups and elements for this document
+    const doc = await db.query.pdcDocuments.findFirst({
+      where: eq(pdcDocuments.id, documentId),
+      with: {
+        blocks: {
+          with: {
+            sections: {
+              with: {
+                groups: {
+                  with: {
+                    elements: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!doc) return [];
+
+    const groupIds: number[] = [];
+    const elementIds: number[] = [];
+
+    doc.blocks?.forEach(block => {
+      block.sections?.forEach(section => {
+        section.groups?.forEach(group => {
+          groupIds.push(group.id);
+          group.elements?.forEach(element => {
+            elementIds.push(element.id);
+          });
+        });
+      });
+    });
+
+    if (groupIds.length === 0 && elementIds.length === 0) return [];
+
+    // Get earliest price change for each group/element
+    const conditions = [];
+    if (groupIds.length > 0) {
+      conditions.push(inArray(priceChanges.groupId, groupIds));
+    }
+    if (elementIds.length > 0) {
+      conditions.push(inArray(priceChanges.elementId, elementIds));
+    }
+
+    // or() requires at least 2 args, handle single condition case
+    const whereClause = conditions.length === 1 ? conditions[0] : or(...conditions);
+
+    const allChanges = await db.select()
+      .from(priceChanges)
+      .where(whereClause)
+      .orderBy(asc(priceChanges.createdAt));
+
+    // Find earliest (first) price for each group/element + priceType combination
+    const initialPricesMap = new Map<string, { groupId?: number; elementId?: number; priceType: string; initialPrice: string }>();
+
+    allChanges.forEach(change => {
+      const key = `${change.groupId || ''}-${change.elementId || ''}-${change.priceType}`;
+      if (!initialPricesMap.has(key)) {
+        initialPricesMap.set(key, {
+          groupId: change.groupId ?? undefined,
+          elementId: change.elementId ?? undefined,
+          priceType: change.priceType,
+          initialPrice: change.price,
+        });
+      }
+    });
+
+    return Array.from(initialPricesMap.values());
   }
 }
 

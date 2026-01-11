@@ -811,3 +811,44 @@ export type UserProjectPermission = {
   username: string;
   permission: ProjectPermission;
 };
+
+// === PRICE CHANGES (История изменений цен) TABLE ===
+
+export const priceChanges = pgTable("price_changes", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").references(() => pdcGroups.id, { onDelete: "cascade" }),
+  elementId: integer("element_id").references(() => pdcElements.id, { onDelete: "cascade" }),
+  priceType: text("price_type").notNull(), // "materials" | "smr"
+  price: numeric("price", { precision: 18, scale: 2 }).notNull(),
+  reason: text("reason"), // "indexation" | "material_change" | "other" или произвольный текст
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// === PRICE CHANGES RELATIONS ===
+
+export const priceChangesRelations = relations(priceChanges, ({ one }) => ({
+  group: one(pdcGroups, {
+    fields: [priceChanges.groupId],
+    references: [pdcGroups.id],
+  }),
+  element: one(pdcElements, {
+    fields: [priceChanges.elementId],
+    references: [pdcElements.id],
+  }),
+  user: one(users, {
+    fields: [priceChanges.userId],
+    references: [users.id],
+  }),
+}));
+
+// === PRICE CHANGES SCHEMAS ===
+
+export const insertPriceChangeSchema = createInsertSchema(priceChanges).omit({ id: true, createdAt: true });
+export type PriceChange = typeof priceChanges.$inferSelect;
+export type InsertPriceChange = z.infer<typeof insertPriceChangeSchema>;
+
+// Price change with user info
+export type PriceChangeWithUser = PriceChange & {
+  user?: { id: number; username: string } | null;
+};

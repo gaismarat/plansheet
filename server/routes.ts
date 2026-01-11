@@ -438,6 +438,41 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // === Price Changes (История изменений цен) ===
+
+  app.get('/api/price-history', requireAuth, async (req, res) => {
+    const { groupId, elementId, priceType } = req.query;
+    
+    if (!priceType) {
+      return res.status(400).json({ message: "priceType is required" });
+    }
+    
+    const history = await storage.getPriceHistory({
+      groupId: groupId ? Number(groupId) : undefined,
+      elementId: elementId ? Number(elementId) : undefined,
+      priceType: priceType as string,
+    });
+    
+    res.json(history);
+  });
+
+  app.post('/api/price-changes', requireAuth, async (req, res) => {
+    const user = req.user as any;
+    
+    const change = await storage.createPriceChange({
+      ...req.body,
+      userId: user.id,
+    });
+    
+    res.status(201).json(change);
+  });
+
+  app.get('/api/initial-prices/:documentId', requireAuth, async (req, res) => {
+    const documentId = Number(req.params.documentId);
+    const initialPrices = await storage.getInitialPricesForDocument(documentId);
+    res.json(initialPrices);
+  });
+
   // === Contracts (Budgets) ===
 
   app.get('/api/contracts', async (_req, res) => {
