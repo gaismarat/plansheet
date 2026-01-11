@@ -460,7 +460,12 @@ function PDCDocumentCard({
                 </div>
               ) : (
                 <>
-                  <span className="font-semibold text-lg">{document.name}</span>
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-lg">{document.name}</span>
+                    {!isExpanded && (
+                      <span className="text-xs text-muted-foreground">{currentStage?.name || "Этап не выбран"}</span>
+                    )}
+                  </div>
                   <div className="flex gap-1 invisible group-hover:visible" onClick={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingName(true); setDocName(document.name); }}>
                       <Pencil className="w-3 h-3" />
