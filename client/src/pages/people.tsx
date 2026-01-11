@@ -153,10 +153,29 @@ export default function People() {
   }, [hasScrolled, isLoading, todayIndex]);
 
   const toggleDoc = (id: number) => {
-    const newSet = new Set(expandedDocs);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setExpandedDocs(newSet);
+    const newDocsSet = new Set(expandedDocs);
+    const isExpanding = !newDocsSet.has(id);
+    
+    if (isExpanding) {
+      newDocsSet.add(id);
+      // Find the document and expand all its blocks and sections
+      const doc = documents.find(d => d.id === id);
+      if (doc?.blocks) {
+        const newBlocksSet = new Set(expandedBlocks);
+        const newSectionsSet = new Set(expandedSections);
+        doc.blocks.forEach(block => {
+          newBlocksSet.add(block.id);
+          block.sections?.forEach(section => {
+            newSectionsSet.add(section.id);
+          });
+        });
+        setExpandedBlocks(newBlocksSet);
+        setExpandedSections(newSectionsSet);
+      }
+    } else {
+      newDocsSet.delete(id);
+    }
+    setExpandedDocs(newDocsSet);
   };
 
   const toggleBlock = (id: number) => {
