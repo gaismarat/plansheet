@@ -45,6 +45,15 @@ Preferred communication style: Simple, everyday language.
 - **API endpoint**: `GET /api/budget-actual-costs/:projectId` returns aggregated actual costs by rowId + stageId
 - **Display logic**: Budget cells show plan value (manual) and actual value from PDC with percentage variance; color-coded (red = over budget for expenses, green = under budget)
 
+### Section Allocation System (January 2026)
+- **PDC documents** support 1-10 building sections via `sectionsCount` field
+- **Section allocations** stored in `section_allocations` table linking groups/elements to sections with coefficients
+- **Coefficient-based distribution**: Each section gets a percentage (0-100%), sum must equal 100% with 0.1% tolerance
+- **UI behavior**: Chevron toggle appears when sectionsCount > 1; expands to show section table with editable coefficients
+- **Validation**: Red error indicators appear when coefficients don't sum to 100%; quantities show "ошибка" instead of calculated values
+- **Auto-calculation**: Section quantities/totals auto-calculate from coefficients and parent values in real-time
+- **Persistence**: Coefficients save on blur via POST /api/section-allocations, loaded via GET with query params
+
 ### Shared Code Structure
 - **`shared/schema.ts`**: Database schema definitions, Zod validation schemas, and TypeScript types
 - **`shared/routes.ts`**: API contract definitions with input/output schemas for type-safe client-server communication
