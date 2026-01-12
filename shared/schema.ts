@@ -417,6 +417,7 @@ export const pdcDocuments = pgTable("pdc_documents", {
   name: text("name").notNull(),
   headerText: text("header_text"),
   vatRate: numeric("vat_rate", { precision: 5, scale: 2 }).default("20"),
+  sectionsCount: integer("sections_count").default(1).notNull(), // Количество секций дома (1-10)
   order: integer("order").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -825,6 +826,18 @@ export const priceChanges = pgTable("price_changes", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// === SECTION ALLOCATIONS TABLE ===
+// Распределение объёмов групп/элементов по секциям дома
+
+export const sectionAllocations = pgTable("section_allocations", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").references(() => pdcGroups.id, { onDelete: "cascade" }),
+  elementId: integer("element_id").references(() => pdcElements.id, { onDelete: "cascade" }),
+  sectionNumber: integer("section_number").notNull(), // Номер секции (1, 2, 3...)
+  coefficient: numeric("coefficient", { precision: 5, scale: 2 }), // Процент от общего объёма (0-100)
+  quantity: numeric("quantity", { precision: 18, scale: 4 }), // Ручной ввод объёма (если нет coefficient)
+});
+
 // === PRICE CHANGES RELATIONS ===
 
 export const priceChangesRelations = relations(priceChanges, ({ one }) => ({
@@ -852,3 +865,22 @@ export type InsertPriceChange = z.infer<typeof insertPriceChangeSchema>;
 export type PriceChangeWithUser = PriceChange & {
   user?: { id: number; username: string } | null;
 };
+
+// === SECTION ALLOCATIONS RELATIONS ===
+
+export const sectionAllocationsRelations = relations(sectionAllocations, ({ one }) => ({
+  group: one(pdcGroups, {
+    fields: [sectionAllocations.groupId],
+    references: [pdcGroups.id],
+  }),
+  element: one(pdcElements, {
+    fields: [sectionAllocations.elementId],
+    references: [pdcElements.id],
+  }),
+}));
+
+// === SECTION ALLOCATIONS SCHEMAS ===
+
+export const insertSectionAllocationSchema = createInsertSchema(sectionAllocations).omit({ id: true });
+export type SectionAllocation = typeof sectionAllocations.$inferSelect;
+export type InsertSectionAllocation = z.infer<typeof insertSectionAllocationSchema>;
