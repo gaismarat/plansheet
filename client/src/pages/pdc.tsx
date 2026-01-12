@@ -34,7 +34,8 @@ import type {
   PdcElement,
   Stage,
   ClassifierCode,
-  Executor
+  Executor,
+  SectionAllocation
 } from "@shared/schema";
 import { useProjectContext } from "@/contexts/project-context";
 import {
@@ -1579,9 +1580,26 @@ function PDCGroupRow({
   const [hiddenCodeNodes, setHiddenCodeNodes] = useState<Set<number>>(new Set());
   const [priceHistoryOpen, setPriceHistoryOpen] = useState(false);
   const [buildingSectionsOpen, setBuildingSectionsOpen] = useState(false);
+  const [sectionCoefficients, setSectionCoefficients] = useState<Map<number, string>>(new Map());
 
   const { data: classifierCodes = [] } = useQuery<ClassifierCode[]>({
     queryKey: ["/api/classifier-codes"],
+  });
+
+  // Load section allocations for this group
+  const { data: groupAllocations = [] } = useQuery<SectionAllocation[]>({
+    queryKey: ["/api/section-allocations", { groupId: group.id }],
+    enabled: sectionsCount > 1,
+  });
+
+  // Save section allocations
+  const saveAllocations = useMutation({
+    mutationFn: async (allocations: { groupId: number; sectionNumber: number; coefficient: string }[]) => {
+      return await apiRequest("POST", "/api/section-allocations", { allocations });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/section-allocations", { groupId: group.id }] });
+    },
   });
 
   const currentCode = classifierCodes.find(c => c.id === group.classifierCodeId);
@@ -1823,55 +1841,99 @@ function PDCGroupRow({
       </div>
 
       {/* Building sections slider */}
-      {sectionsCount > 1 && buildingSectionsOpen && (
-        <div className="ml-16 mr-4 mb-2 bg-muted/30 rounded-md border border-border overflow-hidden">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="px-2 py-1.5 text-left font-medium w-24">Секция</th>
-                <th className="px-2 py-1.5 text-right font-medium w-20">%</th>
-                <th className="px-2 py-1.5 text-right font-medium w-24">Кол-во</th>
-                <th className="px-2 py-1.5 text-right font-medium w-28">Сумма СМР</th>
-                <th className="px-2 py-1.5 text-right font-medium w-32">Итого</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: sectionsCount }, (_, i) => {
-                const sectionNum = i + 1;
-                const coefficient = 100 / sectionsCount;
-                const sectionQuantity = quantity * (coefficient / 100);
-                const sectionSmrTotal = sectionQuantity * smrPnr;
-                const sectionTotal = (groupTotal / quantity) * sectionQuantity;
-                
-                return (
-                  <tr key={sectionNum} className="border-b border-border last:border-b-0 hover:bg-muted/20">
-                    <td className="px-2 py-1.5 text-muted-foreground">
-                      {groupNumber}-{sectionNum}с
-                    </td>
-                    <td className="px-2 py-1.5 text-right">
-                      <Input
-                        type="text"
-                        defaultValue={coefficient.toFixed(2)}
-                        className="h-6 w-16 text-xs text-right ml-auto"
-                        data-testid={`input-section-coefficient-group-${group.id}-section-${sectionNum}`}
-                      />
-                    </td>
-                    <td className="px-2 py-1.5 text-right font-mono">
-                      {sectionQuantity.toFixed(2)}
-                    </td>
-                    <td className="px-2 py-1.5 text-right font-mono">
-                      {formatRubles(sectionSmrTotal)}
-                    </td>
-                    <td className="px-2 py-1.5 text-right font-mono">
-                      {formatRubles(isNaN(sectionTotal) ? 0 : sectionTotal)}
+      {sectionsCount > 1 && buildingSectionsOpen && (() => {
+        // Calculate total coefficient from saved or local state
+        const getCoefficient = (sectionNum: number): number => {
+          // First check local edits
+          const localValue = sectionCoefficients.get(sectionNum);
+          if (localValue !== undefined) return parseFloat(localValue) || 0;
+          // Then check saved allocations
+          const saved = groupAllocations.find(a => a.sectionNumber === sectionNum);
+          if (saved?.coefficient) return parseFloat(saved.coefficient);
+          // Default to even distribution
+          return 100 / sectionsCount;
+        };
+
+        const totalCoefficient = Array.from({ length: sectionsCount }, (_, i) => getCoefficient(i + 1)).reduce((a, b) => a + b, 0);
+        const isValid = Math.abs(totalCoefficient - 100) < 0.01;
+
+        const handleCoefficientChange = (sectionNum: number, value: string) => {
+          const newCoefficients = new Map(sectionCoefficients);
+          newCoefficients.set(sectionNum, value);
+          setSectionCoefficients(newCoefficients);
+        };
+
+        const handleCoefficientBlur = (sectionNum: number) => {
+          // Build all allocations and save
+          const allocations = Array.from({ length: sectionsCount }, (_, i) => {
+            const num = i + 1;
+            const coef = sectionCoefficients.get(num) ?? groupAllocations.find(a => a.sectionNumber === num)?.coefficient ?? String(100 / sectionsCount);
+            return { groupId: group.id, sectionNumber: num, coefficient: coef };
+          });
+          saveAllocations.mutate(allocations);
+        };
+
+        return (
+          <div className="ml-16 mr-4 mb-2 bg-muted/30 rounded-md border border-border overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="px-2 py-1.5 text-left font-medium w-24">Секция</th>
+                  <th className="px-2 py-1.5 text-right font-medium w-20">%</th>
+                  <th className="px-2 py-1.5 text-right font-medium w-24">Кол-во</th>
+                  <th className="px-2 py-1.5 text-right font-medium w-28">Сумма СМР</th>
+                  <th className="px-2 py-1.5 text-right font-medium w-32">Итого</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: sectionsCount }, (_, i) => {
+                  const sectionNum = i + 1;
+                  const coefficient = getCoefficient(sectionNum);
+                  const sectionQuantity = isValid ? quantity * (coefficient / 100) : 0;
+                  const sectionSmrTotal = sectionQuantity * smrPnr;
+                  const sectionTotal = quantity > 0 ? (groupTotal / quantity) * sectionQuantity : 0;
+                  
+                  return (
+                    <tr key={sectionNum} className="border-b border-border last:border-b-0 hover:bg-muted/20">
+                      <td className="px-2 py-1.5 text-muted-foreground">
+                        {groupNumber}-{sectionNum}с
+                      </td>
+                      <td className="px-2 py-1.5 text-right">
+                        <Input
+                          type="text"
+                          value={sectionCoefficients.get(sectionNum) ?? coefficient.toFixed(2)}
+                          onChange={(e) => handleCoefficientChange(sectionNum, e.target.value)}
+                          onBlur={() => handleCoefficientBlur(sectionNum)}
+                          className={`h-6 w-16 text-xs text-right ml-auto ${!isValid ? 'border-red-500' : ''}`}
+                          data-testid={`input-section-coefficient-group-${group.id}-section-${sectionNum}`}
+                        />
+                      </td>
+                      <td className={`px-2 py-1.5 text-right font-mono ${!isValid ? 'text-red-600' : ''}`}>
+                        {isValid ? sectionQuantity.toFixed(2) : 'ошибка'}
+                      </td>
+                      <td className={`px-2 py-1.5 text-right font-mono ${!isValid ? 'text-red-600' : ''}`}>
+                        {isValid ? formatRubles(sectionSmrTotal) : '-'}
+                      </td>
+                      <td className={`px-2 py-1.5 text-right font-mono ${!isValid ? 'text-red-600' : ''}`}>
+                        {isValid ? formatRubles(isNaN(sectionTotal) ? 0 : sectionTotal) : '-'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {!isValid && (
+                <tfoot>
+                  <tr className="bg-red-50 dark:bg-red-950">
+                    <td colSpan={5} className="px-2 py-1 text-red-600 text-center">
+                      Сумма процентов должна равняться 100% (сейчас: {totalCoefficient.toFixed(2)}%)
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                </tfoot>
+              )}
+            </table>
+          </div>
+        );
+      })()}
 
       {isExpanded && (group.elements || []).map((element, elementIdx) => (
         <PDCElementRow 
@@ -1930,6 +1992,23 @@ function PDCElementRow({
   const [priceHistoryOpen, setPriceHistoryOpen] = useState(false);
   const [fieldValue, setFieldValue] = useState("");
   const [buildingSectionsOpen, setBuildingSectionsOpen] = useState(false);
+  const [sectionCoefficients, setSectionCoefficients] = useState<Map<number, string>>(new Map());
+
+  // Load section allocations for this element
+  const { data: elementAllocations = [] } = useQuery<SectionAllocation[]>({
+    queryKey: ["/api/section-allocations", { elementId: element.id }],
+    enabled: sectionsCount > 1,
+  });
+
+  // Save section allocations
+  const saveAllocations = useMutation({
+    mutationFn: async (allocations: { elementId: number; sectionNumber: number; coefficient: string }[]) => {
+      return await apiRequest("POST", "/api/section-allocations", { allocations });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/section-allocations", { elementId: element.id }] });
+    },
+  });
 
   const updateElement = useMutation({
     mutationFn: async (updates: Partial<typeof element>) => {
@@ -2128,50 +2207,90 @@ function PDCElementRow({
     />
 
     {/* Building sections slider for element */}
-    {sectionsCount > 1 && buildingSectionsOpen && (
-      <div className="ml-16 mr-4 mb-2 bg-muted/30 rounded-md border border-border overflow-hidden">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              <th className="px-2 py-1.5 text-left font-medium w-24">Секция</th>
-              <th className="px-2 py-1.5 text-right font-medium w-20">%</th>
-              <th className="px-2 py-1.5 text-right font-medium w-24">Кол-во</th>
-              <th className="px-2 py-1.5 text-right font-medium w-32">Материалы</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: sectionsCount }, (_, i) => {
-              const sectionNum = i + 1;
-              const coefficient = 100 / sectionsCount;
-              const sectionQuantity = quantity * (coefficient / 100);
-              const sectionMaterialTotal = coef * sectionQuantity * materialPrice;
-              
-              return (
-                <tr key={sectionNum} className="border-b border-border last:border-b-0 hover:bg-muted/20">
-                  <td className="px-2 py-1.5 text-muted-foreground">
-                    {elementNumber}-{sectionNum}с
-                  </td>
-                  <td className="px-2 py-1.5 text-right">
-                    <Input
-                      type="text"
-                      defaultValue={coefficient.toFixed(2)}
-                      className="h-6 w-16 text-xs text-right ml-auto"
-                      data-testid={`input-section-coefficient-element-${element.id}-section-${sectionNum}`}
-                    />
-                  </td>
-                  <td className="px-2 py-1.5 text-right font-mono">
-                    {sectionQuantity.toFixed(2)}
-                  </td>
-                  <td className="px-2 py-1.5 text-right font-mono">
-                    {formatRubles(sectionMaterialTotal)}
+    {sectionsCount > 1 && buildingSectionsOpen && (() => {
+      // Calculate total coefficient from saved or local state
+      const getCoefficient = (sectionNum: number): number => {
+        const localValue = sectionCoefficients.get(sectionNum);
+        if (localValue !== undefined) return parseFloat(localValue) || 0;
+        const saved = elementAllocations.find(a => a.sectionNumber === sectionNum);
+        if (saved?.coefficient) return parseFloat(saved.coefficient);
+        return 100 / sectionsCount;
+      };
+
+      const totalCoefficient = Array.from({ length: sectionsCount }, (_, i) => getCoefficient(i + 1)).reduce((a, b) => a + b, 0);
+      const isValid = Math.abs(totalCoefficient - 100) < 0.01;
+
+      const handleCoefficientChange = (sectionNum: number, value: string) => {
+        const newCoefficients = new Map(sectionCoefficients);
+        newCoefficients.set(sectionNum, value);
+        setSectionCoefficients(newCoefficients);
+      };
+
+      const handleCoefficientBlur = () => {
+        const allocations = Array.from({ length: sectionsCount }, (_, i) => {
+          const num = i + 1;
+          const cf = sectionCoefficients.get(num) ?? elementAllocations.find(a => a.sectionNumber === num)?.coefficient ?? String(100 / sectionsCount);
+          return { elementId: element.id, sectionNumber: num, coefficient: cf };
+        });
+        saveAllocations.mutate(allocations);
+      };
+
+      return (
+        <div className="ml-16 mr-4 mb-2 bg-muted/30 rounded-md border border-border overflow-hidden">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="px-2 py-1.5 text-left font-medium w-24">Секция</th>
+                <th className="px-2 py-1.5 text-right font-medium w-20">%</th>
+                <th className="px-2 py-1.5 text-right font-medium w-24">Кол-во</th>
+                <th className="px-2 py-1.5 text-right font-medium w-32">Материалы</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: sectionsCount }, (_, i) => {
+                const sectionNum = i + 1;
+                const coefficient = getCoefficient(sectionNum);
+                const sectionQuantity = isValid ? quantity * (coefficient / 100) : 0;
+                const sectionMaterialTotal = coef * sectionQuantity * materialPrice;
+                
+                return (
+                  <tr key={sectionNum} className="border-b border-border last:border-b-0 hover:bg-muted/20">
+                    <td className="px-2 py-1.5 text-muted-foreground">
+                      {elementNumber}-{sectionNum}с
+                    </td>
+                    <td className="px-2 py-1.5 text-right">
+                      <Input
+                        type="text"
+                        value={sectionCoefficients.get(sectionNum) ?? coefficient.toFixed(2)}
+                        onChange={(e) => handleCoefficientChange(sectionNum, e.target.value)}
+                        onBlur={handleCoefficientBlur}
+                        className={`h-6 w-16 text-xs text-right ml-auto ${!isValid ? 'border-red-500' : ''}`}
+                        data-testid={`input-section-coefficient-element-${element.id}-section-${sectionNum}`}
+                      />
+                    </td>
+                    <td className={`px-2 py-1.5 text-right font-mono ${!isValid ? 'text-red-600' : ''}`}>
+                      {isValid ? sectionQuantity.toFixed(2) : 'ошибка'}
+                    </td>
+                    <td className={`px-2 py-1.5 text-right font-mono ${!isValid ? 'text-red-600' : ''}`}>
+                      {isValid ? formatRubles(sectionMaterialTotal) : '-'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            {!isValid && (
+              <tfoot>
+                <tr className="bg-red-50 dark:bg-red-950">
+                  <td colSpan={4} className="px-2 py-1 text-red-600 text-center">
+                    Сумма процентов должна равняться 100% (сейчас: {totalCoefficient.toFixed(2)}%)
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    )}
+              </tfoot>
+            )}
+          </table>
+        </div>
+      );
+    })()}
     </>
   );
 }
