@@ -1578,6 +1578,7 @@ function PDCGroupRow({
   const [expandedCodeNodes, setExpandedCodeNodes] = useState<Set<number>>(new Set());
   const [hiddenCodeNodes, setHiddenCodeNodes] = useState<Set<number>>(new Set());
   const [priceHistoryOpen, setPriceHistoryOpen] = useState(false);
+  const [buildingSectionsOpen, setBuildingSectionsOpen] = useState(false);
 
   const { data: classifierCodes = [] } = useQuery<ClassifierCode[]>({
     queryKey: ["/api/classifier-codes"],
@@ -1654,7 +1655,16 @@ function PDCGroupRow({
   return (
     <>
       <div className="flex items-stretch border-b border-border group">
-        <div className="w-16 shrink-0 px-2 py-2 flex items-center justify-center text-xs">
+        <div className="w-16 shrink-0 px-2 py-2 flex items-center justify-center text-xs gap-1">
+          {sectionsCount > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setBuildingSectionsOpen(!buildingSectionsOpen); }}
+              className="p-0.5 hover:bg-muted rounded"
+              data-testid={`button-toggle-building-sections-group-${group.id}`}
+            >
+              {buildingSectionsOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            </button>
+          )}
           {groupNumber}
         </div>
         <div 
@@ -1812,6 +1822,57 @@ function PDCGroupRow({
         </div>
       </div>
 
+      {/* Building sections slider */}
+      {sectionsCount > 1 && buildingSectionsOpen && (
+        <div className="ml-16 mr-4 mb-2 bg-muted/30 rounded-md border border-border overflow-hidden">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="px-2 py-1.5 text-left font-medium w-24">Секция</th>
+                <th className="px-2 py-1.5 text-right font-medium w-20">%</th>
+                <th className="px-2 py-1.5 text-right font-medium w-24">Кол-во</th>
+                <th className="px-2 py-1.5 text-right font-medium w-28">Сумма СМР</th>
+                <th className="px-2 py-1.5 text-right font-medium w-32">Итого</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: sectionsCount }, (_, i) => {
+                const sectionNum = i + 1;
+                const coefficient = 100 / sectionsCount;
+                const sectionQuantity = quantity * (coefficient / 100);
+                const sectionSmrTotal = sectionQuantity * smrPnr;
+                const sectionTotal = (groupTotal / quantity) * sectionQuantity;
+                
+                return (
+                  <tr key={sectionNum} className="border-b border-border last:border-b-0 hover:bg-muted/20">
+                    <td className="px-2 py-1.5 text-muted-foreground">
+                      {groupNumber}-{sectionNum}с
+                    </td>
+                    <td className="px-2 py-1.5 text-right">
+                      <Input
+                        type="text"
+                        defaultValue={coefficient.toFixed(2)}
+                        className="h-6 w-16 text-xs text-right ml-auto"
+                        data-testid={`input-section-coefficient-group-${group.id}-section-${sectionNum}`}
+                      />
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-mono">
+                      {sectionQuantity.toFixed(2)}
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-mono">
+                      {formatRubles(sectionSmrTotal)}
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-mono">
+                      {formatRubles(isNaN(sectionTotal) ? 0 : sectionTotal)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {isExpanded && (group.elements || []).map((element, elementIdx) => (
         <PDCElementRow 
           key={element.id}
@@ -1868,6 +1929,7 @@ function PDCElementRow({
   const [editingField, setEditingField] = useState<string | null>(null);
   const [priceHistoryOpen, setPriceHistoryOpen] = useState(false);
   const [fieldValue, setFieldValue] = useState("");
+  const [buildingSectionsOpen, setBuildingSectionsOpen] = useState(false);
 
   const updateElement = useMutation({
     mutationFn: async (updates: Partial<typeof element>) => {
@@ -1924,8 +1986,18 @@ function PDCElementRow({
   };
 
   return (
+    <>
     <div className="flex items-stretch border-b border-border group hover:bg-muted/20">
-      <div className="w-16 shrink-0 px-2 py-2 flex items-center justify-center text-xs">
+      <div className="w-16 shrink-0 px-2 py-2 flex items-center justify-center text-xs gap-1">
+        {sectionsCount > 1 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setBuildingSectionsOpen(!buildingSectionsOpen); }}
+            className="p-0.5 hover:bg-muted rounded"
+            data-testid={`button-toggle-building-sections-element-${element.id}`}
+          >
+            {buildingSectionsOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          </button>
+        )}
         {elementNumber}
       </div>
       <div className="flex-1 min-w-[170px] flex items-center gap-2 pl-12 pr-3 py-2">
@@ -2041,19 +2113,66 @@ function PDCElementRow({
         {formatRubles(elementTotal)}
       </div>
       <div className="w-[200px] shrink-0 border-l border-border" />
-
-      <PriceHistoryDialog
-        open={priceHistoryOpen}
-        onOpenChange={setPriceHistoryOpen}
-        elementId={element.id}
-        priceType="materials"
-        currentPrice={materialPrice}
-        onPriceUpdated={(newPrice) => {
-          updateElement.mutate({ materialPrice: newPrice.toString() });
-        }}
-        title={`Материалы: ${element.name}`}
-      />
     </div>
+
+    <PriceHistoryDialog
+      open={priceHistoryOpen}
+      onOpenChange={setPriceHistoryOpen}
+      elementId={element.id}
+      priceType="materials"
+      currentPrice={materialPrice}
+      onPriceUpdated={(newPrice) => {
+        updateElement.mutate({ materialPrice: newPrice.toString() });
+      }}
+      title={`Материалы: ${element.name}`}
+    />
+
+    {/* Building sections slider for element */}
+    {sectionsCount > 1 && buildingSectionsOpen && (
+      <div className="ml-16 mr-4 mb-2 bg-muted/30 rounded-md border border-border overflow-hidden">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-border bg-muted/50">
+              <th className="px-2 py-1.5 text-left font-medium w-24">Секция</th>
+              <th className="px-2 py-1.5 text-right font-medium w-20">%</th>
+              <th className="px-2 py-1.5 text-right font-medium w-24">Кол-во</th>
+              <th className="px-2 py-1.5 text-right font-medium w-32">Материалы</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: sectionsCount }, (_, i) => {
+              const sectionNum = i + 1;
+              const coefficient = 100 / sectionsCount;
+              const sectionQuantity = quantity * (coefficient / 100);
+              const sectionMaterialTotal = coef * sectionQuantity * materialPrice;
+              
+              return (
+                <tr key={sectionNum} className="border-b border-border last:border-b-0 hover:bg-muted/20">
+                  <td className="px-2 py-1.5 text-muted-foreground">
+                    {elementNumber}-{sectionNum}с
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    <Input
+                      type="text"
+                      defaultValue={coefficient.toFixed(2)}
+                      className="h-6 w-16 text-xs text-right ml-auto"
+                      data-testid={`input-section-coefficient-element-${element.id}-section-${sectionNum}`}
+                    />
+                  </td>
+                  <td className="px-2 py-1.5 text-right font-mono">
+                    {sectionQuantity.toFixed(2)}
+                  </td>
+                  <td className="px-2 py-1.5 text-right font-mono">
+                    {formatRubles(sectionMaterialTotal)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    )}
+    </>
   );
 }
 
