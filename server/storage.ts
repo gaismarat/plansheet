@@ -25,6 +25,7 @@ import {
   executors,
   budgetRowCodes,
   priceChanges,
+  sectionAllocations,
   type Block,
   type Work,
   type WorkGroup,
@@ -95,7 +96,9 @@ import {
   type PriceChangeWithUser,
   type BudgetRowCode,
   type InsertBudgetRowCode,
-  type BudgetRowCodeWithCode
+  type BudgetRowCodeWithCode,
+  type SectionAllocation,
+  type InsertSectionAllocation
 } from "@shared/schema";
 import { eq, and, isNull, asc, lt, sql, or, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -294,6 +297,11 @@ export interface IStorage {
   getPriceHistory(params: { groupId?: number; elementId?: number; priceType: string }): Promise<PriceChangeWithUser[]>;
   createPriceChange(change: InsertPriceChange): Promise<PriceChange>;
   getInitialPricesForDocument(documentId: number): Promise<{ groupId?: number; elementId?: number; priceType: string; initialPrice: string }[]>;
+
+  // Section Allocations (Распределение по секциям)
+  getSectionAllocations(params: { groupId?: number; elementId?: number }): Promise<SectionAllocation[]>;
+  upsertSectionAllocations(allocations: InsertSectionAllocation[]): Promise<void>;
+  deleteSectionAllocations(params: { groupId?: number; elementId?: number; sectionNumber?: number }): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2180,6 +2188,72 @@ export class DatabaseStorage implements IStorage {
     });
 
     return Array.from(initialPricesMap.values());
+  }
+
+  // === SECTION ALLOCATIONS ===
+
+  async getSectionAllocations(params: { groupId?: number; elementId?: number }): Promise<SectionAllocation[]> {
+    const conditions = [];
+    if (params.groupId !== undefined) {
+      conditions.push(eq(sectionAllocations.groupId, params.groupId));
+    }
+    if (params.elementId !== undefined) {
+      conditions.push(eq(sectionAllocations.elementId, params.elementId));
+    }
+    
+    if (conditions.length === 0) return [];
+    
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+    
+    return await db.select()
+      .from(sectionAllocations)
+      .where(whereClause)
+      .orderBy(asc(sectionAllocations.sectionNumber));
+  }
+
+  async upsertSectionAllocations(allocations: InsertSectionAllocation[]): Promise<void> {
+    for (const allocation of allocations) {
+      // Find existing allocation
+      const conditions = [eq(sectionAllocations.sectionNumber, allocation.sectionNumber)];
+      if (allocation.groupId) {
+        conditions.push(eq(sectionAllocations.groupId, allocation.groupId));
+      }
+      if (allocation.elementId) {
+        conditions.push(eq(sectionAllocations.elementId, allocation.elementId));
+      }
+      
+      const existing = await db.select()
+        .from(sectionAllocations)
+        .where(and(...conditions))
+        .limit(1);
+      
+      if (existing.length > 0) {
+        // Update existing
+        await db.update(sectionAllocations)
+          .set({ coefficient: allocation.coefficient, quantity: allocation.quantity })
+          .where(eq(sectionAllocations.id, existing[0].id));
+      } else {
+        // Insert new
+        await db.insert(sectionAllocations).values(allocation);
+      }
+    }
+  }
+
+  async deleteSectionAllocations(params: { groupId?: number; elementId?: number; sectionNumber?: number }): Promise<void> {
+    const conditions = [];
+    if (params.groupId !== undefined) {
+      conditions.push(eq(sectionAllocations.groupId, params.groupId));
+    }
+    if (params.elementId !== undefined) {
+      conditions.push(eq(sectionAllocations.elementId, params.elementId));
+    }
+    if (params.sectionNumber !== undefined) {
+      conditions.push(eq(sectionAllocations.sectionNumber, params.sectionNumber));
+    }
+    
+    if (conditions.length === 0) return;
+    
+    await db.delete(sectionAllocations).where(and(...conditions));
   }
 }
 

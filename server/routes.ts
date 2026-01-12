@@ -473,6 +473,36 @@ export async function registerRoutes(
     res.json(initialPrices);
   });
 
+  // === Section Allocations (Распределение по секциям) ===
+
+  app.get('/api/section-allocations', requireAuth, async (req, res) => {
+    const groupId = req.query.groupId ? Number(req.query.groupId) : undefined;
+    const elementId = req.query.elementId ? Number(req.query.elementId) : undefined;
+    
+    const allocations = await storage.getSectionAllocations({ groupId, elementId });
+    res.json(allocations);
+  });
+
+  app.post('/api/section-allocations', requireAuth, async (req, res) => {
+    const { allocations } = req.body;
+    
+    if (!Array.isArray(allocations)) {
+      return res.status(400).json({ error: 'allocations must be an array' });
+    }
+    
+    await storage.upsertSectionAllocations(allocations);
+    res.status(200).json({ success: true });
+  });
+
+  app.delete('/api/section-allocations', requireAuth, async (req, res) => {
+    const groupId = req.query.groupId ? Number(req.query.groupId) : undefined;
+    const elementId = req.query.elementId ? Number(req.query.elementId) : undefined;
+    const sectionNumber = req.query.sectionNumber ? Number(req.query.sectionNumber) : undefined;
+    
+    await storage.deleteSectionAllocations({ groupId, elementId, sectionNumber });
+    res.status(200).json({ success: true });
+  });
+
   // === Contracts (Budgets) ===
 
   app.get('/api/contracts', async (_req, res) => {
