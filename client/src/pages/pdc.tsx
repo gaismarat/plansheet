@@ -1855,7 +1855,7 @@ function PDCGroupRow({
         };
 
         const totalCoefficient = Array.from({ length: sectionsCount }, (_, i) => getCoefficient(i + 1)).reduce((a, b) => a + b, 0);
-        const isValid = Math.abs(totalCoefficient - 100) < 0.01;
+        const isValid = Math.abs(totalCoefficient - 100) <= 0.1;
 
         const handleCoefficientChange = (sectionNum: number, value: string) => {
           const newCoefficients = new Map(sectionCoefficients);
@@ -2218,7 +2218,7 @@ function PDCElementRow({
       };
 
       const totalCoefficient = Array.from({ length: sectionsCount }, (_, i) => getCoefficient(i + 1)).reduce((a, b) => a + b, 0);
-      const isValid = Math.abs(totalCoefficient - 100) < 0.01;
+      const isValid = Math.abs(totalCoefficient - 100) <= 0.1;
 
       const handleCoefficientChange = (sectionNum: number, value: string) => {
         const newCoefficients = new Map(sectionCoefficients);
