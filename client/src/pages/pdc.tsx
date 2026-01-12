@@ -840,6 +840,29 @@ function PDCDocumentCard({
                     Исполнитель: {currentExecutor?.name || "не выбран"}
                   </div>
                 )}
+
+                {/* Секции дома */}
+                {(isOwner || isAdmin) ? (
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground px-2 py-1 bg-muted/50 rounded">
+                    <span>Секций:</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={document.sectionsCount || 1}
+                      onChange={(e) => {
+                        const val = Math.min(10, Math.max(1, parseInt(e.target.value) || 1));
+                        updateDocument.mutate({ sectionsCount: val });
+                      }}
+                      className="w-14 h-7 text-sm text-center"
+                      data-testid={`input-sections-count-${document.id}`}
+                    />
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground px-2 py-1 bg-muted/50 rounded" data-testid={`text-sections-count-${document.id}`}>
+                    Секций: {document.sectionsCount || 1}
+                  </div>
+                )}
               </div>
               <div className="text-right max-w-[400px]">
                 {editingHeader ? (
@@ -884,6 +907,7 @@ function PDCDocumentCard({
                 calculateSectionTotal={calculateSectionTotal}
                 calculateGroupTotal={calculateGroupTotal}
                 initialPriceMap={initialPriceMap}
+                sectionsCount={document.sectionsCount || 1}
               />
             </div>
 
@@ -993,6 +1017,7 @@ interface PDCTableProps {
   calculateSectionTotal: (section: PdcSectionWithGroups) => number;
   calculateGroupTotal: (group: PdcGroupWithElements) => number;
   initialPriceMap: Map<string, string>;
+  sectionsCount: number;
 }
 
 function PDCTable({
@@ -1008,7 +1033,8 @@ function PDCTable({
   calculateBlockTotal,
   calculateSectionTotal,
   calculateGroupTotal,
-  initialPriceMap
+  initialPriceMap,
+  sectionsCount
 }: PDCTableProps) {
   const { toast } = useToast();
 
@@ -1086,6 +1112,7 @@ function PDCTable({
           calculateGroupTotal={calculateGroupTotal}
           documentId={documentData.id}
           initialPriceMap={initialPriceMap}
+          sectionsCount={sectionsCount}
         />
       ))}
     </div>
@@ -1108,6 +1135,7 @@ interface PDCBlockRowProps {
   calculateGroupTotal: (group: PdcGroupWithElements) => number;
   documentId: number;
   initialPriceMap: Map<string, string>;
+  sectionsCount: number;
 }
 
 function PDCBlockRow({
@@ -1125,7 +1153,8 @@ function PDCBlockRow({
   calculateSectionTotal,
   calculateGroupTotal,
   documentId,
-  initialPriceMap
+  initialPriceMap,
+  sectionsCount
 }: PDCBlockRowProps) {
   const { toast } = useToast();
   const [editingName, setEditingName] = useState(false);
@@ -1277,6 +1306,7 @@ function PDCBlockRow({
           calculateGroupTotal={calculateGroupTotal}
           documentId={documentId}
           initialPriceMap={initialPriceMap}
+          sectionsCount={sectionsCount}
         />
       ))}
     </>
@@ -1297,6 +1327,7 @@ interface PDCSectionRowProps {
   calculateGroupTotal: (group: PdcGroupWithElements) => number;
   documentId: number;
   initialPriceMap: Map<string, string>;
+  sectionsCount: number;
 }
 
 function PDCSectionRow({
@@ -1312,7 +1343,8 @@ function PDCSectionRow({
   calculateSectionTotal,
   calculateGroupTotal,
   documentId,
-  initialPriceMap
+  initialPriceMap,
+  sectionsCount
 }: PDCSectionRowProps) {
   const { toast } = useToast();
   const [editingName, setEditingName] = useState(false);
@@ -1500,6 +1532,7 @@ function PDCSectionRow({
           calculateGroupTotal={calculateGroupTotal}
           documentId={documentId}
           initialPriceMap={initialPriceMap}
+          sectionsCount={sectionsCount}
         />
       ))}
     </>
@@ -1517,6 +1550,7 @@ interface PDCGroupRowProps {
   calculateGroupTotal: (group: PdcGroupWithElements) => number;
   documentId: number;
   initialPriceMap: Map<string, string>;
+  sectionsCount: number;
 }
 
 function PDCGroupRow({
@@ -1529,7 +1563,8 @@ function PDCGroupRow({
   parseNumeric,
   calculateGroupTotal,
   documentId,
-  initialPriceMap
+  initialPriceMap,
+  sectionsCount
 }: PDCGroupRowProps) {
   const { toast } = useToast();
   const { currentProject, isOwner, isAdmin } = useProjectContext();
@@ -1787,6 +1822,7 @@ function PDCGroupRow({
           parseNumeric={parseNumeric}
           documentId={documentId}
           initialPriceMap={initialPriceMap}
+          sectionsCount={sectionsCount}
         />
       ))}
 
@@ -1813,6 +1849,7 @@ interface PDCElementRowProps {
   parseNumeric: (val: string | number | null | undefined) => number;
   documentId: number;
   initialPriceMap: Map<string, string>;
+  sectionsCount: number;
 }
 
 function PDCElementRow({
@@ -1822,7 +1859,8 @@ function PDCElementRow({
   formatRubles,
   parseNumeric,
   documentId,
-  initialPriceMap
+  initialPriceMap,
+  sectionsCount
 }: PDCElementRowProps) {
   const { toast } = useToast();
   const [editingName, setEditingName] = useState(false);
