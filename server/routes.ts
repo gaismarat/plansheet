@@ -490,7 +490,14 @@ export async function registerRoutes(
       return res.status(400).json({ error: 'allocations must be an array' });
     }
     
-    await storage.upsertSectionAllocations(allocations);
+    // Sanitize allocations: replace empty strings with "0"
+    const sanitized = allocations.map((a: any) => ({
+      ...a,
+      coefficient: a.coefficient === "" || a.coefficient === null || a.coefficient === undefined ? "0" : String(a.coefficient),
+      quantity: a.quantity === "" || a.quantity === null || a.quantity === undefined ? "0" : String(a.quantity),
+    }));
+    
+    await storage.upsertSectionAllocations(sanitized);
     res.status(200).json({ success: true });
   });
 
