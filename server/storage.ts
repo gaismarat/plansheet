@@ -1265,7 +1265,7 @@ export class DatabaseStorage implements IStorage {
       workId,
       percent,
       submitterId,
-      sectionNumber: sectionNumber || null,
+      sectionNumber: sectionNumber !== undefined ? sectionNumber : null,
       status: "submitted"
     }).returning();
     return submission;
@@ -1284,7 +1284,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(progressSubmissions.id, submissionId))
       .returning();
     
-    if (submission.sectionNumber) {
+    if (submission.sectionNumber !== null && submission.sectionNumber !== undefined) {
       await this.upsertWorkSectionProgress(submission.workId, submission.sectionNumber, {
         progressPercentage: submission.percent
       });
