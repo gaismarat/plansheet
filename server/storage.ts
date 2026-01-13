@@ -232,6 +232,7 @@ export interface IStorage {
   rejectProgress(submissionId: number, approverId: number): Promise<ProgressSubmission>;
   getProgressHistory(workId: number, sectionNumber?: number | null): Promise<ProgressSubmissionWithUsers[]>;
   getLatestSubmission(workId: number, sectionNumber?: number | null): Promise<ProgressSubmission | undefined>;
+  getLatestSectionSubmissions(workId: number): Promise<(ProgressSubmission & { submitterName?: string })[]>;
   
   // Work Section Progress
   getWorkSectionProgress(workId: number): Promise<WorkSectionProgress[]>;
@@ -1362,6 +1363,36 @@ export class DatabaseStorage implements IStorage {
     
     if (submissions.length === 0) return undefined;
     return submissions[submissions.length - 1];
+  }
+
+  async getLatestSectionSubmissions(workId: number): Promise<(ProgressSubmission & { submitterName?: string })[]> {
+    // Get all submissions for this work that have a section number
+    const allSectionSubmissions = await db.select().from(progressSubmissions)
+      .where(and(
+        eq(progressSubmissions.workId, workId),
+        sql`${progressSubmissions.sectionNumber} IS NOT NULL`
+      ))
+      .orderBy(asc(progressSubmissions.id));
+    
+    // Group by sectionNumber and get the latest for each
+    const latestBySection = new Map<number, typeof allSectionSubmissions[0]>();
+    for (const sub of allSectionSubmissions) {
+      if (sub.sectionNumber !== null) {
+        latestBySection.set(sub.sectionNumber, sub);
+      }
+    }
+    
+    // Convert to array with submitter names
+    const result: (ProgressSubmission & { submitterName?: string })[] = [];
+    for (const sub of latestBySection.values()) {
+      const [submitter] = await db.select().from(users).where(eq(users.id, sub.submitterId));
+      result.push({
+        ...sub,
+        submitterName: submitter?.username
+      });
+    }
+    
+    return result.sort((a, b) => (a.sectionNumber || 0) - (b.sectionNumber || 0));
   }
 
   // === WORK SECTION PROGRESS ===

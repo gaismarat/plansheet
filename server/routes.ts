@@ -1180,6 +1180,17 @@ export async function registerRoutes(
     }
   });
 
+  // Get latest section submissions for a work (all sections)
+  app.get('/api/progress/section-latest/:workId', async (req, res) => {
+    try {
+      const workId = Number(req.params.workId);
+      const submissions = await storage.getLatestSectionSubmissions(workId);
+      res.json(submissions);
+    } catch (err) {
+      throw err;
+    }
+  });
+
   // === Work Section Progress ===
 
   // Get section progress for a work

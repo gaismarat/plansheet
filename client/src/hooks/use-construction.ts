@@ -406,6 +406,8 @@ export function useApproveProgress() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/progress/latest-all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/progress/section-latest'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/works'] });
       queryClient.invalidateQueries({ queryKey: [api.workGroups.list.path] });
       toast({ title: "Прогресс согласован" });
     },
@@ -429,6 +431,7 @@ export function useRejectProgress() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/progress/latest-all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/progress/section-latest'] });
       toast({ title: "Прогресс отклонён" });
     },
     onError: (error) => {
@@ -553,6 +556,55 @@ export function useDeleteSectionProgress() {
     onError: (error) => {
       toast({ title: "Ошибка", description: error.message, variant: "destructive" });
     },
+  });
+}
+
+// Submit section progress for approval (uses existing progress/submit with sectionNumber)
+export function useSubmitSectionProgress() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ workId, sectionNumber, percent }: { workId: number; sectionNumber: number; percent: number }) => {
+      const res = await fetch('/api/progress/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workId, percent, sectionNumber }),
+      });
+      if (!res.ok) throw new Error("Failed to submit section progress");
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/progress/latest-all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/progress/section-latest', variables.workId] });
+      toast({ title: "Прогресс отправлен", description: `Секция ${variables.sectionNumber} ожидает согласования` });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+// Get latest section submissions for a work
+export interface SectionSubmission {
+  id: number;
+  workId: number;
+  sectionNumber: number;
+  percent: number;
+  status: string;
+  submitterId: number;
+  submitterName?: string;
+}
+
+export function useLatestSectionSubmissions(workId: number) {
+  return useQuery<SectionSubmission[]>({
+    queryKey: ['/api/progress/section-latest', workId],
+    queryFn: async () => {
+      const res = await fetch(`/api/progress/section-latest/${workId}`);
+      if (!res.ok) throw new Error("Failed to fetch section submissions");
+      return res.json();
+    },
+    enabled: workId > 0,
   });
 }
 

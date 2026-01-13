@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { type Work, type WorkTreeItem } from "@shared/schema";
-import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress, useWorkMaterials, useWorkSectionProgress, type WorkSectionProgressItem } from "@/hooks/use-construction";
+import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress, useWorkMaterials, useWorkSectionProgress, useSubmitSectionProgress, useLatestSectionSubmissions, type WorkSectionProgressItem, type SectionSubmission } from "@/hooks/use-construction";
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { ProgressHistoryDialog } from "@/components/progress-history-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, X, Users, Check, Package, Building2 } from "lucide-react";
+import { ChevronDown, ChevronRight, X, Users, Check, Package, Building2, Edit2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -973,6 +973,8 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
               displayCostPlan={displayCostPlan}
               displayUnit={displayUnit}
               showCost={showCost}
+              canSetProgress={canSetProgress}
+              isAdmin={isAdmin}
             />
           )}
 
@@ -993,7 +995,9 @@ function SectionsSpoiler({
   displayQuantityPlan,
   displayCostPlan,
   displayUnit,
-  showCost
+  showCost,
+  canSetProgress,
+  isAdmin
 }: { 
   workId: number; 
   sectionsCount: number; 
@@ -1002,10 +1006,21 @@ function SectionsSpoiler({
   displayCostPlan: number;
   displayUnit: string;
   showCost: boolean;
+  canSetProgress: boolean;
+  isAdmin: boolean;
 }) {
+  const { data: sectionSubmissions = [] } = useLatestSectionSubmissions(workId);
+  
   const sectionProgressMap = new Map<number, WorkSectionProgressItem>();
   for (const sp of sectionProgress) {
     sectionProgressMap.set(sp.sectionNumber, sp);
+  }
+  
+  const sectionSubmissionsMap = new Map<number, SectionSubmission>();
+  for (const ss of sectionSubmissions) {
+    if (ss.sectionNumber !== null) {
+      sectionSubmissionsMap.set(ss.sectionNumber, ss);
+    }
   }
   
   const sectionQuantity = displayQuantityPlan / sectionsCount;
@@ -1024,6 +1039,7 @@ function SectionsSpoiler({
       <div className="divide-y divide-border/30">
         {Array.from({ length: sectionsCount }, (_, i) => i + 1).map((sectionNum) => {
           const progress = sectionProgressMap.get(sectionNum);
+          const submission = sectionSubmissionsMap.get(sectionNum);
           const actualVolume = progress?.volumeActual || 0;
           const actualCost = progress?.costActual || 0;
           const progressPercent = progress?.progressPercentage || 0;
@@ -1040,6 +1056,9 @@ function SectionsSpoiler({
               progressPercent={progressPercent}
               displayUnit={displayUnit}
               showCost={showCost}
+              canSetProgress={canSetProgress}
+              isAdmin={isAdmin}
+              pendingSubmission={submission?.status === 'submitted' ? submission : undefined}
             />
           );
         })}
@@ -1057,7 +1076,10 @@ function SectionRow({
   actualCost,
   progressPercent,
   displayUnit,
-  showCost
+  showCost,
+  canSetProgress,
+  isAdmin,
+  pendingSubmission
 }: {
   workId: number;
   sectionNumber: number;
@@ -1068,10 +1090,35 @@ function SectionRow({
   progressPercent: number;
   displayUnit: string;
   showCost: boolean;
+  canSetProgress: boolean;
+  isAdmin: boolean;
+  pendingSubmission?: SectionSubmission;
 }) {
+  const [localProgress, setLocalProgress] = useState(progressPercent);
+  const [isEditing, setIsEditing] = useState(false);
+  
+  const { mutate: submitSectionProgress, isPending: isSubmitting } = useSubmitSectionProgress();
+  const { mutate: approveProgress, isPending: isApproving } = useApproveProgress();
+  const { mutate: rejectProgress, isPending: isRejecting } = useRejectProgress();
+  
+  useEffect(() => {
+    setLocalProgress(progressPercent);
+  }, [progressPercent]);
+  
+  const handleSubmit = () => {
+    submitSectionProgress({ workId, sectionNumber, percent: localProgress });
+    setIsEditing(false);
+  };
+  
+  const isPending = pendingSubmission !== undefined;
+  const pendingPercent = pendingSubmission?.percent;
+
   return (
     <div 
-      className="grid grid-cols-12 gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors items-center"
+      className={cn(
+        "grid grid-cols-12 gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors items-center",
+        isPending && "bg-yellow-500/10"
+      )}
       data-testid={`section-row-${workId}-${sectionNumber}`}
     >
       <div className="col-span-1 font-mono text-muted-foreground">-{sectionNumber}с</div>
@@ -1083,17 +1130,99 @@ function SectionRow({
       {showCost && (
         <div className="col-span-2 text-center font-mono">{actualCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} <span className="text-muted-foreground text-[10px]">руб.</span></div>
       )}
-      <div className={cn("flex items-center gap-2", showCost ? "col-span-3" : "col-span-7")}>
-        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-          <div 
-            className={cn(
-              "h-full rounded-full transition-all",
-              progressPercent >= 100 ? "bg-green-500" : progressPercent > 0 ? "bg-blue-500" : "bg-muted-foreground/30"
+      <div className={cn("flex items-center gap-1", showCost ? "col-span-3" : "col-span-7")}>
+        {isPending ? (
+          <>
+            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full rounded-full transition-all bg-yellow-500"
+                style={{ width: `${pendingPercent}%` }}
+              />
+            </div>
+            <span className="font-mono text-xs w-8 text-right text-yellow-600">{pendingPercent}%</span>
+            {isAdmin && (
+              <>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-5 w-5 text-green-600 hover:text-green-700"
+                  onClick={() => approveProgress(pendingSubmission.id)}
+                  disabled={isApproving}
+                  data-testid={`button-approve-section-${workId}-${sectionNumber}`}
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-5 w-5 text-red-600 hover:text-red-700"
+                  onClick={() => rejectProgress(pendingSubmission.id)}
+                  disabled={isRejecting}
+                  data-testid={`button-reject-section-${workId}-${sectionNumber}`}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </>
             )}
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-        <span className="font-mono text-xs w-8 text-right">{progressPercent}%</span>
+          </>
+        ) : isEditing ? (
+          <>
+            <input 
+              type="number"
+              min={0}
+              max={100}
+              value={localProgress}
+              onChange={(e) => setLocalProgress(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+              className="w-12 text-right bg-transparent border-b border-primary focus:outline-none font-mono text-xs"
+              autoFocus
+              data-testid={`input-section-progress-${workId}-${sectionNumber}`}
+            />
+            <span className="text-muted-foreground text-xs">%</span>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-5 w-5 text-green-600"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              data-testid={`button-submit-section-${workId}-${sectionNumber}`}
+            >
+              <Check className="h-3 w-3" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-5 w-5"
+              onClick={() => { setIsEditing(false); setLocalProgress(progressPercent); }}
+              data-testid={`button-cancel-section-${workId}-${sectionNumber}`}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </>
+        ) : (
+          <>
+            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div 
+                className={cn(
+                  "h-full rounded-full transition-all",
+                  progressPercent >= 100 ? "bg-green-500" : progressPercent > 0 ? "bg-blue-500" : "bg-muted-foreground/30"
+                )}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <span className="font-mono text-xs w-8 text-right">{progressPercent}%</span>
+            {canSetProgress && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-5 w-5"
+                onClick={() => setIsEditing(true)}
+                data-testid={`button-edit-section-${workId}-${sectionNumber}`}
+              >
+                <Edit2 className="h-3 w-3" />
+              </Button>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
