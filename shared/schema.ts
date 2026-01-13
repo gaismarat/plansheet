@@ -616,6 +616,7 @@ export type ClassifierCodeWithChildren = ClassifierCode & {
 export const progressSubmissions = pgTable("progress_submissions", {
   id: serial("id").primaryKey(),
   workId: integer("work_id").notNull().references(() => works.id, { onDelete: "cascade" }),
+  sectionNumber: integer("section_number"), // Номер секции (null = общий прогресс, 1-10 = секционный)
   percent: integer("percent").notNull(), // Процент прогресса 0-100
   submitterId: integer("submitter_id").notNull().references(() => users.id), // Кто отправил
   approverId: integer("approver_id").references(() => users.id), // Кто согласовал/отклонил
@@ -654,6 +655,7 @@ export const progressSubmissionsRelations = relations(progressSubmissions, ({ on
 
 export const insertProgressSubmissionSchema = createInsertSchema(progressSubmissions).omit({ id: true, createdAt: true, resolvedAt: true }).extend({
   percent: z.coerce.number().min(0).max(100),
+  sectionNumber: z.coerce.number().min(1).max(10).optional().nullable(),
   status: z.enum(["submitted", "approved", "rejected"]).default("submitted"),
 });
 
@@ -748,6 +750,7 @@ export type WorkTreeDocument = {
   name: string;
   headerText: string | null;
   vatRate: number;
+  sectionsCount: number;
   progressPercentage: number;
   costWithVat: number;
   blocks: WorkTreeBlock[];
@@ -884,3 +887,31 @@ export const sectionAllocationsRelations = relations(sectionAllocations, ({ one 
 export const insertSectionAllocationSchema = createInsertSchema(sectionAllocations).omit({ id: true });
 export type SectionAllocation = typeof sectionAllocations.$inferSelect;
 export type InsertSectionAllocation = z.infer<typeof insertSectionAllocationSchema>;
+
+// === WORK SECTION PROGRESS TABLE ===
+// Фактические значения прогресса работ по секциям
+
+export const workSectionProgress = pgTable("work_section_progress", {
+  id: serial("id").primaryKey(),
+  workId: integer("work_id").notNull().references(() => works.id, { onDelete: "cascade" }),
+  sectionNumber: integer("section_number").notNull(), // Номер секции (1-10)
+  progressPercentage: integer("progress_percentage").default(0).notNull(), // Процент выполнения 0-100
+  volumeActual: real("volume_actual").default(0).notNull(), // Фактический объём
+  costActual: real("cost_actual").default(0).notNull(), // Фактическая стоимость
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// === WORK SECTION PROGRESS RELATIONS ===
+
+export const workSectionProgressRelations = relations(workSectionProgress, ({ one }) => ({
+  work: one(works, {
+    fields: [workSectionProgress.workId],
+    references: [works.id],
+  }),
+}));
+
+// === WORK SECTION PROGRESS SCHEMAS ===
+
+export const insertWorkSectionProgressSchema = createInsertSchema(workSectionProgress).omit({ id: true, updatedAt: true });
+export type WorkSectionProgress = typeof workSectionProgress.$inferSelect;
+export type InsertWorkSectionProgress = z.infer<typeof insertWorkSectionProgressSchema>;

@@ -1102,11 +1102,11 @@ export async function registerRoutes(
         }
       }
       
-      const { workId, percent } = req.body;
+      const { workId, percent, sectionNumber } = req.body;
       if (typeof workId !== 'number' || typeof percent !== 'number') {
         return res.status(400).json({ message: "workId и percent обязательны" });
       }
-      const submission = await storage.submitProgress(workId, percent, userId);
+      const submission = await storage.submitProgress(workId, percent, userId, sectionNumber || null);
       res.status(201).json(submission);
     } catch (err) {
       throw err;
@@ -1141,7 +1141,8 @@ export async function registerRoutes(
   app.get('/api/progress/history/:workId', async (req, res) => {
     try {
       const workId = Number(req.params.workId);
-      const history = await storage.getProgressHistory(workId);
+      const sectionNumber = req.query.sectionNumber ? Number(req.query.sectionNumber) : undefined;
+      const history = await storage.getProgressHistory(workId, sectionNumber);
       res.json(history);
     } catch (err) {
       throw err;
@@ -1152,7 +1153,8 @@ export async function registerRoutes(
   app.get('/api/progress/latest/:workId', async (req, res) => {
     try {
       const workId = Number(req.params.workId);
-      const submission = await storage.getLatestSubmission(workId);
+      const sectionNumber = req.query.sectionNumber ? Number(req.query.sectionNumber) : undefined;
+      const submission = await storage.getLatestSubmission(workId, sectionNumber);
       res.json(submission || null);
     } catch (err) {
       throw err;
@@ -1169,6 +1171,75 @@ export async function registerRoutes(
         const submission = await storage.getLatestSubmission(work.id);
         if (submission) {
           result[work.id] = submission;
+        }
+      }
+      
+      res.json(result);
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  // === Work Section Progress ===
+
+  // Get section progress for a work
+  app.get('/api/works/:workId/section-progress', async (req, res) => {
+    try {
+      const workId = Number(req.params.workId);
+      const sectionProgress = await storage.getWorkSectionProgress(workId);
+      res.json(sectionProgress);
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  // Update section progress for a work (upsert)
+  app.post('/api/works/:workId/section-progress', requireAuth, async (req, res) => {
+    try {
+      const workId = Number(req.params.workId);
+      const { sectionNumber, progressPercentage, volumeActual, costActual } = req.body;
+      
+      if (typeof sectionNumber !== 'number' || sectionNumber < 1 || sectionNumber > 10) {
+        return res.status(400).json({ message: "sectionNumber должен быть числом от 1 до 10" });
+      }
+      
+      const validatedProgress = Math.min(100, Math.max(0, Number(progressPercentage) || 0));
+      const validatedVolume = Math.max(0, Number(volumeActual) || 0);
+      const validatedCost = Math.max(0, Number(costActual) || 0);
+      
+      const progress = await storage.upsertWorkSectionProgress(workId, sectionNumber, {
+        progressPercentage: validatedProgress,
+        volumeActual: validatedVolume,
+        costActual: validatedCost
+      });
+      res.json(progress);
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  // Delete section progress
+  app.delete('/api/works/:workId/section-progress/:sectionNumber', requireAuth, async (req, res) => {
+    try {
+      const workId = Number(req.params.workId);
+      const sectionNumber = Number(req.params.sectionNumber);
+      await storage.deleteWorkSectionProgress(workId, sectionNumber);
+      res.status(204).send();
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  // Get all section progress for all works (batch fetching)
+  app.get('/api/work-section-progress/all', async (_req, res) => {
+    try {
+      const allWorks = await storage.getAllWorks();
+      const result: Record<number, any[]> = {};
+      
+      for (const work of allWorks) {
+        const sectionProgress = await storage.getWorkSectionProgress(work.id);
+        if (sectionProgress.length > 0) {
+          result[work.id] = sectionProgress;
         }
       }
       

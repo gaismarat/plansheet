@@ -26,6 +26,7 @@ import {
   budgetRowCodes,
   priceChanges,
   sectionAllocations,
+  workSectionProgress,
   type Block,
   type Work,
   type WorkGroup,
@@ -98,7 +99,9 @@ import {
   type InsertBudgetRowCode,
   type BudgetRowCodeWithCode,
   type SectionAllocation,
-  type InsertSectionAllocation
+  type InsertSectionAllocation,
+  type WorkSectionProgress,
+  type InsertWorkSectionProgress
 } from "@shared/schema";
 import { eq, and, isNull, asc, lt, sql, or, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -224,11 +227,16 @@ export interface IStorage {
   deleteWorkPeople(id: number): Promise<void>;
 
   // Progress Submissions
-  submitProgress(workId: number, percent: number, submitterId: number): Promise<ProgressSubmission>;
+  submitProgress(workId: number, percent: number, submitterId: number, sectionNumber?: number | null): Promise<ProgressSubmission>;
   approveProgress(submissionId: number, approverId: number): Promise<ProgressSubmission>;
   rejectProgress(submissionId: number, approverId: number): Promise<ProgressSubmission>;
-  getProgressHistory(workId: number): Promise<ProgressSubmissionWithUsers[]>;
-  getLatestSubmission(workId: number): Promise<ProgressSubmission | undefined>;
+  getProgressHistory(workId: number, sectionNumber?: number | null): Promise<ProgressSubmissionWithUsers[]>;
+  getLatestSubmission(workId: number, sectionNumber?: number | null): Promise<ProgressSubmission | undefined>;
+  
+  // Work Section Progress
+  getWorkSectionProgress(workId: number): Promise<WorkSectionProgress[]>;
+  upsertWorkSectionProgress(workId: number, sectionNumber: number, data: Partial<InsertWorkSectionProgress>): Promise<WorkSectionProgress>;
+  deleteWorkSectionProgress(workId: number, sectionNumber: number): Promise<void>;
 
   // Works Tree (PDC-based hierarchy)
   getWorksTree(): Promise<WorksTreeResponse>;
@@ -1251,11 +1259,12 @@ export class DatabaseStorage implements IStorage {
 
   // === PROGRESS SUBMISSIONS ===
 
-  async submitProgress(workId: number, percent: number, submitterId: number): Promise<ProgressSubmission> {
+  async submitProgress(workId: number, percent: number, submitterId: number, sectionNumber?: number | null): Promise<ProgressSubmission> {
     const [submission] = await db.insert(progressSubmissions).values({
       workId,
       percent,
       submitterId,
+      sectionNumber: sectionNumber || null,
       status: "submitted"
     }).returning();
     return submission;
@@ -1274,9 +1283,24 @@ export class DatabaseStorage implements IStorage {
       .where(eq(progressSubmissions.id, submissionId))
       .returning();
     
-    await db.update(works)
-      .set({ progressPercentage: submission.percent })
-      .where(eq(works.id, submission.workId));
+    if (submission.sectionNumber) {
+      await this.upsertWorkSectionProgress(submission.workId, submission.sectionNumber, {
+        progressPercentage: submission.percent
+      });
+      const sectionProgress = await this.getWorkSectionProgress(submission.workId);
+      if (sectionProgress.length > 0) {
+        const totalProgress = Math.round(
+          sectionProgress.reduce((sum, sp) => sum + sp.progressPercentage, 0) / sectionProgress.length
+        );
+        await db.update(works)
+          .set({ progressPercentage: totalProgress })
+          .where(eq(works.id, submission.workId));
+      }
+    } else {
+      await db.update(works)
+        .set({ progressPercentage: submission.percent })
+        .where(eq(works.id, submission.workId));
+    }
     
     return updated;
   }
@@ -1293,9 +1317,17 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getProgressHistory(workId: number): Promise<ProgressSubmissionWithUsers[]> {
+  async getProgressHistory(workId: number, sectionNumber?: number | null): Promise<ProgressSubmissionWithUsers[]> {
+    let whereClause;
+    if (sectionNumber !== undefined && sectionNumber !== null) {
+      whereClause = and(eq(progressSubmissions.workId, workId), eq(progressSubmissions.sectionNumber, sectionNumber));
+    } else if (sectionNumber === null) {
+      whereClause = and(eq(progressSubmissions.workId, workId), isNull(progressSubmissions.sectionNumber));
+    } else {
+      whereClause = eq(progressSubmissions.workId, workId);
+    }
     const submissions = await db.select().from(progressSubmissions)
-      .where(eq(progressSubmissions.workId, workId))
+      .where(whereClause)
       .orderBy(asc(progressSubmissions.id));
     
     const result: ProgressSubmissionWithUsers[] = [];
@@ -1315,13 +1347,70 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async getLatestSubmission(workId: number): Promise<ProgressSubmission | undefined> {
+  async getLatestSubmission(workId: number, sectionNumber?: number | null): Promise<ProgressSubmission | undefined> {
+    let whereClause;
+    if (sectionNumber !== undefined && sectionNumber !== null) {
+      whereClause = and(eq(progressSubmissions.workId, workId), eq(progressSubmissions.sectionNumber, sectionNumber));
+    } else if (sectionNumber === null) {
+      whereClause = and(eq(progressSubmissions.workId, workId), isNull(progressSubmissions.sectionNumber));
+    } else {
+      whereClause = eq(progressSubmissions.workId, workId);
+    }
     const submissions = await db.select().from(progressSubmissions)
-      .where(eq(progressSubmissions.workId, workId))
+      .where(whereClause)
       .orderBy(asc(progressSubmissions.id));
     
     if (submissions.length === 0) return undefined;
     return submissions[submissions.length - 1];
+  }
+
+  // === WORK SECTION PROGRESS ===
+
+  async getWorkSectionProgress(workId: number): Promise<WorkSectionProgress[]> {
+    return await db.select().from(workSectionProgress)
+      .where(eq(workSectionProgress.workId, workId))
+      .orderBy(asc(workSectionProgress.sectionNumber));
+  }
+
+  async upsertWorkSectionProgress(workId: number, sectionNumber: number, data: Partial<InsertWorkSectionProgress>): Promise<WorkSectionProgress> {
+    const existing = await db.select().from(workSectionProgress)
+      .where(and(eq(workSectionProgress.workId, workId), eq(workSectionProgress.sectionNumber, sectionNumber)));
+    
+    if (existing.length > 0) {
+      const [updated] = await db.update(workSectionProgress)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(workSectionProgress.id, existing[0].id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(workSectionProgress)
+        .values({ workId, sectionNumber, ...data })
+        .returning();
+      return created;
+    }
+  }
+
+  async deleteWorkSectionProgress(workId: number, sectionNumber: number): Promise<void> {
+    await db.delete(workSectionProgress)
+      .where(and(eq(workSectionProgress.workId, workId), eq(workSectionProgress.sectionNumber, sectionNumber)));
+    
+    const remainingSections = await this.getWorkSectionProgress(workId);
+    if (remainingSections.length > 0) {
+      const totalProgress = Math.round(
+        remainingSections.reduce((sum, sp) => sum + sp.progressPercentage, 0) / remainingSections.length
+      );
+      await db.update(works)
+        .set({ progressPercentage: totalProgress })
+        .where(eq(works.id, workId));
+    } else {
+      const allGlobalSubmissions = await db.select().from(progressSubmissions)
+        .where(and(eq(progressSubmissions.workId, workId), isNull(progressSubmissions.sectionNumber)))
+        .orderBy(asc(progressSubmissions.id));
+      const lastApproved = allGlobalSubmissions.filter(s => s.status === 'approved').pop();
+      await db.update(works)
+        .set({ progressPercentage: lastApproved ? lastApproved.percent : 0 })
+        .where(eq(works.id, workId));
+    }
   }
 
   // === WORKS TREE (PDC-based hierarchy) ===
@@ -1521,6 +1610,7 @@ export class DatabaseStorage implements IStorage {
         name: doc.name,
         headerText: doc.headerText,
         vatRate,
+        sectionsCount: doc.sectionsCount || 1,
         progressPercentage: docAvgProgress,
         costWithVat: docCost,
         blocks: treeBlocks
