@@ -467,6 +467,96 @@ export function useWorkMaterials(workId: number) {
 }
 
 // ============================================
+// WORK SECTION PROGRESS HOOKS
+// ============================================
+
+export interface WorkSectionProgressItem {
+  id: number;
+  workId: number;
+  sectionNumber: number;
+  progressPercentage: number;
+  volumeActual: number;
+  costActual: number;
+  updatedAt: string;
+}
+
+export function useWorkSectionProgress(workId: number) {
+  return useQuery<WorkSectionProgressItem[]>({
+    queryKey: ['/api/works', workId, 'section-progress'],
+    queryFn: async () => {
+      const res = await fetch(`/api/works/${workId}/section-progress`);
+      if (!res.ok) throw new Error("Failed to fetch section progress");
+      return res.json();
+    },
+    enabled: workId > 0,
+  });
+}
+
+export function useAllWorkSectionProgress() {
+  return useQuery<Record<number, WorkSectionProgressItem[]>>({
+    queryKey: ['/api/work-section-progress/all'],
+    queryFn: async () => {
+      const res = await fetch('/api/work-section-progress/all');
+      if (!res.ok) throw new Error("Failed to fetch all section progress");
+      return res.json();
+    },
+  });
+}
+
+export function useUpdateSectionProgress() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ workId, sectionNumber, progressPercentage, volumeActual, costActual }: {
+      workId: number;
+      sectionNumber: number;
+      progressPercentage: number;
+      volumeActual?: number;
+      costActual?: number;
+    }) => {
+      const res = await fetch(`/api/works/${workId}/section-progress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sectionNumber, progressPercentage, volumeActual, costActual }),
+      });
+      if (!res.ok) throw new Error("Failed to update section progress");
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/works', variables.workId, 'section-progress'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-section-progress/all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/works/tree'] });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeleteSectionProgress() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ workId, sectionNumber }: { workId: number; sectionNumber: number }) => {
+      const res = await fetch(`/api/works/${workId}/section-progress/${sectionNumber}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error("Failed to delete section progress");
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/works', variables.workId, 'section-progress'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-section-progress/all'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/works/tree'] });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+// ============================================
 // PROJECTS HOOKS
 // ============================================
 

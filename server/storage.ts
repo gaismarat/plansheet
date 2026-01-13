@@ -1546,7 +1546,8 @@ export class DatabaseStorage implements IStorage {
                 pdcUnit: pdcGroup.unit || "шт.",
                 pdcQuantity: quantity,
                 pdcCostWithVat: groupCostWithVat,
-                executorName
+                executorName,
+                sectionsCount: doc.sectionsCount || 1
               });
               sectionProgress += work.progressPercentage;
               sectionWorkCount++;

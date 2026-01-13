@@ -704,6 +704,7 @@ export type WorkTreeItem = Work & {
   pdcQuantity: number;
   pdcCostWithVat: number;
   executorName: string | null;
+  sectionsCount: number;
   materials?: WorkMaterial[];
 };
 

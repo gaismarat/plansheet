@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { type Work, type WorkTreeItem } from "@shared/schema";
-import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress, useWorkMaterials } from "@/hooks/use-construction";
+import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress, useWorkMaterials, useWorkSectionProgress, type WorkSectionProgressItem } from "@/hooks/use-construction";
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { ProgressHistoryDialog } from "@/components/progress-history-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, X, Users, Check, Package } from "lucide-react";
+import { ChevronDown, ChevronRight, X, Users, Check, Package, Building2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -70,8 +70,13 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   const displayUnit = isPdcWork ? work.pdcUnit : work.volumeUnit;
   const displayQuantityPlan = isPdcWork ? work.pdcQuantity : work.volumeAmount;
   const displayCostPlan = isPdcWork ? work.pdcCostWithVat : work.costPlan;
+  const sectionsCount = isPdcWork ? work.sectionsCount : 1;
+  const hasMultipleSections = sectionsCount > 1;
+  
+  const { data: sectionProgress = [] } = useWorkSectionProgress(hasMultipleSections ? work.id : 0);
   
   const [isExpanded, setIsExpanded] = useState(expandAll);
+  const [isSectionsOpen, setIsSectionsOpen] = useState(false);
   const [isMaterialsOpen, setIsMaterialsOpen] = useState(false);
   const [isEditingProgress, setIsEditingProgress] = useState(false);
   const [originalProgress, setOriginalProgress] = useState(work.progressPercentage);
@@ -924,25 +929,52 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
 
           {/* Actions Row */}
           <div className="mt-2 flex justify-between items-center">
-            {isPdcWork && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1 text-xs"
-                onClick={(e) => { e.stopPropagation(); setIsMaterialsOpen(!isMaterialsOpen); }}
-                data-testid={`button-materials-${work.id}`}
-              >
-                <Package className="w-3.5 h-3.5" />
-                Материалы
-                <ChevronDown className={cn("w-3 h-3 transition-transform", isMaterialsOpen && "rotate-180")} />
-              </Button>
-            )}
-            {!isPdcWork && <div />}
+            <div className="flex gap-2">
+              {hasMultipleSections && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 text-xs"
+                  onClick={(e) => { e.stopPropagation(); setIsSectionsOpen(!isSectionsOpen); }}
+                  data-testid={`button-sections-${work.id}`}
+                >
+                  <Building2 className="w-3.5 h-3.5" />
+                  Секции ({sectionsCount})
+                  <ChevronDown className={cn("w-3 h-3 transition-transform", isSectionsOpen && "rotate-180")} />
+                </Button>
+              )}
+              {isPdcWork && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 text-xs"
+                  onClick={(e) => { e.stopPropagation(); setIsMaterialsOpen(!isMaterialsOpen); }}
+                  data-testid={`button-materials-${work.id}`}
+                >
+                  <Package className="w-3.5 h-3.5" />
+                  Материалы
+                  <ChevronDown className={cn("w-3 h-3 transition-transform", isMaterialsOpen && "rotate-180")} />
+                </Button>
+              )}
+            </div>
             
             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
               <EditWorkDialog work={work} />
             </div>
           </div>
+
+          {/* Sections Spoiler */}
+          {hasMultipleSections && isSectionsOpen && (
+            <SectionsSpoiler 
+              workId={work.id} 
+              sectionsCount={sectionsCount} 
+              sectionProgress={sectionProgress}
+              displayQuantityPlan={displayQuantityPlan}
+              displayCostPlan={displayCostPlan}
+              displayUnit={displayUnit}
+              showCost={showCost}
+            />
+          )}
 
           {/* Materials Spoiler */}
           {isPdcWork && isMaterialsOpen && (
@@ -951,6 +983,119 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
         </>
       )}
     </motion.div>
+  );
+}
+
+function SectionsSpoiler({ 
+  workId, 
+  sectionsCount, 
+  sectionProgress,
+  displayQuantityPlan,
+  displayCostPlan,
+  displayUnit,
+  showCost
+}: { 
+  workId: number; 
+  sectionsCount: number; 
+  sectionProgress: WorkSectionProgressItem[];
+  displayQuantityPlan: number;
+  displayCostPlan: number;
+  displayUnit: string;
+  showCost: boolean;
+}) {
+  const sectionProgressMap = new Map<number, WorkSectionProgressItem>();
+  for (const sp of sectionProgress) {
+    sectionProgressMap.set(sp.sectionNumber, sp);
+  }
+  
+  const sectionQuantity = displayQuantityPlan / sectionsCount;
+  const sectionCost = displayCostPlan / sectionsCount;
+
+  return (
+    <div className="mt-3 bg-muted/50 rounded-lg border border-border/50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/70 text-[10px] font-semibold text-muted-foreground uppercase">
+        <div className="col-span-1">Секция</div>
+        <div className="col-span-2 text-center">Объём план</div>
+        <div className="col-span-2 text-center">Объём факт</div>
+        {showCost && <div className="col-span-2 text-center">Стоимость план</div>}
+        {showCost && <div className="col-span-2 text-center">Стоимость факт</div>}
+        <div className={cn("text-center", showCost ? "col-span-3" : "col-span-7")}>Прогресс</div>
+      </div>
+      <div className="divide-y divide-border/30">
+        {Array.from({ length: sectionsCount }, (_, i) => i + 1).map((sectionNum) => {
+          const progress = sectionProgressMap.get(sectionNum);
+          const actualVolume = progress?.volumeActual || 0;
+          const actualCost = progress?.costActual || 0;
+          const progressPercent = progress?.progressPercentage || 0;
+          
+          return (
+            <SectionRow
+              key={sectionNum}
+              workId={workId}
+              sectionNumber={sectionNum}
+              sectionQuantity={sectionQuantity}
+              sectionCost={sectionCost}
+              actualVolume={actualVolume}
+              actualCost={actualCost}
+              progressPercent={progressPercent}
+              displayUnit={displayUnit}
+              showCost={showCost}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SectionRow({
+  workId,
+  sectionNumber,
+  sectionQuantity,
+  sectionCost,
+  actualVolume,
+  actualCost,
+  progressPercent,
+  displayUnit,
+  showCost
+}: {
+  workId: number;
+  sectionNumber: number;
+  sectionQuantity: number;
+  sectionCost: number;
+  actualVolume: number;
+  actualCost: number;
+  progressPercent: number;
+  displayUnit: string;
+  showCost: boolean;
+}) {
+  return (
+    <div 
+      className="grid grid-cols-12 gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors items-center"
+      data-testid={`section-row-${workId}-${sectionNumber}`}
+    >
+      <div className="col-span-1 font-mono text-muted-foreground">-{sectionNumber}с</div>
+      <div className="col-span-2 text-center font-mono">{sectionQuantity.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} <span className="text-muted-foreground text-[10px]">{displayUnit}</span></div>
+      <div className="col-span-2 text-center font-mono">{actualVolume.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} <span className="text-muted-foreground text-[10px]">{displayUnit}</span></div>
+      {showCost && (
+        <div className="col-span-2 text-center font-mono">{sectionCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} <span className="text-muted-foreground text-[10px]">руб.</span></div>
+      )}
+      {showCost && (
+        <div className="col-span-2 text-center font-mono">{actualCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} <span className="text-muted-foreground text-[10px]">руб.</span></div>
+      )}
+      <div className={cn("flex items-center gap-2", showCost ? "col-span-3" : "col-span-7")}>
+        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+          <div 
+            className={cn(
+              "h-full rounded-full transition-all",
+              progressPercent >= 100 ? "bg-green-500" : progressPercent > 0 ? "bg-blue-500" : "bg-muted-foreground/30"
+            )}
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+        <span className="font-mono text-xs w-8 text-right">{progressPercent}%</span>
+      </div>
+    </div>
   );
 }
 
