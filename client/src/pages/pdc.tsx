@@ -1669,6 +1669,23 @@ function PDCGroupRow({
   const handleFieldSave = (field: string) => {
     const numValue = parseFloat(fieldValue) || 0;
     updateGroup.mutate({ [field]: numValue.toString() });
+    
+    // When user manually enters quantity > 0 directly, switch to percentage mode:
+    // Clear all section quantities so mode becomes percentage-based
+    if (field === 'quantity' && numValue > 0 && sectionsCount > 1) {
+      const allocations = Array.from({ length: sectionsCount }, (_, i) => {
+        const num = i + 1;
+        const savedAlloc = groupAllocations.find(a => a.sectionNumber === num);
+        return { 
+          groupId: group.id, 
+          sectionNumber: num, 
+          coefficient: savedAlloc?.coefficient ?? String(100 / sectionsCount),
+          quantity: "0"  // Clear all section quantities
+        };
+      });
+      saveAllocations.mutate(allocations);
+      setSectionQuantities(new Map()); // Clear local state
+    }
   };
 
   return (
@@ -2127,6 +2144,23 @@ function PDCElementRow({
   const handleFieldSave = (field: string) => {
     const numValue = parseFloat(fieldValue) || 0;
     updateElement.mutate({ [field]: numValue.toString() });
+    
+    // When user manually enters quantity > 0 directly, switch to percentage mode:
+    // Clear all section quantities so mode becomes percentage-based
+    if (field === 'quantity' && numValue > 0 && sectionsCount > 1) {
+      const allocations = Array.from({ length: sectionsCount }, (_, i) => {
+        const num = i + 1;
+        const savedAlloc = elementAllocations.find(a => a.sectionNumber === num);
+        return { 
+          elementId: element.id, 
+          sectionNumber: num, 
+          coefficient: savedAlloc?.coefficient ?? String(100 / sectionsCount),
+          quantity: "0"  // Clear all section quantities
+        };
+      });
+      saveAllocations.mutate(allocations);
+      setSectionQuantities(new Map()); // Clear local state
+    }
   };
 
   return (
