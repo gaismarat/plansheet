@@ -1581,6 +1581,7 @@ function PDCGroupRow({
   const [priceHistoryOpen, setPriceHistoryOpen] = useState(false);
   const [buildingSectionsOpen, setBuildingSectionsOpen] = useState(false);
   const [sectionCoefficients, setSectionCoefficients] = useState<Map<number, string>>(new Map());
+  const [sectionQuantities, setSectionQuantities] = useState<Map<number, string>>(new Map());
 
   const { data: classifierCodes = [] } = useQuery<ClassifierCode[]>({
     queryKey: ["/api/classifier-codes"],
@@ -1594,7 +1595,7 @@ function PDCGroupRow({
 
   // Save section allocations
   const saveAllocations = useMutation({
-    mutationFn: async (allocations: { groupId: number; sectionNumber: number; coefficient: string }[]) => {
+    mutationFn: async (allocations: { groupId: number; sectionNumber: number; coefficient?: string; quantity?: string }[]) => {
       return await apiRequest("POST", "/api/section-allocations", { allocations });
     },
     onSuccess: () => {
@@ -1842,16 +1843,28 @@ function PDCGroupRow({
 
       {/* Building sections slider */}
       {sectionsCount > 1 && buildingSectionsOpen && (() => {
-        // Calculate total coefficient from saved or local state
+        // Determine mode: manual if any section has saved quantity, or if local quantities being edited
+        const hasManualAllocations = groupAllocations.some(a => a.quantity && parseFloat(a.quantity) > 0);
+        const hasLocalQuantities = sectionQuantities.size > 0;
+        // Start in manual mode if main quantity=0, stay in manual mode if has saved/local quantities
+        const isManualMode = (quantity <= 0) || hasManualAllocations || hasLocalQuantities;
+
+        // Get coefficient for percentage mode
         const getCoefficient = (sectionNum: number): number => {
-          // First check local edits
           const localValue = sectionCoefficients.get(sectionNum);
           if (localValue !== undefined) return parseFloat(localValue) || 0;
-          // Then check saved allocations
           const saved = groupAllocations.find(a => a.sectionNumber === sectionNum);
           if (saved?.coefficient) return parseFloat(saved.coefficient);
-          // Default to even distribution
           return 100 / sectionsCount;
+        };
+
+        // Get manual quantity for section
+        const getSectionQuantity = (sectionNum: number): number => {
+          const localValue = sectionQuantities.get(sectionNum);
+          if (localValue !== undefined) return parseFloat(localValue) || 0;
+          const saved = groupAllocations.find(a => a.sectionNumber === sectionNum);
+          if (saved?.quantity) return parseFloat(saved.quantity);
+          return 0;
         };
 
         const totalCoefficient = Array.from({ length: sectionsCount }, (_, i) => getCoefficient(i + 1)).reduce((a, b) => a + b, 0);
@@ -1863,14 +1876,45 @@ function PDCGroupRow({
           setSectionCoefficients(newCoefficients);
         };
 
-        const handleCoefficientBlur = (sectionNum: number) => {
-          // Build all allocations and save
+        const handleCoefficientBlur = () => {
           const allocations = Array.from({ length: sectionsCount }, (_, i) => {
             const num = i + 1;
-            const coef = sectionCoefficients.get(num) ?? groupAllocations.find(a => a.sectionNumber === num)?.coefficient ?? String(100 / sectionsCount);
-            return { groupId: group.id, sectionNumber: num, coefficient: coef };
+            const savedAlloc = groupAllocations.find(a => a.sectionNumber === num);
+            const coef = sectionCoefficients.get(num) ?? savedAlloc?.coefficient ?? String(100 / sectionsCount);
+            const qty = savedAlloc?.quantity ?? "0";
+            return { groupId: group.id, sectionNumber: num, coefficient: coef, quantity: qty };
           });
           saveAllocations.mutate(allocations);
+        };
+
+        const handleQuantityChange = (sectionNum: number, value: string) => {
+          const newQuantities = new Map(sectionQuantities);
+          newQuantities.set(sectionNum, value);
+          setSectionQuantities(newQuantities);
+        };
+
+        const handleQuantityBlur = () => {
+          // Sum all section quantities
+          const totalQty = Array.from({ length: sectionsCount }, (_, i) => {
+            const num = i + 1;
+            const localVal = sectionQuantities.get(num);
+            if (localVal !== undefined) return Math.max(0, parseFloat(localVal) || 0);
+            const saved = groupAllocations.find(a => a.sectionNumber === num);
+            return saved?.quantity ? Math.max(0, parseFloat(saved.quantity)) : 0;
+          }).reduce((a, b) => a + b, 0);
+
+          // Save allocations with both coefficient and quantity
+          const allocations = Array.from({ length: sectionsCount }, (_, i) => {
+            const num = i + 1;
+            const savedAlloc = groupAllocations.find(a => a.sectionNumber === num);
+            const qty = sectionQuantities.get(num) ?? savedAlloc?.quantity ?? "0";
+            const coef = savedAlloc?.coefficient ?? String(100 / sectionsCount);
+            return { groupId: group.id, sectionNumber: num, coefficient: coef, quantity: qty };
+          });
+          saveAllocations.mutate(allocations);
+
+          // Update main group quantity with sum
+          updateGroup.mutate({ quantity: totalQty.toString() });
         };
 
         return (
@@ -1889,9 +1933,14 @@ function PDCGroupRow({
                 {Array.from({ length: sectionsCount }, (_, i) => {
                   const sectionNum = i + 1;
                   const coefficient = getCoefficient(sectionNum);
-                  const sectionQuantity = isValid ? quantity * (coefficient / 100) : 0;
+                  const manualQty = getSectionQuantity(sectionNum);
+                  const sectionQuantity = isManualMode ? manualQty : (isValid ? quantity * (coefficient / 100) : 0);
                   const sectionSmrTotal = sectionQuantity * smrPnr;
-                  const sectionTotal = quantity > 0 ? (groupTotal / quantity) * sectionQuantity : 0;
+                  const sectionTotal = sectionQuantity * (smrPnr + (group.elements || []).reduce((sum, el) => {
+                    const elCoef = parseNumeric(el.consumptionCoef);
+                    const elPrice = parseNumeric(el.materialPrice);
+                    return sum + elCoef * elPrice;
+                  }, 0));
                   
                   return (
                     <tr key={sectionNum} className="border-b border-border last:border-b-0 hover:bg-muted/20">
@@ -1903,25 +1952,40 @@ function PDCGroupRow({
                           type="text"
                           value={sectionCoefficients.get(sectionNum) ?? coefficient.toFixed(2)}
                           onChange={(e) => handleCoefficientChange(sectionNum, e.target.value)}
-                          onBlur={() => handleCoefficientBlur(sectionNum)}
-                          className={`h-6 w-16 text-xs text-right ml-auto ${!isValid ? 'border-red-500' : ''}`}
+                          onBlur={handleCoefficientBlur}
+                          disabled={isManualMode}
+                          className={`h-6 w-16 text-xs text-right ml-auto ${isManualMode ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''} ${!isManualMode && !isValid ? 'border-red-500' : ''}`}
                           data-testid={`input-section-coefficient-group-${group.id}-section-${sectionNum}`}
                         />
                       </td>
-                      <td className={`px-2 py-1.5 text-right font-mono ${!isValid ? 'text-red-600' : ''}`}>
-                        {isValid ? sectionQuantity.toFixed(2) : 'ошибка'}
+                      <td className="px-2 py-1.5 text-right">
+                        {isManualMode ? (
+                          <Input
+                            type="text"
+                            value={sectionQuantities.get(sectionNum) ?? (manualQty > 0 ? manualQty.toFixed(2) : '')}
+                            onChange={(e) => handleQuantityChange(sectionNum, e.target.value)}
+                            onBlur={handleQuantityBlur}
+                            placeholder="0"
+                            className="h-6 w-16 text-xs text-right ml-auto"
+                            data-testid={`input-section-quantity-group-${group.id}-section-${sectionNum}`}
+                          />
+                        ) : (
+                          <span className={`font-mono ${!isValid ? 'text-red-600' : ''}`}>
+                            {isValid ? sectionQuantity.toFixed(2) : 'ошибка'}
+                          </span>
+                        )}
                       </td>
-                      <td className={`px-2 py-1.5 text-right font-mono ${!isValid ? 'text-red-600' : ''}`}>
-                        {isValid ? formatRubles(sectionSmrTotal) : '-'}
+                      <td className={`px-2 py-1.5 text-right font-mono ${!isManualMode && !isValid ? 'text-red-600' : ''}`}>
+                        {(!isManualMode && !isValid) ? '-' : formatRubles(sectionSmrTotal)}
                       </td>
-                      <td className={`px-2 py-1.5 text-right font-mono ${!isValid ? 'text-red-600' : ''}`}>
-                        {isValid ? formatRubles(isNaN(sectionTotal) ? 0 : sectionTotal) : '-'}
+                      <td className={`px-2 py-1.5 text-right font-mono ${!isManualMode && !isValid ? 'text-red-600' : ''}`}>
+                        {(!isManualMode && !isValid) ? '-' : formatRubles(isNaN(sectionTotal) ? 0 : sectionTotal)}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
-              {!isValid && (
+              {!isManualMode && !isValid && (
                 <tfoot>
                   <tr className="bg-red-50 dark:bg-red-950">
                     <td colSpan={5} className="px-2 py-1 text-red-600 text-center">
@@ -1993,6 +2057,7 @@ function PDCElementRow({
   const [fieldValue, setFieldValue] = useState("");
   const [buildingSectionsOpen, setBuildingSectionsOpen] = useState(false);
   const [sectionCoefficients, setSectionCoefficients] = useState<Map<number, string>>(new Map());
+  const [sectionQuantities, setSectionQuantities] = useState<Map<number, string>>(new Map());
 
   // Load section allocations for this element
   const { data: elementAllocations = [] } = useQuery<SectionAllocation[]>({
@@ -2002,7 +2067,7 @@ function PDCElementRow({
 
   // Save section allocations
   const saveAllocations = useMutation({
-    mutationFn: async (allocations: { elementId: number; sectionNumber: number; coefficient: string }[]) => {
+    mutationFn: async (allocations: { elementId: number; sectionNumber: number; coefficient?: string; quantity?: string }[]) => {
       return await apiRequest("POST", "/api/section-allocations", { allocations });
     },
     onSuccess: () => {
@@ -2208,13 +2273,25 @@ function PDCElementRow({
 
     {/* Building sections slider for element */}
     {sectionsCount > 1 && buildingSectionsOpen && (() => {
-      // Calculate total coefficient from saved or local state
+      // Determine mode: manual if any section has saved quantity, or if local quantities being edited
+      const hasManualAllocations = elementAllocations.some(a => a.quantity && parseFloat(a.quantity) > 0);
+      const hasLocalQuantities = sectionQuantities.size > 0;
+      const isManualMode = (quantity <= 0) || hasManualAllocations || hasLocalQuantities;
+
       const getCoefficient = (sectionNum: number): number => {
         const localValue = sectionCoefficients.get(sectionNum);
         if (localValue !== undefined) return parseFloat(localValue) || 0;
         const saved = elementAllocations.find(a => a.sectionNumber === sectionNum);
         if (saved?.coefficient) return parseFloat(saved.coefficient);
         return 100 / sectionsCount;
+      };
+
+      const getSectionQuantity = (sectionNum: number): number => {
+        const localValue = sectionQuantities.get(sectionNum);
+        if (localValue !== undefined) return parseFloat(localValue) || 0;
+        const saved = elementAllocations.find(a => a.sectionNumber === sectionNum);
+        if (saved?.quantity) return parseFloat(saved.quantity);
+        return 0;
       };
 
       const totalCoefficient = Array.from({ length: sectionsCount }, (_, i) => getCoefficient(i + 1)).reduce((a, b) => a + b, 0);
@@ -2229,10 +2306,42 @@ function PDCElementRow({
       const handleCoefficientBlur = () => {
         const allocations = Array.from({ length: sectionsCount }, (_, i) => {
           const num = i + 1;
-          const cf = sectionCoefficients.get(num) ?? elementAllocations.find(a => a.sectionNumber === num)?.coefficient ?? String(100 / sectionsCount);
-          return { elementId: element.id, sectionNumber: num, coefficient: cf };
+          const savedAlloc = elementAllocations.find(a => a.sectionNumber === num);
+          const cf = sectionCoefficients.get(num) ?? savedAlloc?.coefficient ?? String(100 / sectionsCount);
+          const qty = savedAlloc?.quantity ?? "0";
+          return { elementId: element.id, sectionNumber: num, coefficient: cf, quantity: qty };
         });
         saveAllocations.mutate(allocations);
+      };
+
+      const handleQuantityChange = (sectionNum: number, value: string) => {
+        const newQuantities = new Map(sectionQuantities);
+        newQuantities.set(sectionNum, value);
+        setSectionQuantities(newQuantities);
+      };
+
+      const handleQuantityBlur = () => {
+        // Sum all section quantities
+        const totalQty = Array.from({ length: sectionsCount }, (_, i) => {
+          const num = i + 1;
+          const localVal = sectionQuantities.get(num);
+          if (localVal !== undefined) return Math.max(0, parseFloat(localVal) || 0);
+          const saved = elementAllocations.find(a => a.sectionNumber === num);
+          return saved?.quantity ? Math.max(0, parseFloat(saved.quantity)) : 0;
+        }).reduce((a, b) => a + b, 0);
+
+        // Save allocations with both coefficient and quantity
+        const allocations = Array.from({ length: sectionsCount }, (_, i) => {
+          const num = i + 1;
+          const savedAlloc = elementAllocations.find(a => a.sectionNumber === num);
+          const qty = sectionQuantities.get(num) ?? savedAlloc?.quantity ?? "0";
+          const coef = savedAlloc?.coefficient ?? String(100 / sectionsCount);
+          return { elementId: element.id, sectionNumber: num, coefficient: coef, quantity: qty };
+        });
+        saveAllocations.mutate(allocations);
+
+        // Update element quantity with sum
+        updateElement.mutate({ quantity: totalQty.toString() });
       };
 
       return (
@@ -2250,8 +2359,9 @@ function PDCElementRow({
               {Array.from({ length: sectionsCount }, (_, i) => {
                 const sectionNum = i + 1;
                 const coefficient = getCoefficient(sectionNum);
-                const sectionQuantity = isValid ? quantity * (coefficient / 100) : 0;
-                const sectionMaterialTotal = coef * sectionQuantity * materialPrice;
+                const manualQty = getSectionQuantity(sectionNum);
+                const sectionQuantityVal = isManualMode ? manualQty : (isValid ? quantity * (coefficient / 100) : 0);
+                const sectionMaterialTotal = coef * sectionQuantityVal * materialPrice;
                 
                 return (
                   <tr key={sectionNum} className="border-b border-border last:border-b-0 hover:bg-muted/20">
@@ -2264,21 +2374,36 @@ function PDCElementRow({
                         value={sectionCoefficients.get(sectionNum) ?? coefficient.toFixed(2)}
                         onChange={(e) => handleCoefficientChange(sectionNum, e.target.value)}
                         onBlur={handleCoefficientBlur}
-                        className={`h-6 w-16 text-xs text-right ml-auto ${!isValid ? 'border-red-500' : ''}`}
+                        disabled={isManualMode}
+                        className={`h-6 w-16 text-xs text-right ml-auto ${isManualMode ? 'bg-muted text-muted-foreground cursor-not-allowed' : ''} ${!isManualMode && !isValid ? 'border-red-500' : ''}`}
                         data-testid={`input-section-coefficient-element-${element.id}-section-${sectionNum}`}
                       />
                     </td>
-                    <td className={`px-2 py-1.5 text-right font-mono ${!isValid ? 'text-red-600' : ''}`}>
-                      {isValid ? sectionQuantity.toFixed(2) : 'ошибка'}
+                    <td className="px-2 py-1.5 text-right">
+                      {isManualMode ? (
+                        <Input
+                          type="text"
+                          value={sectionQuantities.get(sectionNum) ?? (manualQty > 0 ? manualQty.toFixed(2) : '')}
+                          onChange={(e) => handleQuantityChange(sectionNum, e.target.value)}
+                          onBlur={handleQuantityBlur}
+                          placeholder="0"
+                          className="h-6 w-16 text-xs text-right ml-auto"
+                          data-testid={`input-section-quantity-element-${element.id}-section-${sectionNum}`}
+                        />
+                      ) : (
+                        <span className={`font-mono ${!isValid ? 'text-red-600' : ''}`}>
+                          {isValid ? sectionQuantityVal.toFixed(2) : 'ошибка'}
+                        </span>
+                      )}
                     </td>
-                    <td className={`px-2 py-1.5 text-right font-mono ${!isValid ? 'text-red-600' : ''}`}>
-                      {isValid ? formatRubles(sectionMaterialTotal) : '-'}
+                    <td className={`px-2 py-1.5 text-right font-mono ${!isManualMode && !isValid ? 'text-red-600' : ''}`}>
+                      {(!isManualMode && !isValid) ? '-' : formatRubles(sectionMaterialTotal)}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
-            {!isValid && (
+            {!isManualMode && !isValid && (
               <tfoot>
                 <tr className="bg-red-50 dark:bg-red-950">
                   <td colSpan={4} className="px-2 py-1 text-red-600 text-center">
