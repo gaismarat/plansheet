@@ -630,6 +630,7 @@ export const progressSubmissions = pgTable("progress_submissions", {
 export const workPeople = pgTable("work_people", {
   id: serial("id").primaryKey(),
   workId: integer("work_id").notNull().references(() => works.id, { onDelete: "cascade" }),
+  sectionNumber: integer("section_number"), // Номер секции (null = общий, 1-10 = секционный)
   date: varchar("date").notNull(), // Format: YYYY-MM-DD
   count: integer("count").default(0).notNull(), // Number of people
 });
@@ -899,6 +900,11 @@ export const workSectionProgress = pgTable("work_section_progress", {
   progressPercentage: integer("progress_percentage").default(0).notNull(), // Процент выполнения 0-100
   volumeActual: real("volume_actual").default(0).notNull(), // Фактический объём
   costActual: real("cost_actual").default(0).notNull(), // Фактическая стоимость
+  planStartDate: varchar("plan_start_date"), // Дата начала план (YYYY-MM-DD)
+  actualStartDate: varchar("actual_start_date"), // Дата начала факт
+  planEndDate: varchar("plan_end_date"), // Дата окончания план
+  actualEndDate: varchar("actual_end_date"), // Дата окончания факт
+  plannedPeople: integer("planned_people").default(0).notNull(), // Плановое количество людей
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 

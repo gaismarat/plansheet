@@ -1208,23 +1208,66 @@ export async function registerRoutes(
   app.post('/api/works/:workId/section-progress', requireAuth, async (req, res) => {
     try {
       const workId = Number(req.params.workId);
-      const { sectionNumber, progressPercentage, volumeActual, costActual } = req.body;
+      const { 
+        sectionNumber, 
+        progressPercentage, 
+        volumeActual, 
+        costActual,
+        planStartDate,
+        actualStartDate,
+        planEndDate,
+        actualEndDate,
+        plannedPeople
+      } = req.body;
       
       if (typeof sectionNumber !== 'number' || sectionNumber < 1 || sectionNumber > 10) {
         return res.status(400).json({ message: "sectionNumber должен быть числом от 1 до 10" });
       }
       
-      const validatedProgress = Math.min(100, Math.max(0, Number(progressPercentage) || 0));
-      const validatedVolume = Math.max(0, Number(volumeActual) || 0);
-      const validatedCost = Math.max(0, Number(costActual) || 0);
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      const validateDate = (val: any): string | null => {
+        if (val === null || val === undefined || val === '') return null;
+        if (typeof val === 'string' && dateRegex.test(val)) return val;
+        throw new Error(`Неверный формат даты: ${val}. Ожидается YYYY-MM-DD`);
+      };
       
-      const progress = await storage.upsertWorkSectionProgress(workId, sectionNumber, {
-        progressPercentage: validatedProgress,
-        volumeActual: validatedVolume,
-        costActual: validatedCost
-      });
+      const data: Record<string, any> = {};
+      
+      if (progressPercentage !== undefined) {
+        data.progressPercentage = Math.min(100, Math.max(0, Number(progressPercentage) || 0));
+      }
+      if (volumeActual !== undefined) {
+        data.volumeActual = Math.max(0, Number(volumeActual) || 0);
+      }
+      if (costActual !== undefined) {
+        data.costActual = Math.max(0, Number(costActual) || 0);
+      }
+      if (planStartDate !== undefined) {
+        data.planStartDate = validateDate(planStartDate);
+      }
+      if (actualStartDate !== undefined) {
+        data.actualStartDate = validateDate(actualStartDate);
+      }
+      if (planEndDate !== undefined) {
+        data.planEndDate = validateDate(planEndDate);
+      }
+      if (actualEndDate !== undefined) {
+        data.actualEndDate = validateDate(actualEndDate);
+      }
+      if (plannedPeople !== undefined) {
+        data.plannedPeople = Math.max(0, Number(plannedPeople) || 0);
+      }
+      
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ message: "Необходимо указать хотя бы одно поле для обновления" });
+      }
+      
+      const progress = await storage.upsertWorkSectionProgress(workId, sectionNumber, data);
       res.json(progress);
-    } catch (err) {
+    } catch (err: any) {
+      if (err.message?.includes('Неверный формат даты')) {
+        return res.status(400).json({ message: err.message });
+      }
       throw err;
     }
   });

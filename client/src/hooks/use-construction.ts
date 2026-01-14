@@ -480,6 +480,11 @@ export interface WorkSectionProgressItem {
   progressPercentage: number;
   volumeActual: number;
   costActual: number;
+  planStartDate: string | null;
+  actualStartDate: string | null;
+  planEndDate: string | null;
+  actualEndDate: string | null;
+  plannedPeople: number;
   updatedAt: string;
 }
 
@@ -506,22 +511,29 @@ export function useAllWorkSectionProgress() {
   });
 }
 
+export interface UpdateSectionProgressData {
+  workId: number;
+  sectionNumber: number;
+  progressPercentage?: number;
+  volumeActual?: number;
+  costActual?: number;
+  planStartDate?: string | null;
+  actualStartDate?: string | null;
+  planEndDate?: string | null;
+  actualEndDate?: string | null;
+  plannedPeople?: number;
+}
+
 export function useUpdateSectionProgress() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ workId, sectionNumber, progressPercentage, volumeActual, costActual }: {
-      workId: number;
-      sectionNumber: number;
-      progressPercentage: number;
-      volumeActual?: number;
-      costActual?: number;
-    }) => {
-      const res = await fetch(`/api/works/${workId}/section-progress`, {
+    mutationFn: async (data: UpdateSectionProgressData) => {
+      const res = await fetch(`/api/works/${data.workId}/section-progress`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sectionNumber, progressPercentage, volumeActual, costActual }),
+        body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error("Failed to update section progress");
       return res.json();
