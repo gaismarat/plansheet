@@ -1,13 +1,23 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { type Work, type WorkTreeItem } from "@shared/schema";
-import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress, useWorkMaterials, useWorkSectionProgress, useSubmitSectionProgress, useLatestSectionSubmissions, useSectionPeopleSummary, type WorkSectionProgressItem, type SectionSubmission, type SectionPeopleSummary } from "@/hooks/use-construction";
+import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress, useWorkMaterials, useWorkSectionProgress, useSubmitSectionProgress, useLatestSectionSubmissions, useSectionPeopleSummary, useUpdateSectionProgress, type WorkSectionProgressItem, type SectionSubmission, type SectionPeopleSummary } from "@/hooks/use-construction";
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { ProgressHistoryDialog } from "@/components/progress-history-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, X, Users, Check, Package, Building2, Edit2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ChevronDown, ChevronRight, X, Users, Check, Package, Building2, Edit2, Settings2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -1135,10 +1145,78 @@ function SectionRow({
   
   const [localProgress, setLocalProgress] = useState(progressPercent);
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    planStartDate: planStartDate || '',
+    planEndDate: planEndDate || '',
+    actualStartDate: actualStartDate || '',
+    actualEndDate: actualEndDate || '',
+    volumeActual: actualVolume,
+    costActual: actualCost,
+    plannedPeople: plannedPeople,
+  });
+  
+  useEffect(() => {
+    setFormData({
+      planStartDate: planStartDate || '',
+      planEndDate: planEndDate || '',
+      actualStartDate: actualStartDate || '',
+      actualEndDate: actualEndDate || '',
+      volumeActual: actualVolume,
+      costActual: actualCost,
+      plannedPeople: plannedPeople,
+    });
+  }, [planStartDate, planEndDate, actualStartDate, actualEndDate, actualVolume, actualCost, plannedPeople]);
   
   const { mutate: submitSectionProgress, isPending: isSubmitting } = useSubmitSectionProgress();
   const { mutate: approveProgress, isPending: isApproving } = useApproveProgress();
   const { mutate: rejectProgress, isPending: isRejecting } = useRejectProgress();
+  const { mutate: updateSectionProgress, isPending: isSaving } = useUpdateSectionProgress();
+  
+  const handleSaveSection = () => {
+    const dataToSave: any = {
+      workId,
+      sectionNumber,
+    };
+    
+    const origPlanStart = planStartDate || '';
+    const origPlanEnd = planEndDate || '';
+    const origActualStart = actualStartDate || '';
+    const origActualEnd = actualEndDate || '';
+    
+    if (formData.planStartDate !== origPlanStart) {
+      dataToSave.planStartDate = formData.planStartDate || null;
+    }
+    if (formData.planEndDate !== origPlanEnd) {
+      dataToSave.planEndDate = formData.planEndDate || null;
+    }
+    if (formData.actualStartDate !== origActualStart) {
+      dataToSave.actualStartDate = formData.actualStartDate || null;
+    }
+    if (formData.actualEndDate !== origActualEnd) {
+      dataToSave.actualEndDate = formData.actualEndDate || null;
+    }
+    if (formData.volumeActual !== actualVolume) {
+      dataToSave.volumeActual = formData.volumeActual;
+    }
+    if (formData.costActual !== actualCost) {
+      dataToSave.costActual = formData.costActual;
+    }
+    if (formData.plannedPeople !== plannedPeople) {
+      dataToSave.plannedPeople = formData.plannedPeople;
+    }
+    
+    const hasChanges = Object.keys(dataToSave).length > 2;
+    if (!hasChanges) {
+      setIsEditDialogOpen(false);
+      return;
+    }
+    
+    updateSectionProgress(dataToSave, {
+      onSuccess: () => setIsEditDialogOpen(false),
+    });
+  };
   
   useEffect(() => {
     setLocalProgress(progressPercent);
@@ -1169,7 +1247,20 @@ function SectionRow({
       style={{ gridTemplateColumns: gridCols }}
       data-testid={`section-row-${workId}-${sectionNumber}`}
     >
-      <div className="font-mono text-muted-foreground font-semibold">{sectionNumber}с</div>
+      <div className="flex items-center gap-1">
+        <span className="font-mono text-muted-foreground font-semibold">{sectionNumber}с</span>
+        {(canSetProgress || isAdmin) && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-4 w-4"
+            onClick={() => setIsEditDialogOpen(true)}
+            data-testid={`button-edit-section-data-${workId}-${sectionNumber}`}
+          >
+            <Settings2 className="h-2.5 w-2.5" />
+          </Button>
+        )}
+      </div>
       
       <div className="text-center">
         <div className="font-mono text-[10px]">
@@ -1328,6 +1419,112 @@ function SectionRow({
           )}
         </div>
       </div>
+      
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Секция {sectionNumber} - Редактирование</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor={`plan-start-${sectionNumber}`} className="text-xs">Дата начала (план)</Label>
+                <Input
+                  id={`plan-start-${sectionNumber}`}
+                  type="date"
+                  value={formData.planStartDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, planStartDate: e.target.value }))}
+                  className="h-8 text-xs"
+                  data-testid={`input-plan-start-${workId}-${sectionNumber}`}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`plan-end-${sectionNumber}`} className="text-xs">Дата конца (план)</Label>
+                <Input
+                  id={`plan-end-${sectionNumber}`}
+                  type="date"
+                  value={formData.planEndDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, planEndDate: e.target.value }))}
+                  className="h-8 text-xs"
+                  data-testid={`input-plan-end-${workId}-${sectionNumber}`}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor={`actual-start-${sectionNumber}`} className="text-xs">Дата начала (факт)</Label>
+                <Input
+                  id={`actual-start-${sectionNumber}`}
+                  type="date"
+                  value={formData.actualStartDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, actualStartDate: e.target.value }))}
+                  className="h-8 text-xs"
+                  data-testid={`input-actual-start-${workId}-${sectionNumber}`}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`actual-end-${sectionNumber}`} className="text-xs">Дата конца (факт)</Label>
+                <Input
+                  id={`actual-end-${sectionNumber}`}
+                  type="date"
+                  value={formData.actualEndDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, actualEndDate: e.target.value }))}
+                  className="h-8 text-xs"
+                  data-testid={`input-actual-end-${workId}-${sectionNumber}`}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor={`volume-actual-${sectionNumber}`} className="text-xs">Объём факт ({displayUnit})</Label>
+                <Input
+                  id={`volume-actual-${sectionNumber}`}
+                  type="number"
+                  step="0.01"
+                  value={formData.volumeActual}
+                  onChange={(e) => setFormData(prev => ({ ...prev, volumeActual: parseFloat(e.target.value) || 0 }))}
+                  className="h-8 text-xs"
+                  data-testid={`input-volume-actual-${workId}-${sectionNumber}`}
+                />
+              </div>
+              {showCost && (
+                <div className="space-y-2">
+                  <Label htmlFor={`cost-actual-${sectionNumber}`} className="text-xs">Стоимость факт (руб)</Label>
+                  <Input
+                    id={`cost-actual-${sectionNumber}`}
+                    type="number"
+                    step="0.01"
+                    value={formData.costActual}
+                    onChange={(e) => setFormData(prev => ({ ...prev, costActual: parseFloat(e.target.value) || 0 }))}
+                    className="h-8 text-xs"
+                    data-testid={`input-cost-actual-${workId}-${sectionNumber}`}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={`planned-people-${sectionNumber}`} className="text-xs">Планируемое количество людей</Label>
+              <Input
+                id={`planned-people-${sectionNumber}`}
+                type="number"
+                min={0}
+                value={formData.plannedPeople}
+                onChange={(e) => setFormData(prev => ({ ...prev, plannedPeople: parseInt(e.target.value) || 0 }))}
+                className="h-8 text-xs"
+                data-testid={`input-planned-people-${workId}-${sectionNumber}`}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" size="sm">Отмена</Button>
+            </DialogClose>
+            <Button size="sm" onClick={handleSaveSection} disabled={isSaving} data-testid={`button-save-section-${workId}-${sectionNumber}`}>
+              {isSaving ? "Сохранение..." : "Сохранить"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
