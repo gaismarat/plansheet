@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { type Work, type WorkTreeItem } from "@shared/schema";
-import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress, useWorkMaterials, useWorkSectionProgress, useSubmitSectionProgress, useLatestSectionSubmissions, type WorkSectionProgressItem, type SectionSubmission } from "@/hooks/use-construction";
+import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress, useWorkMaterials, useWorkSectionProgress, useSubmitSectionProgress, useLatestSectionSubmissions, useSectionPeopleSummary, type WorkSectionProgressItem, type SectionSubmission, type SectionPeopleSummary } from "@/hooks/use-construction";
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { ProgressHistoryDialog } from "@/components/progress-history-dialog";
 import { Slider } from "@/components/ui/slider";
@@ -1010,6 +1010,7 @@ function SectionsSpoiler({
   isAdmin: boolean;
 }) {
   const { data: sectionSubmissions = [] } = useLatestSectionSubmissions(workId);
+  const { data: peopleSummaries = [] } = useSectionPeopleSummary(workId);
   
   const sectionProgressMap = new Map<number, WorkSectionProgressItem>();
   for (const sp of sectionProgress) {
@@ -1023,26 +1024,35 @@ function SectionsSpoiler({
     }
   }
   
+  const peopleSummaryMap = new Map<number, SectionPeopleSummary>();
+  for (const ps of peopleSummaries) {
+    peopleSummaryMap.set(ps.sectionNumber, ps);
+  }
+  
   const sectionQuantity = displayQuantityPlan / sectionsCount;
   const sectionCost = displayCostPlan / sectionsCount;
 
+  const gridCols = showCost 
+    ? '40px 100px 100px 90px 90px 80px 60px 1fr'
+    : '40px 120px 120px 100px 90px 70px 1fr';
+
   return (
     <div className="mt-3 bg-muted/50 rounded-lg border border-border/50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-      <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/70 text-[10px] font-semibold text-muted-foreground uppercase">
-        <div className="col-span-1">Секция</div>
-        <div className="col-span-2 text-center">Объём план</div>
-        <div className="col-span-2 text-center">Объём факт</div>
-        {showCost && <div className="col-span-2 text-center">Стоимость план</div>}
-        {showCost && <div className="col-span-2 text-center">Стоимость факт</div>}
-        <div className={cn("text-center", showCost ? "col-span-3" : "col-span-7")}>Прогресс</div>
+      <div className="grid gap-2 px-3 py-2 bg-muted/70 text-[10px] font-semibold text-muted-foreground uppercase" style={{ gridTemplateColumns: gridCols }}>
+        <div>Сек</div>
+        <div className="text-center">Даты план</div>
+        <div className="text-center">Даты факт</div>
+        <div className="text-center">Объём</div>
+        {showCost && <div className="text-center">Стоимость</div>}
+        <div className="text-center">Люди</div>
+        <div className="text-center">Труд.</div>
+        <div className="text-center">Прогресс</div>
       </div>
       <div className="divide-y divide-border/30">
         {Array.from({ length: sectionsCount }, (_, i) => i + 1).map((sectionNum) => {
           const progress = sectionProgressMap.get(sectionNum);
           const submission = sectionSubmissionsMap.get(sectionNum);
-          const actualVolume = progress?.volumeActual || 0;
-          const actualCost = progress?.costActual || 0;
-          const progressPercent = progress?.progressPercentage || 0;
+          const peopleSummary = peopleSummaryMap.get(sectionNum);
           
           return (
             <SectionRow
@@ -1051,9 +1061,8 @@ function SectionsSpoiler({
               sectionNumber={sectionNum}
               sectionQuantity={sectionQuantity}
               sectionCost={sectionCost}
-              actualVolume={actualVolume}
-              actualCost={actualCost}
-              progressPercent={progressPercent}
+              progress={progress}
+              peopleSummary={peopleSummary}
               displayUnit={displayUnit}
               showCost={showCost}
               canSetProgress={canSetProgress}
@@ -1067,14 +1076,32 @@ function SectionsSpoiler({
   );
 }
 
+function formatDateShort(dateStr: string | null): string {
+  if (!dateStr) return '-';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}.${parts[1]}`;
+  }
+  return dateStr;
+}
+
+function getDeviationClass(actual: number, plan: number, isExpense: boolean): string {
+  if (plan === 0) return '';
+  const diff = actual - plan;
+  if (diff === 0) return '';
+  if (isExpense) {
+    return diff > 0 ? 'text-red-500' : 'text-green-500';
+  }
+  return diff > 0 ? 'text-green-500' : 'text-red-500';
+}
+
 function SectionRow({
   workId,
   sectionNumber,
   sectionQuantity,
   sectionCost,
-  actualVolume,
-  actualCost,
-  progressPercent,
+  progress,
+  peopleSummary,
   displayUnit,
   showCost,
   canSetProgress,
@@ -1085,15 +1112,27 @@ function SectionRow({
   sectionNumber: number;
   sectionQuantity: number;
   sectionCost: number;
-  actualVolume: number;
-  actualCost: number;
-  progressPercent: number;
+  progress?: WorkSectionProgressItem;
+  peopleSummary?: SectionPeopleSummary;
   displayUnit: string;
   showCost: boolean;
   canSetProgress: boolean;
   isAdmin: boolean;
   pendingSubmission?: SectionSubmission;
 }) {
+  const actualVolume = progress?.volumeActual || 0;
+  const actualCost = progress?.costActual || 0;
+  const progressPercent = progress?.progressPercentage || 0;
+  const planStartDate = progress?.planStartDate || null;
+  const planEndDate = progress?.planEndDate || null;
+  const actualStartDate = progress?.actualStartDate || null;
+  const actualEndDate = progress?.actualEndDate || null;
+  const plannedPeople = progress?.plannedPeople || 0;
+  
+  const actualPeopleToday = peopleSummary?.actualToday || 0;
+  const avgPeople = peopleSummary?.averageActual || 0;
+  const workload = peopleSummary?.workload || 0;
+  
   const [localProgress, setLocalProgress] = useState(progressPercent);
   const [isEditing, setIsEditing] = useState(false);
   
@@ -1112,25 +1151,68 @@ function SectionRow({
   
   const isPending = pendingSubmission !== undefined;
   const pendingPercent = pendingSubmission?.percent;
+  
+  const volumeDevClass = getDeviationClass(actualVolume, sectionQuantity, false);
+  const costDevClass = getDeviationClass(actualCost, sectionCost, true);
+  
+  const gridCols = showCost 
+    ? '40px 100px 100px 90px 90px 80px 60px 1fr'
+    : '40px 120px 120px 100px 90px 70px 1fr';
 
   return (
     <div 
       className={cn(
-        "grid grid-cols-12 gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors items-center",
+        "grid gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors items-center",
         isPending && "bg-yellow-500/10"
       )}
+      style={{ gridTemplateColumns: gridCols }}
       data-testid={`section-row-${workId}-${sectionNumber}`}
     >
-      <div className="col-span-1 font-mono text-muted-foreground">-{sectionNumber}с</div>
-      <div className="col-span-2 text-center font-mono">{sectionQuantity.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} <span className="text-muted-foreground text-[10px]">{displayUnit}</span></div>
-      <div className="col-span-2 text-center font-mono">{actualVolume.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} <span className="text-muted-foreground text-[10px]">{displayUnit}</span></div>
+      <div className="font-mono text-muted-foreground font-semibold">{sectionNumber}с</div>
+      
+      <div className="text-center">
+        <div className="font-mono text-[10px]">
+          {formatDateShort(planStartDate)} - {formatDateShort(planEndDate)}
+        </div>
+      </div>
+      
+      <div className="text-center">
+        <div className="font-mono text-[10px]">
+          {formatDateShort(actualStartDate)} - {formatDateShort(actualEndDate)}
+        </div>
+      </div>
+      
+      <div className="text-center">
+        <div className="font-mono text-muted-foreground text-[10px]">{sectionQuantity.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</div>
+        <div className={cn("font-mono font-semibold", volumeDevClass)}>
+          {actualVolume.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}
+          <span className="text-muted-foreground text-[9px] ml-0.5">{displayUnit}</span>
+        </div>
+      </div>
+      
       {showCost && (
-        <div className="col-span-2 text-center font-mono">{sectionCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} <span className="text-muted-foreground text-[10px]">руб.</span></div>
+        <div className="text-center">
+          <div className="font-mono text-muted-foreground text-[10px]">{sectionCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}</div>
+          <div className={cn("font-mono font-semibold", costDevClass)}>
+            {actualCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}
+            <span className="text-muted-foreground text-[9px] ml-0.5">р</span>
+          </div>
+        </div>
       )}
-      {showCost && (
-        <div className="col-span-2 text-center font-mono">{actualCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} <span className="text-muted-foreground text-[10px]">руб.</span></div>
-      )}
-      <div className={cn("flex items-center gap-1", showCost ? "col-span-3" : "col-span-7")}>
+      
+      <div className="text-center">
+        <div className="font-mono text-muted-foreground text-[10px]">план: {plannedPeople}</div>
+        <div className={cn("font-mono font-semibold", getPeopleColor(actualPeopleToday, plannedPeople))}>
+          {actualPeopleToday} <span className="text-muted-foreground text-[9px]">/ ~{avgPeople}</span>
+        </div>
+      </div>
+      
+      <div className="text-center">
+        <div className="font-mono font-semibold">{workload}</div>
+        <div className="text-muted-foreground text-[9px]">чел-дн</div>
+      </div>
+      
+      <div className="flex items-center gap-1">
         {isPending ? (
           <>
             <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -1139,28 +1221,28 @@ function SectionRow({
                 style={{ width: `${pendingPercent}%` }}
               />
             </div>
-            <span className="font-mono text-xs w-8 text-right text-yellow-600">{pendingPercent}%</span>
+            <span className="font-mono text-[10px] w-6 text-right text-yellow-600">{pendingPercent}%</span>
             {isAdmin && (
               <>
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-5 w-5 text-green-600 hover:text-green-700"
+                  className="h-4 w-4 text-green-600 hover:text-green-700"
                   onClick={() => approveProgress(pendingSubmission.id)}
                   disabled={isApproving}
                   data-testid={`button-approve-section-${workId}-${sectionNumber}`}
                 >
-                  <Check className="h-3 w-3" />
+                  <Check className="h-2.5 w-2.5" />
                 </Button>
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-5 w-5 text-red-600 hover:text-red-700"
+                  className="h-4 w-4 text-red-600 hover:text-red-700"
                   onClick={() => rejectProgress(pendingSubmission.id)}
                   disabled={isRejecting}
                   data-testid={`button-reject-section-${workId}-${sectionNumber}`}
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-2.5 w-2.5" />
                 </Button>
               </>
             )}
@@ -1173,29 +1255,29 @@ function SectionRow({
               max={100}
               value={localProgress}
               onChange={(e) => setLocalProgress(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-              className="w-12 text-right bg-transparent border-b border-primary focus:outline-none font-mono text-xs"
+              className="w-10 text-right bg-transparent border-b border-primary focus:outline-none font-mono text-[10px]"
               autoFocus
               data-testid={`input-section-progress-${workId}-${sectionNumber}`}
             />
-            <span className="text-muted-foreground text-xs">%</span>
+            <span className="text-muted-foreground text-[10px]">%</span>
             <Button
               size="icon"
               variant="ghost"
-              className="h-5 w-5 text-green-600"
+              className="h-4 w-4 text-green-600"
               onClick={handleSubmit}
               disabled={isSubmitting}
               data-testid={`button-submit-section-${workId}-${sectionNumber}`}
             >
-              <Check className="h-3 w-3" />
+              <Check className="h-2.5 w-2.5" />
             </Button>
             <Button
               size="icon"
               variant="ghost"
-              className="h-5 w-5"
+              className="h-4 w-4"
               onClick={() => { setIsEditing(false); setLocalProgress(progressPercent); }}
               data-testid={`button-cancel-section-${workId}-${sectionNumber}`}
             >
-              <X className="h-3 w-3" />
+              <X className="h-2.5 w-2.5" />
             </Button>
           </>
         ) : (
@@ -1209,16 +1291,16 @@ function SectionRow({
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            <span className="font-mono text-xs w-8 text-right">{progressPercent}%</span>
+            <span className="font-mono text-[10px] w-6 text-right">{progressPercent}%</span>
             {canSetProgress && (
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-5 w-5"
+                className="h-4 w-4"
                 onClick={() => setIsEditing(true)}
                 data-testid={`button-edit-section-${workId}-${sectionNumber}`}
               >
-                <Edit2 className="h-3 w-3" />
+                <Edit2 className="h-2.5 w-2.5" />
               </Button>
             )}
           </>
