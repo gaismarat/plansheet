@@ -922,9 +922,17 @@ export async function registerRoutes(
     res.json(data);
   });
 
+  app.get('/api/work-people/work/:workId/section/:sectionNumber', async (req, res) => {
+    const data = await storage.getWorkPeopleBySection(
+      Number(req.params.workId),
+      Number(req.params.sectionNumber)
+    );
+    res.json(data);
+  });
+
   app.post('/api/work-people', async (req, res) => {
     try {
-      const { workId, date, count } = req.body;
+      const { workId, date, count, sectionNumber } = req.body;
       if (!workId || !date || count === undefined) {
         return res.status(400).json({ message: "workId, date и count обязательны" });
       }
@@ -932,7 +940,13 @@ export async function registerRoutes(
       if (!Number.isInteger(numCount) || numCount < 0 || numCount > 9999) {
         return res.status(400).json({ message: "count должен быть целым числом от 0 до 9999" });
       }
-      const result = await storage.upsertWorkPeople(Number(workId), date, numCount);
+      const numSection = sectionNumber !== undefined && sectionNumber !== null 
+        ? Number(sectionNumber) 
+        : null;
+      if (numSection !== null && (numSection < 1 || numSection > 10)) {
+        return res.status(400).json({ message: "sectionNumber должен быть от 1 до 10" });
+      }
+      const result = await storage.upsertWorkPeople(Number(workId), date, numCount, numSection);
       res.status(200).json(result);
     } catch (err) {
       throw err;
@@ -1077,6 +1091,168 @@ export async function registerRoutes(
         result[workId] = { actualToday, averageActual, weekendHolidayWorkedDays };
       });
       
+      res.json(result);
+    } catch (err) {
+      throw err;
+    }
+  });
+
+  // API for section-level people summary with workload calculation
+  app.get('/api/work-people/sections/:workId', async (req, res) => {
+    try {
+      const workId = Number(req.params.workId);
+      const allWorkPeople = await storage.getWorkPeopleByWorkId(workId);
+      const sectionProgress = await storage.getWorkSectionProgress(workId);
+      const holidays = await storage.getHolidays();
+      const holidaySet = new Set(holidays.map(h => h.date));
+      
+      const now = new Date();
+      const utcPlus3 = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+      const todayStr = utcPlus3.toISOString().split('T')[0];
+      const today = new Date(todayStr);
+      today.setHours(0, 0, 0, 0);
+      
+      // Group people entries by section
+      const sectionPeopleMap = new Map<number, { date: string; count: number }[]>();
+      allWorkPeople.forEach(wp => {
+        const secNum = wp.sectionNumber ?? 0; // 0 = no section (aggregated)
+        if (!sectionPeopleMap.has(secNum)) {
+          sectionPeopleMap.set(secNum, []);
+        }
+        sectionPeopleMap.get(secNum)!.push({ date: wp.date, count: wp.count });
+      });
+      
+      // Create section dates map from section_progress
+      const sectionDatesMap = new Map<number, { 
+        planStartDate: string | null; 
+        actualStartDate: string | null; 
+        actualEndDate: string | null;
+        plannedPeople: number;
+      }>();
+      sectionProgress.forEach(sp => {
+        sectionDatesMap.set(sp.sectionNumber, {
+          planStartDate: sp.planStartDate,
+          actualStartDate: sp.actualStartDate,
+          actualEndDate: sp.actualEndDate,
+          plannedPeople: sp.plannedPeople
+        });
+      });
+      
+      interface SectionSummary {
+        sectionNumber: number;
+        actualToday: number;
+        averageActual: number;
+        plannedPeople: number;
+        weekendHolidayWorkedDays: number;
+        totalWorkedDays: number;
+        workload: number; // total person-days
+      }
+      
+      const result: SectionSummary[] = [];
+      
+      sectionPeopleMap.forEach((entries, secNum) => {
+        // Skip legacy entries without section assignment (secNum = 0)
+        if (secNum === 0) return;
+        
+        const entryMap = new Map<string, number>();
+        entries.forEach(e => entryMap.set(e.date, e.count));
+        
+        const todayEntry = entries.find(e => e.date === todayStr);
+        const actualToday = todayEntry ? todayEntry.count : 0;
+        
+        const sectionDates = sectionDatesMap.get(secNum);
+        const planStartDateStr = sectionDates?.planStartDate;
+        const actualStartDateStr = sectionDates?.actualStartDate;
+        const actualEndDateStr = sectionDates?.actualEndDate;
+        const plannedPeople = sectionDates?.plannedPeople ?? 0;
+        
+        // Calculate workload from all entries (not dependent on actualStartDate)
+        let weekendHolidayWorkedDays = 0;
+        let totalWorkedDays = 0;
+        let workload = 0;
+        
+        // Calculate workload from all actual entries regardless of dates
+        entries.forEach(entry => {
+          if (entry.count > 0) {
+            const entryDate = new Date(entry.date);
+            const dayOfWeek = entryDate.getDay();
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            const isHoliday = holidaySet.has(entry.date);
+            
+            totalWorkedDays++;
+            workload += entry.count;
+            if (isWeekend || isHoliday) {
+              weekendHolidayWorkedDays++;
+            }
+          }
+        });
+        
+        // Calculate average
+        let averageActual = 0;
+        if (planStartDateStr) {
+          const startDate = new Date(planStartDateStr);
+          startDate.setHours(0, 0, 0, 0);
+          
+          if (today >= startDate) {
+            let totalCount = 0;
+            let countableDays = 0;
+            const currentDate = new Date(startDate);
+            
+            while (currentDate <= today) {
+              const dateStr = currentDate.toISOString().split('T')[0];
+              const dayOfWeek = currentDate.getDay();
+              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+              const isHoliday = holidaySet.has(dateStr);
+              const entryCount = entryMap.get(dateStr) ?? 0;
+              const isNonWorkingDay = isWeekend || isHoliday;
+              
+              if (isNonWorkingDay) {
+                if (entryCount > 0) {
+                  totalCount += entryCount;
+                  countableDays++;
+                }
+              } else {
+                totalCount += entryCount;
+                countableDays++;
+              }
+              
+              currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            averageActual = countableDays > 0 ? Math.round((totalCount / countableDays) * 10) / 10 : 0;
+          }
+        } else if (entries.length > 0) {
+          const totalCount = entries.reduce((sum, e) => sum + e.count, 0);
+          averageActual = Math.round((totalCount / entries.length) * 10) / 10;
+        }
+        
+        result.push({
+          sectionNumber: secNum,
+          actualToday,
+          averageActual,
+          plannedPeople,
+          weekendHolidayWorkedDays,
+          totalWorkedDays,
+          workload
+        });
+      });
+      
+      // Add empty entries for sections without people data
+      sectionProgress.forEach(sp => {
+        if (!sectionPeopleMap.has(sp.sectionNumber)) {
+          result.push({
+            sectionNumber: sp.sectionNumber,
+            actualToday: 0,
+            averageActual: 0,
+            plannedPeople: sp.plannedPeople,
+            weekendHolidayWorkedDays: 0,
+            totalWorkedDays: 0,
+            workload: 0
+          });
+        }
+      });
+      
+      result.sort((a, b) => a.sectionNumber - b.sectionNumber);
       res.json(result);
     } catch (err) {
       throw err;

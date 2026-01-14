@@ -353,6 +353,83 @@ export function useWorkPeopleSummary() {
   });
 }
 
+export interface WorkPeopleEntry {
+  id: number;
+  workId: number;
+  date: string;
+  count: number;
+  sectionNumber: number | null;
+}
+
+export function useWorkPeopleBySection(workId: number, sectionNumber: number) {
+  return useQuery<WorkPeopleEntry[]>({
+    queryKey: ['/api/work-people', workId, 'section', sectionNumber],
+    queryFn: async () => {
+      const res = await fetch(`/api/work-people/work/${workId}/section/${sectionNumber}`);
+      if (!res.ok) throw new Error("Failed to fetch section people");
+      return res.json();
+    },
+    enabled: workId > 0 && sectionNumber > 0,
+  });
+}
+
+export function useUpsertWorkPeople() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ workId, date, count, sectionNumber }: { 
+      workId: number; 
+      date: string; 
+      count: number; 
+      sectionNumber?: number | null 
+    }) => {
+      const res = await fetch('/api/work-people', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workId, date, count, sectionNumber }),
+      });
+      if (!res.ok) throw new Error("Failed to update work people");
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/work-people'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-people/summary'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-people/sections', variables.workId] });
+      if (variables.sectionNumber) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/work-people', variables.workId, 'section', variables.sectionNumber] 
+        });
+      }
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export interface SectionPeopleSummary {
+  sectionNumber: number;
+  actualToday: number;
+  averageActual: number;
+  plannedPeople: number;
+  weekendHolidayWorkedDays: number;
+  totalWorkedDays: number;
+  workload: number;
+}
+
+export function useSectionPeopleSummary(workId: number) {
+  return useQuery<SectionPeopleSummary[]>({
+    queryKey: ['/api/work-people/sections', workId],
+    queryFn: async () => {
+      const res = await fetch(`/api/work-people/sections/${workId}`);
+      if (!res.ok) throw new Error("Failed to fetch section people summary");
+      return res.json();
+    },
+    enabled: workId > 0,
+  });
+}
+
 // ============================================
 // PROGRESS SUBMISSIONS HOOKS
 // ============================================

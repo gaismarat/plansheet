@@ -223,7 +223,8 @@ export interface IStorage {
   // Work People
   getWorkPeople(): Promise<WorkPeople[]>;
   getWorkPeopleByWorkId(workId: number): Promise<WorkPeople[]>;
-  upsertWorkPeople(workId: number, date: string, count: number): Promise<WorkPeople>;
+  getWorkPeopleBySection(workId: number, sectionNumber: number): Promise<WorkPeople[]>;
+  upsertWorkPeople(workId: number, date: string, count: number, sectionNumber?: number | null): Promise<WorkPeople>;
   deleteWorkPeople(id: number): Promise<void>;
 
   // Progress Submissions
@@ -1236,9 +1237,21 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(workPeople.date));
   }
 
-  async upsertWorkPeople(workId: number, date: string, count: number): Promise<WorkPeople> {
-    const existing = await db.select().from(workPeople)
-      .where(and(eq(workPeople.workId, workId), eq(workPeople.date, date)));
+  async getWorkPeopleBySection(workId: number, sectionNumber: number): Promise<WorkPeople[]> {
+    return await db.select().from(workPeople)
+      .where(and(eq(workPeople.workId, workId), eq(workPeople.sectionNumber, sectionNumber)))
+      .orderBy(asc(workPeople.date));
+  }
+
+  async upsertWorkPeople(workId: number, date: string, count: number, sectionNumber?: number | null): Promise<WorkPeople> {
+    const conditions = [eq(workPeople.workId, workId), eq(workPeople.date, date)];
+    if (sectionNumber !== undefined && sectionNumber !== null) {
+      conditions.push(eq(workPeople.sectionNumber, sectionNumber));
+    } else {
+      conditions.push(sql`${workPeople.sectionNumber} IS NULL`);
+    }
+    
+    const existing = await db.select().from(workPeople).where(and(...conditions));
     
     if (existing.length > 0) {
       const [updated] = await db.update(workPeople)
@@ -1248,7 +1261,7 @@ export class DatabaseStorage implements IStorage {
       return updated;
     } else {
       const [created] = await db.insert(workPeople)
-        .values({ workId, date, count })
+        .values({ workId, date, count, sectionNumber: sectionNumber ?? null })
         .returning();
       return created;
     }
