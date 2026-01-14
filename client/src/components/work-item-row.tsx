@@ -1154,6 +1154,7 @@ function SectionRow({
   
   const volumeDevClass = getDeviationClass(actualVolume, sectionQuantity, false);
   const costDevClass = getDeviationClass(actualCost, sectionCost, true);
+  const volumeProgress = sectionQuantity > 0 ? Math.round((actualVolume / sectionQuantity) * 100) : 0;
   
   const gridCols = showCost 
     ? '40px 100px 100px 90px 90px 80px 60px 1fr'
@@ -1212,99 +1213,120 @@ function SectionRow({
         <div className="text-muted-foreground text-[9px]">чел-дн</div>
       </div>
       
-      <div className="flex items-center gap-1">
-        {isPending ? (
-          <>
-            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div 
-                className="h-full rounded-full transition-all bg-yellow-500"
-                style={{ width: `${pendingPercent}%` }}
-              />
-            </div>
-            <span className="font-mono text-[10px] w-6 text-right text-yellow-600">{pendingPercent}%</span>
-            {isAdmin && (
-              <>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-4 w-4 text-green-600 hover:text-green-700"
-                  onClick={() => approveProgress(pendingSubmission.id)}
-                  disabled={isApproving}
-                  data-testid={`button-approve-section-${workId}-${sectionNumber}`}
-                >
-                  <Check className="h-2.5 w-2.5" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-4 w-4 text-red-600 hover:text-red-700"
-                  onClick={() => rejectProgress(pendingSubmission.id)}
-                  disabled={isRejecting}
-                  data-testid={`button-reject-section-${workId}-${sectionNumber}`}
-                >
-                  <X className="h-2.5 w-2.5" />
-                </Button>
-              </>
-            )}
-          </>
-        ) : isEditing ? (
-          <>
-            <input 
-              type="number"
-              min={0}
-              max={100}
-              value={localProgress}
-              onChange={(e) => setLocalProgress(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-              className="w-10 text-right bg-transparent border-b border-primary focus:outline-none font-mono text-[10px]"
-              autoFocus
-              data-testid={`input-section-progress-${workId}-${sectionNumber}`}
+      <div className="flex flex-col gap-0.5">
+        {/* Автоматический прогресс на основе объёма */}
+        <div className="flex items-center gap-1">
+          <span className="text-[8px] text-muted-foreground w-6">авто</span>
+          <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+            <div 
+              className={cn(
+                "h-full rounded-full transition-all",
+                volumeProgress >= 100 ? "bg-emerald-400" : volumeProgress > 0 ? "bg-emerald-300" : "bg-muted-foreground/20"
+              )}
+              style={{ width: `${Math.min(volumeProgress, 100)}%` }}
             />
-            <span className="text-muted-foreground text-[10px]">%</span>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-4 w-4 text-green-600"
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              data-testid={`button-submit-section-${workId}-${sectionNumber}`}
-            >
-              <Check className="h-2.5 w-2.5" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-4 w-4"
-              onClick={() => { setIsEditing(false); setLocalProgress(progressPercent); }}
-              data-testid={`button-cancel-section-${workId}-${sectionNumber}`}
-            >
-              <X className="h-2.5 w-2.5" />
-            </Button>
-          </>
-        ) : (
-          <>
-            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div 
-                className={cn(
-                  "h-full rounded-full transition-all",
-                  progressPercent >= 100 ? "bg-green-500" : progressPercent > 0 ? "bg-blue-500" : "bg-muted-foreground/30"
-                )}
-                style={{ width: `${progressPercent}%` }}
+          </div>
+          <span className={cn(
+            "font-mono text-[9px] w-7 text-right",
+            volumeProgress > 100 ? "text-red-500" : "text-muted-foreground"
+          )}>{volumeProgress}%</span>
+        </div>
+        {/* Ручной прогресс */}
+        <div className="flex items-center gap-1">
+          <span className="text-[8px] text-muted-foreground w-6">факт</span>
+          {isPending ? (
+            <>
+              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full rounded-full transition-all bg-yellow-500"
+                  style={{ width: `${pendingPercent}%` }}
+                />
+              </div>
+              <span className="font-mono text-[9px] w-7 text-right text-yellow-600">{pendingPercent}%</span>
+              {isAdmin && (
+                <>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-4 w-4 text-green-600 hover:text-green-700"
+                    onClick={() => approveProgress(pendingSubmission.id)}
+                    disabled={isApproving}
+                    data-testid={`button-approve-section-${workId}-${sectionNumber}`}
+                  >
+                    <Check className="h-2.5 w-2.5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-4 w-4 text-red-600 hover:text-red-700"
+                    onClick={() => rejectProgress(pendingSubmission.id)}
+                    disabled={isRejecting}
+                    data-testid={`button-reject-section-${workId}-${sectionNumber}`}
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </Button>
+                </>
+              )}
+            </>
+          ) : isEditing ? (
+            <>
+              <input 
+                type="number"
+                min={0}
+                max={100}
+                value={localProgress}
+                onChange={(e) => setLocalProgress(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                className="w-10 text-right bg-transparent border-b border-primary focus:outline-none font-mono text-[9px]"
+                autoFocus
+                data-testid={`input-section-progress-${workId}-${sectionNumber}`}
               />
-            </div>
-            <span className="font-mono text-[10px] w-6 text-right">{progressPercent}%</span>
-            {canSetProgress && (
+              <span className="text-muted-foreground text-[9px]">%</span>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-4 w-4 text-green-600"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                data-testid={`button-submit-section-${workId}-${sectionNumber}`}
+              >
+                <Check className="h-2.5 w-2.5" />
+              </Button>
               <Button
                 size="icon"
                 variant="ghost"
                 className="h-4 w-4"
-                onClick={() => setIsEditing(true)}
-                data-testid={`button-edit-section-${workId}-${sectionNumber}`}
+                onClick={() => { setIsEditing(false); setLocalProgress(progressPercent); }}
+                data-testid={`button-cancel-section-${workId}-${sectionNumber}`}
               >
-                <Edit2 className="h-2.5 w-2.5" />
+                <X className="h-2.5 w-2.5" />
               </Button>
-            )}
-          </>
-        )}
+            </>
+          ) : (
+            <>
+              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full rounded-full transition-all",
+                    progressPercent >= 100 ? "bg-green-500" : progressPercent > 0 ? "bg-blue-500" : "bg-muted-foreground/30"
+                  )}
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <span className="font-mono text-[9px] w-7 text-right">{progressPercent}%</span>
+              {canSetProgress && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-4 w-4"
+                  onClick={() => setIsEditing(true)}
+                  data-testid={`button-edit-section-${workId}-${sectionNumber}`}
+                >
+                  <Edit2 className="h-2.5 w-2.5" />
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
