@@ -1151,7 +1151,6 @@ function SectionRow({
   const workload = peopleSummary?.workload || 0;
   
   const [localProgress, setLocalProgress] = useState(progressPercent);
-  const [isEditing, setIsEditing] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -1231,7 +1230,6 @@ function SectionRow({
   
   const handleSubmit = () => {
     submitSectionProgress({ workId, sectionNumber, percent: localProgress });
-    setIsEditing(false);
   };
   
   const isPending = pendingSubmission !== undefined;
@@ -1277,165 +1275,163 @@ function SectionRow({
       </div>
       
       <div className="text-center">
-        <div className="font-mono text-muted-foreground text-[10px]">{sectionQuantity.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</div>
-        <div className={cn("font-mono font-semibold", volumeDevClass)}>
+        <div className="font-mono text-muted-foreground text-xs">{sectionQuantity.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</div>
+        <div className={cn("font-mono font-semibold text-xs", volumeDevClass)}>
           {actualVolume.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}
-          <span className="text-muted-foreground text-[9px] ml-0.5">{displayUnit}</span>
+          <span className="text-muted-foreground text-[10px] ml-0.5">{displayUnit}</span>
         </div>
       </div>
       
       {showCost && (
         <div className="text-center">
-          <div className="font-mono text-muted-foreground text-[10px]">{sectionCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}</div>
-          <div className={cn("font-mono font-semibold", costDevClass)}>
+          <div className="font-mono text-muted-foreground text-xs">{sectionCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}</div>
+          <div className={cn("font-mono font-semibold text-xs", costDevClass)}>
             {actualCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}
-            <span className="text-muted-foreground text-[9px] ml-0.5">р</span>
+            <span className="text-muted-foreground text-[10px] ml-0.5">р</span>
           </div>
         </div>
       )}
       
       <div className="text-center">
-        <div className="font-mono text-[10px]">
+        <div className="font-mono text-xs">
           {formatDateShort(planStartDate)} - {formatDateShort(planEndDate)}
         </div>
       </div>
       
       <div className="text-center">
-        <div className="font-mono text-[10px]">
+        <div className="font-mono text-xs">
           {formatDateShort(actualStartDate)} - {formatDateShort(actualEndDate)}
         </div>
       </div>
       
       <div className="text-center">
-        <div className="font-mono text-muted-foreground text-[10px]">план: {plannedPeople}</div>
-        <div className={cn("font-mono font-semibold", getPeopleColor(actualPeopleToday, plannedPeople))}>
-          {actualPeopleToday} <span className="text-muted-foreground text-[9px]">/ ~{avgPeople}</span>
+        <div className="font-mono text-muted-foreground text-xs">план: {plannedPeople}</div>
+        <div className={cn("font-mono font-semibold text-xs", getPeopleColor(actualPeopleToday, plannedPeople))}>
+          {actualPeopleToday} <span className="text-muted-foreground text-[10px]">/ ~{avgPeople}</span>
         </div>
       </div>
       
       <div className="text-center">
-        <div className="grid grid-cols-4 gap-0 font-mono text-[9px]">
-          <div className="text-left text-muted-foreground text-[8px]">план</div>
+        <div className="grid grid-cols-4 gap-0 font-mono text-xs">
+          <div className="text-left text-muted-foreground text-[9px]">план</div>
           <div className="text-center text-muted-foreground">{planCalendar}</div>
           <div className="text-center text-muted-foreground">{planWorking}</div>
           <div className="text-center text-muted-foreground">{planWeekend}</div>
-          <div className="text-left text-muted-foreground text-[8px]">факт</div>
+          <div className="text-left text-muted-foreground text-[9px]">факт</div>
           <div className="text-center font-semibold">{actualCalendar}</div>
           <div className="text-center font-semibold">{actualWorking}</div>
           <div className={cn("text-center font-semibold", actualWeekend > 0 ? "text-orange-500" : "")}>{actualWeekend}</div>
         </div>
       </div>
       
-      <div className="flex flex-col gap-0.5 items-end w-20">
-        {/* Автоматический прогресс на основе объёма */}
-        <div className="flex items-center gap-0.5 w-full">
-          <span className="text-[7px] text-muted-foreground w-5">авто</span>
-          <div className="w-8 h-0.5 bg-muted rounded-full overflow-hidden">
+      <div className="flex flex-col gap-1">
+        {/* План прогресс на основе объёма */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground w-8">План</span>
+          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
             <div 
               className={cn(
                 "h-full rounded-full transition-all",
-                volumeProgress >= 100 ? "bg-emerald-400" : volumeProgress > 0 ? "bg-emerald-300" : "bg-muted-foreground/20"
+                volumeProgress >= 100 ? "bg-blue-500" : volumeProgress > 0 ? "bg-blue-400" : "bg-muted-foreground/20"
               )}
               style={{ width: `${Math.min(volumeProgress, 100)}%` }}
             />
           </div>
           <span className={cn(
-            "font-mono text-[8px] w-6 text-right",
+            "font-mono text-[10px] w-8 text-right",
             volumeProgress > 100 ? "text-red-500" : "text-muted-foreground"
           )}>{volumeProgress}%</span>
         </div>
-        {/* Ручной прогресс */}
-        <div className="flex items-center gap-0.5 w-full">
-          <span className="text-[7px] text-muted-foreground w-5">факт</span>
+        {/* Факт прогресс с слайдером */}
+        <div className={cn(
+          "flex items-center gap-2",
+          isPending && "border border-dashed border-yellow-500 rounded px-1"
+        )}>
+          <span className="text-[10px] text-muted-foreground w-8">Факт</span>
           {isPending ? (
             <>
-              <div className="w-8 h-1 bg-muted rounded-full overflow-hidden">
+              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                 <div 
                   className="h-full rounded-full transition-all bg-yellow-500"
                   style={{ width: `${pendingPercent}%` }}
                 />
               </div>
-              <span className="font-mono text-[8px] w-6 text-right text-yellow-600">{pendingPercent}%</span>
+              <span className="font-mono text-[10px] w-8 text-right text-yellow-600">{pendingPercent}%</span>
               {isAdmin && (
                 <>
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-4 w-4 text-green-600 hover:text-green-700"
+                    className="h-5 w-5 text-green-600 hover:text-green-700"
                     onClick={() => approveProgress(pendingSubmission.id)}
                     disabled={isApproving}
                     data-testid={`button-approve-section-${workId}-${sectionNumber}`}
                   >
-                    <Check className="h-2.5 w-2.5" />
+                    <Check className="h-3 w-3" />
                   </Button>
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-4 w-4 text-red-600 hover:text-red-700"
+                    className="h-5 w-5 text-red-600 hover:text-red-700"
                     onClick={() => rejectProgress(pendingSubmission.id)}
                     disabled={isRejecting}
                     data-testid={`button-reject-section-${workId}-${sectionNumber}`}
                   >
-                    <X className="h-2.5 w-2.5" />
+                    <X className="h-3 w-3" />
                   </Button>
                 </>
               )}
             </>
-          ) : isEditing ? (
+          ) : (
             <>
+              <div className="flex-1 h-2">
+                <Slider
+                  value={[localProgress]}
+                  max={100}
+                  step={1}
+                  onValueChange={canSetProgress ? (value) => setLocalProgress(value[0]) : undefined}
+                  disabled={!canSetProgress}
+                  className={cn("h-2", canSetProgress ? "cursor-pointer" : "cursor-not-allowed opacity-60")}
+                  data-testid={`slider-section-progress-${workId}-${sectionNumber}`}
+                />
+              </div>
               <input 
                 type="number"
                 min={0}
                 max={100}
                 value={localProgress}
-                onChange={(e) => setLocalProgress(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
-                className="w-10 text-right bg-transparent border-b border-primary focus:outline-none font-mono text-[9px]"
-                autoFocus
+                onChange={canSetProgress ? (e) => setLocalProgress(Math.min(100, Math.max(0, parseInt(e.target.value) || 0))) : undefined}
+                disabled={!canSetProgress}
+                readOnly={!canSetProgress}
+                className={cn(
+                  "w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary font-mono text-xs",
+                  !canSetProgress && "cursor-not-allowed opacity-60"
+                )}
                 data-testid={`input-section-progress-${workId}-${sectionNumber}`}
               />
-              <span className="text-muted-foreground text-[9px]">%</span>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-4 w-4 text-green-600"
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                data-testid={`button-submit-section-${workId}-${sectionNumber}`}
-              >
-                <Check className="h-2.5 w-2.5" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-4 w-4"
-                onClick={() => { setIsEditing(false); setLocalProgress(progressPercent); }}
-                data-testid={`button-cancel-section-${workId}-${sectionNumber}`}
-              >
-                <X className="h-2.5 w-2.5" />
-              </Button>
-            </>
-          ) : (
-            <>
-              <div className="w-8 h-1 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className={cn(
-                    "h-full rounded-full transition-all",
-                    progressPercent >= 100 ? "bg-green-500" : progressPercent > 0 ? "bg-blue-500" : "bg-muted-foreground/30"
-                  )}
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-              <span className="font-mono text-[8px] w-6 text-right">{progressPercent}%</span>
-              {canSetProgress && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-3 w-3"
-                  onClick={() => setIsEditing(true)}
-                  data-testid={`button-edit-section-${workId}-${sectionNumber}`}
-                >
-                  <Edit2 className="h-2 w-2" />
-                </Button>
+              <span className="text-muted-foreground text-xs w-2">%</span>
+              {canSetProgress && localProgress !== progressPercent && (
+                <>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-5 w-5 text-green-600 hover:text-green-700"
+                    onClick={handleSubmit}
+                    disabled={isSubmitting}
+                    data-testid={`button-submit-section-${workId}-${sectionNumber}`}
+                  >
+                    <Check className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-5 w-5 text-red-600 hover:text-red-700"
+                    onClick={() => setLocalProgress(progressPercent)}
+                    data-testid={`button-cancel-section-${workId}-${sectionNumber}`}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </>
               )}
             </>
           )}
