@@ -1591,6 +1591,9 @@ function MaterialsSpoiler({ workId, showCost }: { workId: number; showCost: bool
     );
   }
 
+  // Check if any material has sections (sectionsCount > 1)
+  const hasMultipleSections = materials.some(m => m.sectionsCount > 1 && m.sections && m.sections.length > 0);
+
   return (
     <div className="mt-3 bg-muted/50 rounded-lg border border-border/50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
       <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/70 text-[10px] font-semibold text-muted-foreground uppercase">
@@ -1601,23 +1604,51 @@ function MaterialsSpoiler({ workId, showCost }: { workId: number; showCost: bool
         {showCost && <div className="col-span-2 text-right">Стоимость</div>}
       </div>
       <div className="divide-y divide-border/30">
-        {materials.map((material, index) => (
-          <div 
-            key={material.id} 
-            className="grid grid-cols-12 gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors"
-            data-testid={`material-row-${material.id}`}
-          >
-            <div className="col-span-1 font-mono text-muted-foreground">{material.number || (index + 1)}</div>
-            <div className="col-span-5 truncate" title={material.name}>{material.name}</div>
-            <div className="col-span-2 text-muted-foreground">{material.unit}</div>
-            <div className="col-span-2 text-right font-mono">{material.quantity.toLocaleString('ru-RU')}</div>
-            {showCost && (
-              <div className="col-span-2 text-right font-mono">
-                {material.costWithVat.toLocaleString('ru-RU')} <span className="text-muted-foreground text-[10px]">руб.</span>
-              </div>
-            )}
-          </div>
-        ))}
+        {materials.map((material, index) => {
+          const showSections = hasMultipleSections && material.sections && material.sections.length > 0;
+          
+          return (
+            <div key={material.id} data-testid={`material-row-${material.id}`}>
+              {/* Main material row - only show if no sections or as header */}
+              {!showSections && (
+                <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors">
+                  <div className="col-span-1 font-mono text-muted-foreground">{material.number || (index + 1)}</div>
+                  <div className="col-span-5 whitespace-normal break-words">{material.name}</div>
+                  <div className="col-span-2 text-muted-foreground">{material.unit}</div>
+                  <div className="col-span-2 text-right font-mono">{material.quantity.toLocaleString('ru-RU')}</div>
+                  {showCost && (
+                    <div className="col-span-2 text-right font-mono">
+                      {material.costWithVat.toLocaleString('ru-RU')} <span className="text-muted-foreground text-[10px]">руб.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Section rows - when sectionsCount > 1 */}
+              {showSections && material.sections!.map((section) => (
+                <div 
+                  key={`${material.id}-section-${section.sectionNumber}`}
+                  className="grid grid-cols-12 gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors"
+                  data-testid={`material-section-row-${material.id}-${section.sectionNumber}`}
+                >
+                  <div className="col-span-1 font-mono text-muted-foreground">
+                    {material.number}-{section.sectionNumber}с
+                  </div>
+                  <div className="col-span-5 whitespace-normal break-words">
+                    {material.name}
+                  </div>
+                  <div className="col-span-2 text-muted-foreground">{material.unit}</div>
+                  <div className="col-span-2 text-right font-mono">{section.quantity.toLocaleString('ru-RU')}</div>
+                  {showCost && (
+                    <div className="col-span-2 text-right font-mono">
+                      {section.costWithVat.toLocaleString('ru-RU')} <span className="text-muted-foreground text-[10px]">руб.</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -1500,16 +1500,42 @@ export class DatabaseStorage implements IStorage {
     
     const vatRate = pdcDocument ? parseFloat(pdcDocument.vatRate || "20") : 20;
     const vatMultiplier = 1 + vatRate / 100;
+    const sectionsCount = pdcDocument ? (pdcDocument.sectionsCount || 1) : 1;
 
     const elements = await db.select().from(pdcElements)
       .where(eq(pdcElements.groupId, work.pdcGroupId))
       .orderBy(asc(pdcElements.order), asc(pdcElements.id));
+
+    // Fetch section allocations for all elements in this group
+    const elementIds = elements.map(el => el.id);
+    const allAllocations = elementIds.length > 0 
+      ? await db.select().from(sectionAllocations)
+          .where(inArray(sectionAllocations.elementId, elementIds))
+      : [];
 
     return elements.map((el, idx) => {
       const quantity = parseFloat(el.quantity || "0");
       const materialPrice = parseFloat(el.materialPrice || "0");
       const costWithVat = quantity * materialPrice * vatMultiplier;
       
+      // Get section allocations for this element
+      const elementAllocations = allAllocations
+        .filter(a => a.elementId === el.id)
+        .sort((a, b) => a.sectionNumber - b.sectionNumber);
+
+      const sections = elementAllocations.map(alloc => {
+        const coef = parseFloat(alloc.coefficient || "0") / 100;
+        const manualQty = parseFloat(alloc.quantity || "0");
+        const sectionQty = alloc.coefficient ? quantity * coef : manualQty;
+        const sectionCost = sectionQty * materialPrice * vatMultiplier;
+        
+        return {
+          sectionNumber: alloc.sectionNumber,
+          quantity: sectionQty,
+          costWithVat: sectionCost
+        };
+      });
+
       return {
         id: el.id,
         pdcElementId: el.id,
@@ -1517,7 +1543,9 @@ export class DatabaseStorage implements IStorage {
         name: el.name,
         unit: el.unit || "шт.",
         quantity,
-        costWithVat
+        costWithVat,
+        sectionsCount,
+        sections: sectionsCount > 1 ? sections : undefined
       };
     });
   }

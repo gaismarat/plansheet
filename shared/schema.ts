@@ -688,6 +688,12 @@ export type InsertWorkPeople = z.infer<typeof insertWorkPeopleSchema>;
 // === WORKS TREE TYPES (PDC-based hierarchy) ===
 
 // Work with materials from PDC elements
+export type WorkMaterialSectionData = {
+  sectionNumber: number;
+  quantity: number;
+  costWithVat: number;
+};
+
 export type WorkMaterial = {
   id: number;
   pdcElementId: number;
@@ -696,6 +702,8 @@ export type WorkMaterial = {
   unit: string;
   quantity: number;
   costWithVat: number;
+  sectionsCount: number;
+  sections?: WorkMaterialSectionData[];
 };
 
 // Work item with manual fields + PDC data
