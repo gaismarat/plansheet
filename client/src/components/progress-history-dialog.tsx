@@ -70,6 +70,7 @@ export function ProgressHistoryDialog({ workId, workName }: ProgressHistoryDialo
                 <tr>
                   <th className="text-left p-2 font-medium">№</th>
                   <th className="text-left p-2 font-medium">Имя</th>
+                  <th className="text-center p-2 font-medium">Секция</th>
                   <th className="text-right p-2 font-medium">%</th>
                   <th className="text-left p-2 font-medium">Статус</th>
                   <th className="text-left p-2 font-medium">Дата</th>
@@ -81,6 +82,9 @@ export function ProgressHistoryDialog({ workId, workName }: ProgressHistoryDialo
                   <tr key={item.id} className="border-b border-border/50">
                     <td className="p-2 text-muted-foreground">{index + 1}</td>
                     <td className="p-2">{item.submitterName || "-"}</td>
+                    <td className="p-2 text-center font-mono text-muted-foreground">
+                      {item.sectionNumber ? `${item.sectionNumber}с` : "-"}
+                    </td>
                     <td className="p-2 text-right font-mono">{item.percent}%</td>
                     <td className={`p-2 ${getStatusColor(item.status)}`}>
                       {getStatusLabel(item.status)}
