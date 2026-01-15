@@ -416,6 +416,12 @@ export interface SectionPeopleSummary {
   weekendHolidayWorkedDays: number;
   totalWorkedDays: number;
   workload: number;
+  planCalendarDays: number;
+  planWorkingDays: number;
+  planWeekendDays: number;
+  actualCalendarDays: number;
+  actualWorkingDays: number;
+  actualWeekendDays: number;
 }
 
 export function useSectionPeopleSummary(workId: number) {

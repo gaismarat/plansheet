@@ -1043,19 +1043,26 @@ function SectionsSpoiler({
   const sectionCost = displayCostPlan / sectionsCount;
 
   const gridCols = showCost 
-    ? '40px 100px 100px 90px 90px 80px 60px 1fr'
-    : '40px 120px 120px 100px 90px 70px 1fr';
+    ? '40px 90px 90px 100px 100px 80px 130px 1fr'
+    : '40px 100px 120px 120px 90px 130px 1fr';
 
   return (
     <div className="mt-3 bg-muted/50 rounded-lg border border-border/50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
       <div className="grid gap-2 px-3 py-2 bg-muted/70 text-[10px] font-semibold text-muted-foreground uppercase" style={{ gridTemplateColumns: gridCols }}>
         <div>Сек</div>
-        <div className="text-center">Даты план</div>
-        <div className="text-center">Даты факт</div>
         <div className="text-center">Объём</div>
         {showCost && <div className="text-center">Стоимость</div>}
+        <div className="text-center">Даты план</div>
+        <div className="text-center">Даты факт</div>
         <div className="text-center">Люди</div>
-        <div className="text-center">Труд.</div>
+        <div className="text-center">
+          <div>Трудоёмкость</div>
+          <div className="grid grid-cols-3 gap-0 text-[8px] mt-0.5">
+            <span>Календ.</span>
+            <span>Рабочие</span>
+            <span>Выходн.</span>
+          </div>
+        </div>
         <div className="text-center">Прогресс</div>
       </div>
       <div className="divide-y divide-border/30">
@@ -1230,13 +1237,20 @@ function SectionRow({
   const isPending = pendingSubmission !== undefined;
   const pendingPercent = pendingSubmission?.percent;
   
-  const volumeDevClass = getDeviationClass(actualVolume, sectionQuantity, false);
+  const volumeDevClass = getDeviationClass(actualVolume, sectionQuantity, true);
   const costDevClass = getDeviationClass(actualCost, sectionCost, true);
   const volumeProgress = sectionQuantity > 0 ? Math.round((actualVolume / sectionQuantity) * 100) : 0;
   
   const gridCols = showCost 
-    ? '40px 100px 100px 90px 90px 80px 60px 1fr'
-    : '40px 120px 120px 100px 90px 70px 1fr';
+    ? '40px 90px 90px 100px 100px 80px 130px 1fr'
+    : '40px 100px 120px 120px 90px 130px 1fr';
+  
+  const planCalendar = peopleSummary?.planCalendarDays || 0;
+  const planWorking = peopleSummary?.planWorkingDays || 0;
+  const planWeekend = peopleSummary?.planWeekendDays || 0;
+  const actualCalendar = peopleSummary?.actualCalendarDays || 0;
+  const actualWorking = peopleSummary?.actualWorkingDays || 0;
+  const actualWeekend = peopleSummary?.actualWeekendDays || 0;
 
   return (
     <div 
@@ -1263,18 +1277,6 @@ function SectionRow({
       </div>
       
       <div className="text-center">
-        <div className="font-mono text-[10px]">
-          {formatDateShort(planStartDate)} - {formatDateShort(planEndDate)}
-        </div>
-      </div>
-      
-      <div className="text-center">
-        <div className="font-mono text-[10px]">
-          {formatDateShort(actualStartDate)} - {formatDateShort(actualEndDate)}
-        </div>
-      </div>
-      
-      <div className="text-center">
         <div className="font-mono text-muted-foreground text-[10px]">{sectionQuantity.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</div>
         <div className={cn("font-mono font-semibold", volumeDevClass)}>
           {actualVolume.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}
@@ -1293,6 +1295,18 @@ function SectionRow({
       )}
       
       <div className="text-center">
+        <div className="font-mono text-[10px]">
+          {formatDateShort(planStartDate)} - {formatDateShort(planEndDate)}
+        </div>
+      </div>
+      
+      <div className="text-center">
+        <div className="font-mono text-[10px]">
+          {formatDateShort(actualStartDate)} - {formatDateShort(actualEndDate)}
+        </div>
+      </div>
+      
+      <div className="text-center">
         <div className="font-mono text-muted-foreground text-[10px]">план: {plannedPeople}</div>
         <div className={cn("font-mono font-semibold", getPeopleColor(actualPeopleToday, plannedPeople))}>
           {actualPeopleToday} <span className="text-muted-foreground text-[9px]">/ ~{avgPeople}</span>
@@ -1300,15 +1314,23 @@ function SectionRow({
       </div>
       
       <div className="text-center">
-        <div className="font-mono font-semibold">{workload}</div>
-        <div className="text-muted-foreground text-[9px]">чел-дн</div>
+        <div className="grid grid-cols-4 gap-0 font-mono text-[9px]">
+          <div className="text-left text-muted-foreground text-[8px]">план</div>
+          <div className="text-center text-muted-foreground">{planCalendar}</div>
+          <div className="text-center text-muted-foreground">{planWorking}</div>
+          <div className="text-center text-muted-foreground">{planWeekend}</div>
+          <div className="text-left text-muted-foreground text-[8px]">факт</div>
+          <div className="text-center font-semibold">{actualCalendar}</div>
+          <div className="text-center font-semibold">{actualWorking}</div>
+          <div className={cn("text-center font-semibold", actualWeekend > 0 ? "text-orange-500" : "")}>{actualWeekend}</div>
+        </div>
       </div>
       
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-0.5 items-end w-20">
         {/* Автоматический прогресс на основе объёма */}
-        <div className="flex items-center gap-1">
-          <span className="text-[8px] text-muted-foreground w-6">авто</span>
-          <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+        <div className="flex items-center gap-0.5 w-full">
+          <span className="text-[7px] text-muted-foreground w-5">авто</span>
+          <div className="w-8 h-0.5 bg-muted rounded-full overflow-hidden">
             <div 
               className={cn(
                 "h-full rounded-full transition-all",
@@ -1318,22 +1340,22 @@ function SectionRow({
             />
           </div>
           <span className={cn(
-            "font-mono text-[9px] w-7 text-right",
+            "font-mono text-[8px] w-6 text-right",
             volumeProgress > 100 ? "text-red-500" : "text-muted-foreground"
           )}>{volumeProgress}%</span>
         </div>
         {/* Ручной прогресс */}
-        <div className="flex items-center gap-1">
-          <span className="text-[8px] text-muted-foreground w-6">факт</span>
+        <div className="flex items-center gap-0.5 w-full">
+          <span className="text-[7px] text-muted-foreground w-5">факт</span>
           {isPending ? (
             <>
-              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div className="w-8 h-1 bg-muted rounded-full overflow-hidden">
                 <div 
                   className="h-full rounded-full transition-all bg-yellow-500"
                   style={{ width: `${pendingPercent}%` }}
                 />
               </div>
-              <span className="font-mono text-[9px] w-7 text-right text-yellow-600">{pendingPercent}%</span>
+              <span className="font-mono text-[8px] w-6 text-right text-yellow-600">{pendingPercent}%</span>
               {isAdmin && (
                 <>
                   <Button
@@ -1394,7 +1416,7 @@ function SectionRow({
             </>
           ) : (
             <>
-              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div className="w-8 h-1 bg-muted rounded-full overflow-hidden">
                 <div 
                   className={cn(
                     "h-full rounded-full transition-all",
@@ -1403,16 +1425,16 @@ function SectionRow({
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
-              <span className="font-mono text-[9px] w-7 text-right">{progressPercent}%</span>
+              <span className="font-mono text-[8px] w-6 text-right">{progressPercent}%</span>
               {canSetProgress && (
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-4 w-4"
+                  className="h-3 w-3"
                   onClick={() => setIsEditing(true)}
                   data-testid={`button-edit-section-${workId}-${sectionNumber}`}
                 >
-                  <Edit2 className="h-2.5 w-2.5" />
+                  <Edit2 className="h-2 w-2" />
                 </Button>
               )}
             </>

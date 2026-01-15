@@ -1125,6 +1125,7 @@ export async function registerRoutes(
       // Create section dates map from section_progress
       const sectionDatesMap = new Map<number, { 
         planStartDate: string | null; 
+        planEndDate: string | null;
         actualStartDate: string | null; 
         actualEndDate: string | null;
         plannedPeople: number;
@@ -1132,11 +1133,39 @@ export async function registerRoutes(
       sectionProgress.forEach(sp => {
         sectionDatesMap.set(sp.sectionNumber, {
           planStartDate: sp.planStartDate,
+          planEndDate: sp.planEndDate,
           actualStartDate: sp.actualStartDate,
           actualEndDate: sp.actualEndDate,
           plannedPeople: sp.plannedPeople
         });
       });
+      
+      // Helper to calculate days breakdown
+      const calculateDaysBreakdown = (startStr: string | null, endStr: string | null, hSet: Set<string>) => {
+        if (!startStr || !endStr) return { calendar: 0, working: 0, weekend: 0 };
+        const start = new Date(startStr);
+        const end = new Date(endStr);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+        if (end < start) return { calendar: 0, working: 0, weekend: 0 };
+        
+        let calendar = 0, working = 0, weekend = 0;
+        const current = new Date(start);
+        while (current <= end) {
+          calendar++;
+          const dow = current.getDay();
+          const dateStr = current.toISOString().split('T')[0];
+          const isWeekend = dow === 0 || dow === 6;
+          const isHoliday = hSet.has(dateStr);
+          if (isWeekend || isHoliday) {
+            weekend++;
+          } else {
+            working++;
+          }
+          current.setDate(current.getDate() + 1);
+        }
+        return { calendar, working, weekend };
+      };
       
       interface SectionSummary {
         sectionNumber: number;
@@ -1145,7 +1174,13 @@ export async function registerRoutes(
         plannedPeople: number;
         weekendHolidayWorkedDays: number;
         totalWorkedDays: number;
-        workload: number; // total person-days
+        workload: number;
+        planCalendarDays: number;
+        planWorkingDays: number;
+        planWeekendDays: number;
+        actualCalendarDays: number;
+        actualWorkingDays: number;
+        actualWeekendDays: number;
       }
       
       const result: SectionSummary[] = [];
@@ -1162,9 +1197,14 @@ export async function registerRoutes(
         
         const sectionDates = sectionDatesMap.get(secNum);
         const planStartDateStr = sectionDates?.planStartDate;
+        const planEndDateStr = sectionDates?.planEndDate;
         const actualStartDateStr = sectionDates?.actualStartDate;
         const actualEndDateStr = sectionDates?.actualEndDate;
         const plannedPeople = sectionDates?.plannedPeople ?? 0;
+        
+        // Calculate plan/actual days breakdown
+        const planDays = calculateDaysBreakdown(planStartDateStr || null, planEndDateStr || null, holidaySet);
+        const actualDays = calculateDaysBreakdown(actualStartDateStr || null, actualEndDateStr || null, holidaySet);
         
         // Calculate workload from all entries (not dependent on actualStartDate)
         let weekendHolidayWorkedDays = 0;
@@ -1233,13 +1273,21 @@ export async function registerRoutes(
           plannedPeople,
           weekendHolidayWorkedDays,
           totalWorkedDays,
-          workload
+          workload,
+          planCalendarDays: planDays.calendar,
+          planWorkingDays: planDays.working,
+          planWeekendDays: planDays.weekend,
+          actualCalendarDays: actualDays.calendar,
+          actualWorkingDays: actualDays.working,
+          actualWeekendDays: actualDays.weekend
         });
       });
       
       // Add empty entries for sections without people data
       sectionProgress.forEach(sp => {
         if (!sectionPeopleMap.has(sp.sectionNumber)) {
+          const planDays = calculateDaysBreakdown(sp.planStartDate || null, sp.planEndDate || null, holidaySet);
+          const actualDays = calculateDaysBreakdown(sp.actualStartDate || null, sp.actualEndDate || null, holidaySet);
           result.push({
             sectionNumber: sp.sectionNumber,
             actualToday: 0,
@@ -1247,7 +1295,13 @@ export async function registerRoutes(
             plannedPeople: sp.plannedPeople,
             weekendHolidayWorkedDays: 0,
             totalWorkedDays: 0,
-            workload: 0
+            workload: 0,
+            planCalendarDays: planDays.calendar,
+            planWorkingDays: planDays.working,
+            planWeekendDays: planDays.weekend,
+            actualCalendarDays: actualDays.calendar,
+            actualWorkingDays: actualDays.working,
+            actualWeekendDays: actualDays.weekend
           });
         }
       });
