@@ -85,6 +85,13 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   
   const { data: sectionProgress = [] } = useWorkSectionProgress(hasMultipleSections ? work.id : 0);
   
+  // Calculate aggregated progress for multi-section works (weighted average by equal coefficients = arithmetic mean)
+  const aggregatedProgress = hasMultipleSections && sectionsCount > 0
+    ? Math.round(
+        sectionProgress.reduce((sum, sp) => sum + (sp.progressPercentage || 0), 0) / sectionsCount
+      )
+    : work.progressPercentage;
+  
   const [isExpanded, setIsExpanded] = useState(expandAll);
   const [isSectionsOpen, setIsSectionsOpen] = useState(false);
   const [isMaterialsOpen, setIsMaterialsOpen] = useState(false);
@@ -332,7 +339,8 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
     return actualEnd < today;
   })();
   
-  const effectiveProgress = isWorkCompleted ? 100 : localProgress;
+  // For multi-section works, use aggregated progress; for single-section, use localProgress
+  const effectiveProgress = isWorkCompleted ? 100 : (hasMultipleSections ? aggregatedProgress : localProgress);
   const deviation = effectiveProgress - plannedProgress;
 
   return (
@@ -811,46 +819,63 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                 <span className="text-xs font-mono w-16 text-right">{plannedProgress}%</span>
               </div>
 
-              {/* Fact Progress with Slider */}
-              <div className={cn(
-                "flex items-center gap-2 p-1 rounded transition-all",
-                progressSubmission?.status === "submitted" && "border border-dashed border-gray-400",
-                progressSubmission?.status === "rejected" && "border border-dashed border-red-500"
-              )}>
-                <span className="text-[10px] text-muted-foreground w-8 shrink-0">Факт</span>
-                <div className="flex-1 h-2">
-                  <Slider
-                    defaultValue={[work.progressPercentage]}
-                    value={[localProgress]}
-                    max={100}
-                    step={1}
-                    onValueChange={canSetProgress ? handleSliderChange : undefined}
-                    disabled={!canSetProgress}
-                    className={cn("h-2", canSetProgress ? "cursor-pointer" : "cursor-not-allowed opacity-60")}
-                    data-testid={`slider-progress-${work.id}`}
-                  />
+              {/* Fact Progress - Slider for single section, read-only aggregate for multiple sections */}
+              {hasMultipleSections ? (
+                // Read-only aggregated progress for multi-section works
+                <div className="flex items-center gap-2 p-1 rounded transition-all">
+                  <span className="text-[10px] text-muted-foreground w-8 shrink-0">Факт</span>
+                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-green-500 rounded-full transition-all"
+                      style={{ width: `${aggregatedProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-mono w-16 text-right" data-testid={`text-aggregated-progress-${work.id}`}>
+                    {aggregatedProgress}%
+                  </span>
                 </div>
-                <input 
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={localProgress}
-                  onChange={canSetProgress ? handleProgressInputChange : undefined}
-                  disabled={!canSetProgress}
-                  readOnly={!canSetProgress}
-                  className={cn(
-                    "w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-xs",
-                    !canSetProgress && "cursor-not-allowed opacity-60"
-                  )}
-                  data-testid={`input-progress-${work.id}`}
-                />
-                <span className="text-muted-foreground text-xs w-2">%</span>
-              </div>
+              ) : (
+                // Editable slider for single-section works
+                <div className={cn(
+                  "flex items-center gap-2 p-1 rounded transition-all",
+                  progressSubmission?.status === "submitted" && "border border-dashed border-gray-400",
+                  progressSubmission?.status === "rejected" && "border border-dashed border-red-500"
+                )}>
+                  <span className="text-[10px] text-muted-foreground w-8 shrink-0">Факт</span>
+                  <div className="flex-1 h-2">
+                    <Slider
+                      defaultValue={[work.progressPercentage]}
+                      value={[localProgress]}
+                      max={100}
+                      step={1}
+                      onValueChange={canSetProgress ? handleSliderChange : undefined}
+                      disabled={!canSetProgress}
+                      className={cn("h-2", canSetProgress ? "cursor-pointer" : "cursor-not-allowed opacity-60")}
+                      data-testid={`slider-progress-${work.id}`}
+                    />
+                  </div>
+                  <input 
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={localProgress}
+                    onChange={canSetProgress ? handleProgressInputChange : undefined}
+                    disabled={!canSetProgress}
+                    readOnly={!canSetProgress}
+                    className={cn(
+                      "w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-xs",
+                      !canSetProgress && "cursor-not-allowed opacity-60"
+                    )}
+                    data-testid={`input-progress-${work.id}`}
+                  />
+                  <span className="text-muted-foreground text-xs w-2">%</span>
+                </div>
+              )}
 
-              {/* Progress Approval Buttons */}
+              {/* Progress Approval Buttons - only for single-section works */}
               <div className="flex items-center justify-end gap-1 mt-1">
-                {/* User submit/cancel buttons - shown when editing and has permission */}
-                {canSetProgress && isEditingProgress && (
+                {/* User submit/cancel buttons - shown when editing and has permission (single-section only) */}
+                {!hasMultipleSections && canSetProgress && isEditingProgress && (
                   <>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -884,8 +909,8 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                   </>
                 )}
 
-                {/* Admin approve/reject buttons - shown for pending submissions */}
-                {!isEditingProgress && isAdmin && progressSubmission?.status === "submitted" && (
+                {/* Admin approve/reject buttons - shown for pending submissions (single-section only) */}
+                {!hasMultipleSections && !isEditingProgress && isAdmin && progressSubmission?.status === "submitted" && (
                   <>
                     <Tooltip>
                       <TooltipTrigger asChild>
