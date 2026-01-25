@@ -1626,33 +1626,48 @@ export class DatabaseStorage implements IStorage {
               
               // Get building sections data if sectionsCount > 1
               let buildingSections: WorkTreeItem['buildingSections'] = undefined;
+              let aggregatedDates: { 
+                planStartDate: string | null; 
+                planEndDate: string | null; 
+                actualStartDate: string | null; 
+                actualEndDate: string | null; 
+              } | null = null;
+              
               if (sectionsCount > 1) {
                 const sectionProgressData = sectionProgressByWorkId.get(work.id) || [];
-                if (sectionProgressData.length > 0) {
-                  buildingSections = sectionProgressData.map(sp => ({
-                    sectionNumber: sp.sectionNumber,
-                    planStartDate: sp.planStartDate,
-                    planEndDate: sp.planEndDate,
-                    actualStartDate: sp.actualStartDate,
-                    actualEndDate: sp.actualEndDate
-                  }));
-                } else {
-                  // Create empty sections based on sectionsCount
-                  buildingSections = [];
-                  for (let i = 1; i <= sectionsCount; i++) {
-                    buildingSections.push({
-                      sectionNumber: i,
-                      planStartDate: null,
-                      planEndDate: null,
-                      actualStartDate: null,
-                      actualEndDate: null
-                    });
-                  }
+                const sectionDataMap = new Map(sectionProgressData.map(sp => [sp.sectionNumber, sp]));
+                
+                // Always create all sections 1..sectionsCount, filling with data where available
+                buildingSections = [];
+                for (let i = 1; i <= sectionsCount; i++) {
+                  const sp = sectionDataMap.get(i);
+                  buildingSections.push({
+                    sectionNumber: i,
+                    planStartDate: sp?.planStartDate || null,
+                    planEndDate: sp?.planEndDate || null,
+                    actualStartDate: sp?.actualStartDate || null,
+                    actualEndDate: sp?.actualEndDate || null
+                  });
                 }
+                
+                // Calculate aggregated dates from sections (min/max) using ISO date string comparison
+                const planStarts = buildingSections.map(s => s.planStartDate).filter((d): d is string => d !== null);
+                const planEnds = buildingSections.map(s => s.planEndDate).filter((d): d is string => d !== null);
+                const actualStarts = buildingSections.map(s => s.actualStartDate).filter((d): d is string => d !== null);
+                const actualEnds = buildingSections.map(s => s.actualEndDate).filter((d): d is string => d !== null);
+                
+                aggregatedDates = {
+                  planStartDate: planStarts.length > 0 ? planStarts.reduce((a, b) => a < b ? a : b) : null,
+                  planEndDate: planEnds.length > 0 ? planEnds.reduce((a, b) => a > b ? a : b) : null,
+                  actualStartDate: actualStarts.length > 0 ? actualStarts.reduce((a, b) => a < b ? a : b) : null,
+                  actualEndDate: actualEnds.length > 0 ? actualEnds.reduce((a, b) => a > b ? a : b) : null
+                };
               }
               
               treeWorks.push({
                 ...work,
+                // Override dates with aggregated dates from sections if available
+                ...(aggregatedDates ? aggregatedDates : {}),
                 pdcName: pdcGroup.name,
                 pdcUnit: pdcGroup.unit || "шт.",
                 pdcQuantity: quantity,
