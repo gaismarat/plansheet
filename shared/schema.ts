@@ -706,6 +706,15 @@ export type WorkMaterial = {
   sections?: WorkMaterialSectionData[];
 };
 
+// Section data for work items in tree (from work_section_progress)
+export type WorkTreeSectionData = {
+  sectionNumber: number;
+  planStartDate: string | null;
+  planEndDate: string | null;
+  actualStartDate: string | null;
+  actualEndDate: string | null;
+};
+
 // Work item with manual fields + PDC data
 export type WorkTreeItem = Work & {
   pdcName: string;
@@ -715,6 +724,7 @@ export type WorkTreeItem = Work & {
   executorName: string | null;
   sectionsCount: number;
   materials?: WorkMaterial[];
+  buildingSections?: WorkTreeSectionData[];
 };
 
 // WorkGroup with works inside (level 4)

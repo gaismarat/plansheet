@@ -24,12 +24,22 @@ function useRowHeights() {
 
 type ViewMode = "days" | "weeks";
 
+interface BuildingSectionData {
+  sectionNumber: number;
+  planStartDate: string | null;
+  planEndDate: string | null;
+  actualStartDate: string | null;
+  actualEndDate: string | null;
+}
+
 interface WorkTreeItem {
   id: number;
   planStartDate: string | null;
   planEndDate: string | null;
   actualStartDate: string | null;
   actualEndDate: string | null;
+  sectionsCount?: number;
+  buildingSections?: BuildingSectionData[];
 }
 
 interface GroupNode {
@@ -116,6 +126,7 @@ export default function KSP() {
   const [expandedDocs, setExpandedDocs] = useState<Set<number>>(new Set());
   const [expandedBlocks, setExpandedBlocks] = useState<Set<number>>(new Set());
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
   const todayColumnRef = useRef<HTMLTableCellElement>(null);
   const [hasScrolled, setHasScrolled] = useState(false);
   const { registerLeftRow, getRowHeight } = useSyncedRowHeights();
@@ -247,6 +258,13 @@ export default function KSP() {
     setExpandedSections(newSet);
   };
 
+  const toggleGroup = (id: number) => {
+    const newSet = new Set(expandedGroups);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setExpandedGroups(newSet);
+  };
+
   const expandAll = () => {
     setExpandedDocs(new Set(documents.map(d => d.id)));
     const allBlockIds = documents.flatMap(d => d.blocks?.map(b => b.id) || []);
@@ -255,15 +273,25 @@ export default function KSP() {
       d.blocks?.flatMap(b => b.sections?.map(s => s.id) || []) || []
     );
     setExpandedSections(new Set(allSectionIds));
+    // Also expand all groups that have building sections
+    const allGroupIds = documents.flatMap(d => 
+      d.blocks?.flatMap(b => 
+        b.sections?.flatMap(s => 
+          s.groups?.filter(g => g.works?.some(w => (w.sectionsCount || 1) > 1)).map(g => g.id) || []
+        ) || []
+      ) || []
+    );
+    setExpandedGroups(new Set(allGroupIds));
   };
 
   const collapseAll = () => {
     setExpandedDocs(new Set());
     setExpandedBlocks(new Set());
     setExpandedSections(new Set());
+    setExpandedGroups(new Set());
   };
 
-  const hasExpanded = expandedDocs.size > 0 || expandedBlocks.size > 0 || expandedSections.size > 0;
+  const hasExpanded = expandedDocs.size > 0 || expandedBlocks.size > 0 || expandedSections.size > 0 || expandedGroups.size > 0;
   const leftTableWidth = hasExpanded ? 745 : 475;
 
   if (isLoading) {
@@ -349,9 +377,11 @@ export default function KSP() {
                     isExpanded={expandedDocs.has(doc.id)}
                     expandedBlocks={expandedBlocks}
                     expandedSections={expandedSections}
+                    expandedGroups={expandedGroups}
                     onToggleDoc={() => toggleDoc(doc.id)}
                     onToggleBlock={toggleBlock}
                     onToggleSection={toggleSection}
+                    onToggleGroup={toggleGroup}
                   />
                 ))}
               </tbody>
@@ -398,6 +428,7 @@ export default function KSP() {
                         isExpanded={expandedDocs.has(doc.id)}
                         expandedBlocks={expandedBlocks}
                         expandedSections={expandedSections}
+                        expandedGroups={expandedGroups}
                       />
                     ))}
                   </tbody>
@@ -441,17 +472,21 @@ function DocumentLeftRows({
   isExpanded,
   expandedBlocks,
   expandedSections,
+  expandedGroups,
   onToggleDoc,
   onToggleBlock,
-  onToggleSection
+  onToggleSection,
+  onToggleGroup
 }: {
   doc: DocumentNode;
   isExpanded: boolean;
   expandedBlocks: Set<number>;
   expandedSections: Set<number>;
+  expandedGroups: Set<number>;
   onToggleDoc: () => void;
   onToggleBlock: (id: number) => void;
   onToggleSection: (id: number) => void;
+  onToggleGroup: (id: number) => void;
 }) {
   const { registerLeftRow } = useRowHeights();
   const rowKey = `doc-${doc.id}`;
@@ -482,8 +517,10 @@ function DocumentLeftRows({
           block={block}
           isExpanded={expandedBlocks.has(block.id)}
           expandedSections={expandedSections}
+          expandedGroups={expandedGroups}
           onToggleBlock={() => onToggleBlock(block.id)}
           onToggleSection={onToggleSection}
+          onToggleGroup={onToggleGroup}
           indentLevel={1}
         />
       ))}
@@ -495,15 +532,19 @@ function BlockLeftRows({
   block,
   isExpanded,
   expandedSections,
+  expandedGroups,
   onToggleBlock,
   onToggleSection,
+  onToggleGroup,
   indentLevel
 }: {
   block: BlockNode;
   isExpanded: boolean;
   expandedSections: Set<number>;
+  expandedGroups: Set<number>;
   onToggleBlock: () => void;
   onToggleSection: (id: number) => void;
+  onToggleGroup: (id: number) => void;
   indentLevel: number;
 }) {
   const { registerLeftRow } = useRowHeights();
@@ -538,7 +579,9 @@ function BlockLeftRows({
           key={section.id}
           section={section}
           isExpanded={expandedSections.has(section.id)}
+          expandedGroups={expandedGroups}
           onToggleSection={() => onToggleSection(section.id)}
+          onToggleGroup={onToggleGroup}
           indentLevel={indentLevel + 1}
         />
       ))}
@@ -549,12 +592,16 @@ function BlockLeftRows({
 function SectionLeftRows({
   section,
   isExpanded,
+  expandedGroups,
   onToggleSection,
+  onToggleGroup,
   indentLevel
 }: {
   section: SectionNode;
   isExpanded: boolean;
+  expandedGroups: Set<number>;
   onToggleSection: () => void;
+  onToggleGroup: (id: number) => void;
   indentLevel: number;
 }) {
   const { registerLeftRow } = useRowHeights();
@@ -588,6 +635,8 @@ function SectionLeftRows({
         <GroupLeftRow
           key={group.id}
           group={group}
+          isExpanded={expandedGroups.has(group.id)}
+          onToggleGroup={() => onToggleGroup(group.id)}
           indentLevel={indentLevel + 1}
         />
       ))}
@@ -597,9 +646,13 @@ function SectionLeftRows({
 
 function GroupLeftRow({
   group,
+  isExpanded,
+  onToggleGroup,
   indentLevel
 }: {
   group: GroupNode;
+  isExpanded: boolean;
+  onToggleGroup: () => void;
   indentLevel: number;
 }) {
   const { registerLeftRow } = useRowHeights();
@@ -611,9 +664,24 @@ function GroupLeftRow({
   const endDeviation = planEnd && actualEnd ? differenceInDays(actualEnd, planEnd) : null;
   const durationDeviation = planDuration && actualDuration ? actualDuration - planDuration : null;
 
+  // Check if this group has building sections (sectionsCount > 1)
+  const work = group.works?.[0];
+  const sectionsCount = work?.sectionsCount || 1;
+  const hasBuildingSections = sectionsCount > 1;
+  const buildingSections = work?.buildingSections || [];
+
   const formatDate = (date: Date | null) => {
     if (!date) return "—";
     return format(date, "dd.MM", { locale: ru });
+  };
+
+  const formatDateString = (dateStr: string | null) => {
+    if (!dateStr) return "—";
+    try {
+      return format(parseISO(dateStr), "dd.MM", { locale: ru });
+    } catch {
+      return "—";
+    }
   };
 
   const getDeviationIndicator = (deviation: number | null) => {
@@ -629,42 +697,100 @@ function GroupLeftRow({
     );
   };
 
+  const getSectionDuration = (section: BuildingSectionData) => {
+    if (!section.planStartDate || !section.planEndDate) return { plan: null, actual: null };
+    const planDur = differenceInDays(parseISO(section.planEndDate), parseISO(section.planStartDate)) + 1;
+    let actualDur = null;
+    if (section.actualStartDate && section.actualEndDate) {
+      actualDur = differenceInDays(parseISO(section.actualEndDate), parseISO(section.actualStartDate)) + 1;
+    }
+    return { plan: planDur, actual: actualDur };
+  };
+
   return (
-    <tr 
-      ref={(el) => registerLeftRow(rowKey, el)}
-      className="hover:bg-muted/50 transition-colors"
-    >
-      <td 
-        className="border-b border-r border-border p-2"
-        style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
+    <>
+      <tr 
+        ref={(el) => registerLeftRow(rowKey, el)}
+        className="hover:bg-muted/50 transition-colors"
       >
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-xs">{group.number}</span>
-          <span className="text-foreground truncate">{group.name}</span>
-        </div>
-      </td>
-      <td className="border-b border-r border-border p-1 text-center text-xs">
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="text-muted-foreground">{formatDate(planStart)}</span>
-          <span className="font-medium">{formatDate(actualStart)}</span>
-          {getDeviationIndicator(startDeviation)}
-        </div>
-      </td>
-      <td className="border-b border-r border-border p-1 text-center text-xs">
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="text-muted-foreground">{formatDate(planEnd)}</span>
-          <span className="font-medium">{formatDate(actualEnd)}</span>
-          {getDeviationIndicator(endDeviation)}
-        </div>
-      </td>
-      <td className="border-b border-border p-1 text-center text-xs">
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="text-muted-foreground">{planDuration ?? "—"}</span>
-          <span className="font-medium">{actualDuration ?? "—"}</span>
-          {getDeviationIndicator(durationDeviation)}
-        </div>
-      </td>
-    </tr>
+        <td 
+          className="border-b border-r border-border p-2"
+          style={{ paddingLeft: `${indentLevel * 16 + 8}px` }}
+        >
+          <div className="flex items-center gap-2">
+            {hasBuildingSections ? (
+              <button
+                onClick={onToggleGroup}
+                className="flex items-center gap-1"
+                data-testid={`button-toggle-group-${group.id}`}
+              >
+                {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+              </button>
+            ) : (
+              <div className="w-4" />
+            )}
+            <span className="text-muted-foreground text-xs">{group.number}</span>
+            <span className="text-foreground truncate">{group.name}</span>
+          </div>
+        </td>
+        <td className="border-b border-r border-border p-1 text-center text-xs">
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-muted-foreground">{formatDate(planStart)}</span>
+            <span className="font-medium">{formatDate(actualStart)}</span>
+            {getDeviationIndicator(startDeviation)}
+          </div>
+        </td>
+        <td className="border-b border-r border-border p-1 text-center text-xs">
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-muted-foreground">{formatDate(planEnd)}</span>
+            <span className="font-medium">{formatDate(actualEnd)}</span>
+            {getDeviationIndicator(endDeviation)}
+          </div>
+        </td>
+        <td className="border-b border-border p-1 text-center text-xs">
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-muted-foreground">{planDuration ?? "—"}</span>
+            <span className="font-medium">{actualDuration ?? "—"}</span>
+            {getDeviationIndicator(durationDeviation)}
+          </div>
+        </td>
+      </tr>
+      {isExpanded && hasBuildingSections && buildingSections.map(section => {
+        const { plan: secPlanDur, actual: secActualDur } = getSectionDuration(section);
+        return (
+          <tr 
+            key={`${group.id}-section-${section.sectionNumber}`}
+            ref={(el) => registerLeftRow(`group-${group.id}-section-${section.sectionNumber}`, el)}
+            className="hover:bg-muted/30 transition-colors bg-muted/10"
+          >
+            <td 
+              className="border-b border-r border-border p-2 text-muted-foreground"
+              style={{ paddingLeft: `${(indentLevel + 1) * 16 + 8}px` }}
+            >
+              <span className="text-xs">{group.number}-{section.sectionNumber}с</span>
+            </td>
+            <td className="border-b border-r border-border p-1 text-center text-xs">
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-muted-foreground">{formatDateString(section.planStartDate)}</span>
+                <span className="font-medium text-muted-foreground">{formatDateString(section.actualStartDate)}</span>
+              </div>
+            </td>
+            <td className="border-b border-r border-border p-1 text-center text-xs">
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-muted-foreground">{formatDateString(section.planEndDate)}</span>
+                <span className="font-medium text-muted-foreground">{formatDateString(section.actualEndDate)}</span>
+              </div>
+            </td>
+            <td className="border-b border-border p-1 text-center text-xs">
+              <div className="flex flex-col items-center gap-0.5">
+                <span className="text-muted-foreground">{secPlanDur ?? "—"}</span>
+                <span className="font-medium text-muted-foreground">{secActualDur ?? "—"}</span>
+              </div>
+            </td>
+          </tr>
+        );
+      })}
+    </>
   );
 }
 
@@ -675,7 +801,8 @@ function DocumentRightRows({
   today,
   isExpanded,
   expandedBlocks,
-  expandedSections
+  expandedSections,
+  expandedGroups
 }: {
   doc: DocumentNode;
   timeUnits: Date[];
@@ -684,6 +811,7 @@ function DocumentRightRows({
   isExpanded: boolean;
   expandedBlocks: Set<number>;
   expandedSections: Set<number>;
+  expandedGroups: Set<number>;
 }) {
   const { getRowHeight } = useRowHeights();
   const rowKey = `doc-${doc.id}`;
@@ -713,6 +841,7 @@ function DocumentRightRows({
           today={today}
           isExpanded={expandedBlocks.has(block.id)}
           expandedSections={expandedSections}
+          expandedGroups={expandedGroups}
         />
       ))}
     </>
@@ -725,7 +854,8 @@ function BlockRightRows({
   viewMode,
   today,
   isExpanded,
-  expandedSections
+  expandedSections,
+  expandedGroups
 }: {
   block: BlockNode;
   timeUnits: Date[];
@@ -733,6 +863,7 @@ function BlockRightRows({
   today: Date;
   isExpanded: boolean;
   expandedSections: Set<number>;
+  expandedGroups: Set<number>;
 }) {
   const { getRowHeight } = useRowHeights();
   const rowKey = `block-${block.id}`;
@@ -761,6 +892,7 @@ function BlockRightRows({
           viewMode={viewMode}
           today={today}
           isExpanded={expandedSections.has(section.id)}
+          expandedGroups={expandedGroups}
         />
       ))}
     </>
@@ -772,13 +904,15 @@ function SectionRightRows({
   timeUnits,
   viewMode,
   today,
-  isExpanded
+  isExpanded,
+  expandedGroups
 }: {
   section: SectionNode;
   timeUnits: Date[];
   viewMode: ViewMode;
   today: Date;
   isExpanded: boolean;
+  expandedGroups: Set<number>;
 }) {
   const { getRowHeight } = useRowHeights();
   const rowKey = `section-${section.id}`;
@@ -806,6 +940,7 @@ function SectionRightRows({
           timeUnits={timeUnits}
           viewMode={viewMode}
           today={today}
+          isExpanded={expandedGroups.has(group.id)}
         />
       ))}
     </>
@@ -816,17 +951,25 @@ function GroupRightRow({
   group,
   timeUnits,
   viewMode,
-  today
+  today,
+  isExpanded
 }: {
   group: GroupNode;
   timeUnits: Date[];
   viewMode: ViewMode;
   today: Date;
+  isExpanded: boolean;
 }) {
   const { getRowHeight } = useRowHeights();
   const rowKey = `group-${group.id}`;
   const height = getRowHeight(rowKey);
   const { planStart, planEnd, actualStart, actualEnd } = getGroupDates(group);
+
+  // Check if this group has building sections
+  const work = group.works?.[0];
+  const sectionsCount = work?.sectionsCount || 1;
+  const hasBuildingSections = sectionsCount > 1;
+  const buildingSections = work?.buildingSections || [];
 
   const getCellContent = (unit: Date) => {
     const unitEnd = viewMode === "weeks" ? endOfWeek(unit, { weekStartsOn: 1 }) : unit;
@@ -853,28 +996,91 @@ function GroupRightRow({
     return { isInPlanRange, isInActualRange, isDelay, isAhead };
   };
 
+  const getSectionCellContent = (unit: Date, section: BuildingSectionData) => {
+    const unitEnd = viewMode === "weeks" ? endOfWeek(unit, { weekStartsOn: 1 }) : unit;
+    const unitStart = startOfDay(unit);
+
+    const secPlanStart = section.planStartDate ? parseISO(section.planStartDate) : null;
+    const secPlanEnd = section.planEndDate ? parseISO(section.planEndDate) : null;
+    const secActualStart = section.actualStartDate ? parseISO(section.actualStartDate) : null;
+    const secActualEnd = section.actualEndDate ? parseISO(section.actualEndDate) : null;
+
+    const isInPlanRange = secPlanStart && secPlanEnd && (
+      isWithinInterval(unitStart, { start: startOfDay(secPlanStart), end: startOfDay(secPlanEnd) }) ||
+      isWithinInterval(unitEnd, { start: startOfDay(secPlanStart), end: startOfDay(secPlanEnd) }) ||
+      (isBefore(unitStart, secPlanStart) && isAfter(unitEnd, secPlanEnd))
+    );
+
+    const isInActualRange = secActualStart && secActualEnd && (
+      isWithinInterval(unitStart, { start: startOfDay(secActualStart), end: startOfDay(secActualEnd) }) ||
+      isWithinInterval(unitEnd, { start: startOfDay(secActualStart), end: startOfDay(secActualEnd) }) ||
+      (isBefore(unitStart, secActualStart) && isAfter(unitEnd, secActualEnd))
+    );
+
+    const isDelay = secPlanEnd && secActualEnd && isAfter(startOfDay(secActualEnd), startOfDay(secPlanEnd)) &&
+      isWithinInterval(unitStart, { start: startOfDay(secPlanEnd), end: startOfDay(secActualEnd) });
+
+    const isAhead = secPlanEnd && secActualEnd && isBefore(startOfDay(secActualEnd), startOfDay(secPlanEnd)) &&
+      isWithinInterval(unitStart, { start: startOfDay(secActualEnd), end: startOfDay(secPlanEnd) });
+
+    return { isInPlanRange, isInActualRange, isDelay, isAhead };
+  };
+
   return (
-    <tr style={height ? { height } : undefined}>
-      {timeUnits.map((unit, idx) => {
-        const { isInPlanRange, isInActualRange, isDelay, isAhead } = getCellContent(unit);
-        const isToday = viewMode === "days" 
-          ? isSameDay(unit, today)
-          : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
-        
+    <>
+      <tr style={height ? { height } : undefined}>
+        {timeUnits.map((unit, idx) => {
+          const { isInPlanRange, isInActualRange, isDelay, isAhead } = getCellContent(unit);
+          const isToday = viewMode === "days" 
+            ? isSameDay(unit, today)
+            : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+          
+          return (
+            <td key={idx} className={`border-b border-r border-border p-0 relative ${isToday ? 'bg-primary/10' : ''}`}>
+              <div className="absolute inset-0 flex flex-col">
+                <div className={`flex-1 ${isInPlanRange ? 'bg-blue-500' : ''}`} />
+                <div className={`flex-1 ${
+                  isDelay ? 'bg-red-500' : 
+                  isAhead ? 'bg-green-500' : 
+                  isInActualRange ? 'bg-[#c8a2c8]' : ''
+                }`} />
+              </div>
+              {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
+            </td>
+          );
+        })}
+      </tr>
+      {isExpanded && hasBuildingSections && buildingSections.map(section => {
+        const sectionHeight = getRowHeight(`group-${group.id}-section-${section.sectionNumber}`);
         return (
-          <td key={idx} className={`border-b border-r border-border p-0 relative ${isToday ? 'bg-primary/10' : ''}`}>
-            <div className="absolute inset-0 flex flex-col">
-              <div className={`flex-1 ${isInPlanRange ? 'bg-blue-500' : ''}`} />
-              <div className={`flex-1 ${
-                isDelay ? 'bg-red-500' : 
-                isAhead ? 'bg-green-500' : 
-                isInActualRange ? 'bg-[#c8a2c8]' : ''
-              }`} />
-            </div>
-            {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
-          </td>
+          <tr 
+            key={`${group.id}-section-${section.sectionNumber}`} 
+            style={sectionHeight ? { height: sectionHeight } : undefined}
+            className="bg-muted/10"
+          >
+            {timeUnits.map((unit, idx) => {
+              const { isInPlanRange, isInActualRange, isDelay, isAhead } = getSectionCellContent(unit, section);
+              const isToday = viewMode === "days" 
+                ? isSameDay(unit, today)
+                : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+              
+              return (
+                <td key={idx} className={`border-b border-r border-border p-0 relative ${isToday ? 'bg-primary/5' : ''}`}>
+                  <div className="absolute inset-0 flex flex-col">
+                    <div className={`flex-1 ${isInPlanRange ? 'bg-blue-300/60' : ''}`} />
+                    <div className={`flex-1 ${
+                      isDelay ? 'bg-red-300/60' : 
+                      isAhead ? 'bg-green-300/60' : 
+                      isInActualRange ? 'bg-[#c8a2c8]/50' : ''
+                    }`} />
+                  </div>
+                  {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
+                </td>
+              );
+            })}
+          </tr>
         );
       })}
-    </tr>
+    </>
   );
 }

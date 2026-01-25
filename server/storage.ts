@@ -1397,7 +1397,7 @@ export class DatabaseStorage implements IStorage {
     
     // Convert to array with submitter names
     const result: (ProgressSubmission & { submitterName?: string })[] = [];
-    for (const sub of latestBySection.values()) {
+    for (const sub of Array.from(latestBySection.values())) {
       const [submitter] = await db.select().from(users).where(eq(users.id, sub.submitterId));
       result.push({
         ...sub,
@@ -1559,12 +1559,22 @@ export class DatabaseStorage implements IStorage {
     const allPdcGroups = await db.select().from(pdcGroups).orderBy(asc(pdcGroups.order), asc(pdcGroups.id));
     const allWorks = await db.select().from(works).orderBy(asc(works.order), asc(works.id));
     const allExecutors = await db.select().from(executors);
+    const allSectionProgress = await db.select().from(workSectionProgress).orderBy(asc(workSectionProgress.sectionNumber));
 
     const worksByPdcGroupId = new Map<number, Work>();
     for (const w of allWorks) {
       if (w.pdcGroupId) {
         worksByPdcGroupId.set(w.pdcGroupId, w);
       }
+    }
+
+    // Map work_section_progress by workId
+    const sectionProgressByWorkId = new Map<number, typeof allSectionProgress>();
+    for (const sp of allSectionProgress) {
+      if (!sectionProgressByWorkId.has(sp.workId)) {
+        sectionProgressByWorkId.set(sp.workId, []);
+      }
+      sectionProgressByWorkId.get(sp.workId)!.push(sp);
     }
 
     const executorsById = new Map<number, string>();
@@ -1612,6 +1622,35 @@ export class DatabaseStorage implements IStorage {
             const treeWorks: WorkTreeItem[] = [];
             if (work) {
               const executorName = doc.executorId ? executorsById.get(doc.executorId) || null : null;
+              const sectionsCount = doc.sectionsCount || 1;
+              
+              // Get building sections data if sectionsCount > 1
+              let buildingSections: WorkTreeItem['buildingSections'] = undefined;
+              if (sectionsCount > 1) {
+                const sectionProgressData = sectionProgressByWorkId.get(work.id) || [];
+                if (sectionProgressData.length > 0) {
+                  buildingSections = sectionProgressData.map(sp => ({
+                    sectionNumber: sp.sectionNumber,
+                    planStartDate: sp.planStartDate,
+                    planEndDate: sp.planEndDate,
+                    actualStartDate: sp.actualStartDate,
+                    actualEndDate: sp.actualEndDate
+                  }));
+                } else {
+                  // Create empty sections based on sectionsCount
+                  buildingSections = [];
+                  for (let i = 1; i <= sectionsCount; i++) {
+                    buildingSections.push({
+                      sectionNumber: i,
+                      planStartDate: null,
+                      planEndDate: null,
+                      actualStartDate: null,
+                      actualEndDate: null
+                    });
+                  }
+                }
+              }
+              
               treeWorks.push({
                 ...work,
                 pdcName: pdcGroup.name,
@@ -1619,7 +1658,8 @@ export class DatabaseStorage implements IStorage {
                 pdcQuantity: quantity,
                 pdcCostWithVat: groupCostWithVat,
                 executorName,
-                sectionsCount: doc.sectionsCount || 1
+                sectionsCount,
+                buildingSections
               });
               sectionProgress += work.progressPercentage;
               sectionWorkCount++;

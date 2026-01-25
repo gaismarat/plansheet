@@ -54,6 +54,14 @@ Preferred communication style: Simple, everyday language.
 - **Auto-calculation**: Section quantities/totals auto-calculate from coefficients and parent values in real-time
 - **Persistence**: Coefficients save on blur via POST /api/section-allocations, loaded via GET with query params
 
+### KSP Page Section Expansion (January 2026)
+- **Expandable work rows**: When PDC document has `sectionsCount > 1`, work rows in KSP show a chevron for expansion
+- **Section row format**: Section rows display number as `{group.number}-{sectionNumber}с` (e.g., "1.1.2-1с", "1.1.2-2с")
+- **Section dates**: Each section row shows its own dates from `work_section_progress` table (plan/actual start/end, duration)
+- **Timeline charts**: Section rows have their own timeline charts with muted/faded colors (bg-blue-300/60, bg-red-300/60, bg-green-300/60, bg-[#c8a2c8]/50)
+- **State management**: `expandedGroups` Set tracks which work groups are expanded
+- **API extension**: `/api/works/tree` now includes `buildingSections` array in WorkTreeItem with per-section date data
+
 ### Shared Code Structure
 - **`shared/schema.ts`**: Database schema definitions, Zod validation schemas, and TypeScript types
 - **`shared/routes.ts`**: API contract definitions with input/output schemas for type-safe client-server communication
