@@ -233,7 +233,7 @@ export default function People() {
       x: e.clientX,
       y: e.clientY,
       scrollLeft: chartContainerRef.current?.scrollLeft || 0,
-      scrollTop: chartContainerRef.current?.scrollTop || 0
+      scrollTop: leftPanelRef.current?.scrollTop || 0
     });
   };
 
@@ -244,12 +244,16 @@ export default function People() {
     const deltaY = e.clientY - dragStart.y;
     
     isScrollingSyncRef.current = true;
+    const newScrollLeft = dragStart.scrollLeft - deltaX;
+    const newScrollTop = dragStart.scrollTop - deltaY;
     if (chartContainerRef.current) {
-      chartContainerRef.current.scrollLeft = dragStart.scrollLeft - deltaX;
-      chartContainerRef.current.scrollTop = dragStart.scrollTop - deltaY;
+      chartContainerRef.current.scrollLeft = newScrollLeft;
     }
     if (leftPanelRef.current) {
-      leftPanelRef.current.scrollTop = dragStart.scrollTop - deltaY;
+      leftPanelRef.current.scrollTop = newScrollTop;
+    }
+    if (headerScrollRef.current) {
+      headerScrollRef.current.scrollLeft = newScrollLeft;
     }
     requestAnimationFrame(() => {
       isScrollingSyncRef.current = false;
@@ -272,28 +276,6 @@ export default function People() {
     }
   };
 
-  // Sync vertical scroll between left panel and chart body
-  const handleLeftPanelScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (isScrollingSyncRef.current) return;
-    isScrollingSyncRef.current = true;
-    if (chartContainerRef.current) {
-      chartContainerRef.current.scrollTop = e.currentTarget.scrollTop;
-    }
-    requestAnimationFrame(() => {
-      isScrollingSyncRef.current = false;
-    });
-  };
-
-  const handleChartVerticalScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (isScrollingSyncRef.current) return;
-    isScrollingSyncRef.current = true;
-    if (leftPanelRef.current) {
-      leftPanelRef.current.scrollTop = e.currentTarget.scrollTop;
-    }
-    requestAnimationFrame(() => {
-      isScrollingSyncRef.current = false;
-    });
-  };
 
   const expandAll = () => {
     setExpandedDocs(new Set(documents.map(d => d.id)));
@@ -330,9 +312,12 @@ export default function People() {
     );
   }
 
+  const leftTableWidth = expandedDocs.size > 0 || expandedBlocks.size > 0 || expandedSections.size > 0 ? 540 : 300;
+  const CELL_WIDTH = 42;
+
   return (
-    <div className="min-h-screen bg-background/50 flex flex-col">
-      <header className="bg-card border-b border-border sticky top-0 z-10 backdrop-blur-sm bg-card/80">
+    <div className="h-screen bg-background/50 flex flex-col overflow-hidden">
+      <header className="bg-card border-b border-border sticky top-0 z-50 backdrop-blur-sm bg-card/80 flex-shrink-0">
         <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <Link href="/">
@@ -358,18 +343,17 @@ export default function People() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Names */}
-        <div 
-          ref={leftPanelRef}
-          className="flex-shrink-0 border-r border-border bg-card flex flex-col" 
-          style={{ width: expandedDocs.size > 0 || expandedBlocks.size > 0 || expandedSections.size > 0 ? 540 : 300 }}
-        >
-          {/* Header */}
-          <div className="sticky top-0 z-20 bg-card">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Fixed Header Row */}
+        <div className="flex flex-shrink-0 bg-card z-30">
+          {/* Left Header */}
+          <div 
+            className="flex-shrink-0 border-r border-border bg-card" 
+            style={{ width: leftTableWidth }}
+          >
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr>
+                <tr className="h-12">
                   <th className="border-b border-border bg-muted/50 p-2 text-left font-medium h-12">
                     Наименование
                   </th>
@@ -377,38 +361,13 @@ export default function People() {
               </thead>
             </table>
           </div>
-          {/* Body */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden" onScroll={handleLeftPanelScroll}>
-            <table className="w-full border-collapse text-sm">
-              <tbody>
-                {documents.map(doc => (
-                  <DocumentNameRows
-                    key={doc.id}
-                    doc={doc}
-                    isExpanded={expandedDocs.has(doc.id)}
-                    expandedBlocks={expandedBlocks}
-                    expandedSections={expandedSections}
-                    expandedGroups={expandedGroups}
-                    onToggleDoc={() => toggleDoc(doc.id)}
-                    onToggleBlock={toggleBlock}
-                    onToggleSection={toggleSection}
-                    onToggleGroup={toggleGroup}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Right Panel - Chart */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          {/* Header */}
+          {/* Right Header - syncs with horizontal scroll */}
           <div 
             ref={headerScrollRef}
-            className="overflow-x-auto scrollbar-hide"
+            className="flex-1 overflow-x-auto scrollbar-hide"
           >
-            <div style={{ minWidth: days.length * 32 }}>
-              <table className="border-collapse text-sm" style={{ tableLayout: 'fixed', width: days.length * 32 }}>
+            <div style={{ minWidth: days.length * CELL_WIDTH }}>
+              <table className="border-collapse text-sm" style={{ tableLayout: 'fixed', width: days.length * CELL_WIDTH }}>
                 <thead>
                   <tr>
                     {days.map((day, idx) => {
@@ -421,7 +380,7 @@ export default function People() {
                           key={idx}
                           ref={isToday ? todayColumnRef : undefined}
                           className={`border-b border-r border-border p-0.5 text-center font-medium h-12 ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/30' : 'bg-muted/50'}`}
-                          style={{ width: 32 }}
+                          style={{ width: CELL_WIDTH }}
                         >
                           <div className="text-[9px] leading-tight">{format(day, "dd.MM.yy", { locale: ru })}</div>
                           <div className="text-muted-foreground text-[9px] leading-tight">
@@ -435,35 +394,69 @@ export default function People() {
               </table>
             </div>
           </div>
-          {/* Body with drag-to-pan */}
-          <div 
-            ref={chartContainerRef}
-            className="flex-1 overflow-auto"
-            style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseLeave}
-            onScroll={(e) => { handleChartScroll(e); handleChartVerticalScroll(e); }}
-          >
-            <div style={{ minWidth: days.length * 32 }}>
-              <table className="border-collapse text-sm" style={{ tableLayout: 'fixed', width: days.length * 32 }}>
+        </div>
+
+        {/* Scrollable Body */}
+        <div 
+          ref={leftPanelRef}
+          className="flex-1 overflow-y-auto overflow-x-hidden"
+        >
+          <div className="flex">
+            {/* Left Body */}
+            <div 
+              className="flex-shrink-0 border-r border-border bg-card" 
+              style={{ width: leftTableWidth }}
+            >
+              <table className="w-full border-collapse text-sm">
                 <tbody>
                   {documents.map(doc => (
-                    <DocumentDataRows
+                    <DocumentNameRows
                       key={doc.id}
                       doc={doc}
-                      days={days}
-                      today={today}
                       isExpanded={expandedDocs.has(doc.id)}
                       expandedBlocks={expandedBlocks}
                       expandedSections={expandedSections}
                       expandedGroups={expandedGroups}
-                      workPeopleMap={workPeopleMap}
+                      onToggleDoc={() => toggleDoc(doc.id)}
+                      onToggleBlock={toggleBlock}
+                      onToggleSection={toggleSection}
+                      onToggleGroup={toggleGroup}
                     />
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Right Body with drag-to-pan */}
+            <div 
+              ref={chartContainerRef}
+              className="flex-1 overflow-x-auto overflow-y-hidden select-none"
+              style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+              onScroll={handleChartScroll}
+            >
+              <div style={{ minWidth: days.length * CELL_WIDTH }}>
+                <table className="border-collapse text-sm" style={{ tableLayout: 'fixed', width: days.length * CELL_WIDTH }}>
+                  <tbody>
+                    {documents.map(doc => (
+                      <DocumentDataRows
+                        key={doc.id}
+                        doc={doc}
+                        days={days}
+                        today={today}
+                        isExpanded={expandedDocs.has(doc.id)}
+                        expandedBlocks={expandedBlocks}
+                        expandedSections={expandedSections}
+                        expandedGroups={expandedGroups}
+                        workPeopleMap={workPeopleMap}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
