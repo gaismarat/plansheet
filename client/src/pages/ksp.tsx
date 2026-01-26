@@ -7,7 +7,6 @@ import { ArrowLeft, CalendarDays, ChevronRight, ChevronDown } from "lucide-react
 import { Skeleton } from "@/components/ui/skeleton";
 import { addDays, startOfWeek, endOfWeek, format, parseISO, differenceInDays, eachDayOfInterval, eachWeekOfInterval, isWithinInterval, isBefore, isAfter, startOfDay, isSameDay } from "date-fns";
 import { ru } from "date-fns/locale";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface RowHeightsContextType {
   registerLeftRow: (key: string, el: HTMLTableRowElement | null) => void;
@@ -291,6 +290,22 @@ export default function KSP() {
     setExpandedGroups(new Set());
   };
 
+  // Drag-to-pan state for chart area
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [scrollStart, setScrollStart] = useState({ x: 0, y: 0 });
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const leftPanelRef = useRef<HTMLDivElement>(null);
+
+  // Handle window-level mouseup to prevent stuck dragging state
+  useEffect(() => {
+    const handleWindowMouseUp = () => {
+      setIsDragging(false);
+    };
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    return () => window.removeEventListener('mouseup', handleWindowMouseUp);
+  }, []);
+
   const hasExpanded = expandedDocs.size > 0 || expandedBlocks.size > 0 || expandedSections.size > 0 || expandedGroups.size > 0;
   const leftTableWidth = hasExpanded ? 745 : 475;
 
@@ -303,9 +318,56 @@ export default function KSP() {
     );
   }
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (chartContainerRef.current) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX, y: e.clientY });
+      setScrollStart({ 
+        x: chartContainerRef.current.scrollLeft, 
+        y: chartContainerRef.current.scrollTop 
+      });
+      e.preventDefault();
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !chartContainerRef.current) return;
+    const deltaX = dragStart.x - e.clientX;
+    const deltaY = dragStart.y - e.clientY;
+    chartContainerRef.current.scrollLeft = scrollStart.x + deltaX;
+    chartContainerRef.current.scrollTop = scrollStart.y + deltaY;
+    // Sync left panel vertical scroll
+    if (leftPanelRef.current) {
+      leftPanelRef.current.scrollTop = scrollStart.y + deltaY;
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  // Sync vertical scroll between left panel and chart area
+  const handleLeftPanelScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (chartContainerRef.current && !isDragging) {
+      chartContainerRef.current.scrollTop = e.currentTarget.scrollTop;
+    }
+  };
+
+  const handleChartScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (leftPanelRef.current && !isDragging) {
+      leftPanelRef.current.scrollTop = e.currentTarget.scrollTop;
+    }
+  };
+
+  const HEADER_HEIGHT = 64; // h-16 = 64px
+
   return (
-    <div className="min-h-screen bg-background/50 flex flex-col">
-      <header className="bg-card border-b border-border sticky top-0 z-10 backdrop-blur-sm bg-card/80">
+    <div className="h-screen bg-background/50 flex flex-col overflow-hidden">
+      <header className="bg-card border-b border-border sticky top-0 z-50 backdrop-blur-sm bg-card/80 flex-shrink-0">
         <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <Link href="/">
@@ -348,9 +410,14 @@ export default function KSP() {
       </header>
       <RowHeightsContext.Provider value={{ registerLeftRow, getRowHeight }}>
         <div className="flex-1 flex overflow-hidden">
-          <div className="flex-shrink-0 border-r border-border bg-card overflow-y-auto" style={{ width: leftTableWidth }}>
+          <div 
+            ref={leftPanelRef}
+            className="flex-shrink-0 border-r border-border bg-card overflow-y-auto overflow-x-hidden" 
+            style={{ width: leftTableWidth }}
+            onScroll={handleLeftPanelScroll}
+          >
             <table className="w-full border-collapse text-sm">
-              <thead className="sticky top-0 z-20 bg-card">
+              <thead className="sticky top-0 z-30 bg-card">
                 <tr className="h-12">
                   <th className="border-b border-r border-border bg-muted p-2 text-left font-medium h-12" style={{ width: hasExpanded ? 340 : 170 }}>
                     Наименование
@@ -388,54 +455,60 @@ export default function KSP() {
             </table>
           </div>
 
-          <div className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full">
-              <div className="min-w-max">
-                <table className="w-full border-collapse text-sm">
-                  <thead className="sticky top-0 z-20 bg-card">
-                    <tr className="h-12">
-                      {timeUnits.map((unit, idx) => {
-                        const isToday = viewMode === "days" 
-                          ? isSameDay(unit, today)
-                          : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
-                        
-                        return (
-                          <th 
-                            key={idx}
-                            ref={isToday ? todayColumnRef : undefined}
-                            className={`border-b border-r border-border p-0.5 text-center font-medium min-w-[32px] w-[32px] text-[10px] h-12 ${isToday ? 'bg-primary/20' : 'bg-muted/50'}`}
-                          >
-                            <div className="text-[9px] leading-tight">{format(unit, "dd.MM.yy", { locale: ru })}</div>
-                            <div className="text-muted-foreground text-[9px] leading-tight">
-                              {viewMode === "days" 
-                                ? format(unit, "EEE", { locale: ru })
-                                : `Н${format(unit, "w", { locale: ru })}`
-                              }
-                            </div>
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {documents.map(doc => (
-                      <DocumentRightRows
-                        key={doc.id}
-                        doc={doc}
-                        timeUnits={timeUnits}
-                        viewMode={viewMode}
-                        today={today}
-                        isExpanded={expandedDocs.has(doc.id)}
-                        expandedBlocks={expandedBlocks}
-                        expandedSections={expandedSections}
-                        expandedGroups={expandedGroups}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+          <div 
+            ref={chartContainerRef}
+            className="flex-1 overflow-auto select-none"
+            style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
+            onScroll={handleChartScroll}
+          >
+            <div className="min-w-max">
+              <table className="w-full border-collapse text-sm">
+                <thead className="sticky top-0 z-30 bg-card">
+                  <tr className="h-12">
+                    {timeUnits.map((unit, idx) => {
+                      const isToday = viewMode === "days" 
+                        ? isSameDay(unit, today)
+                        : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+                      
+                      return (
+                        <th 
+                          key={idx}
+                          ref={isToday ? todayColumnRef : undefined}
+                          className={`border-b border-r border-border p-0.5 text-center font-medium min-w-[32px] w-[32px] text-[10px] h-12 ${isToday ? 'bg-primary/20' : 'bg-muted/50'}`}
+                        >
+                          <div className="text-[9px] leading-tight">{format(unit, "dd.MM.yy", { locale: ru })}</div>
+                          <div className="text-muted-foreground text-[9px] leading-tight">
+                            {viewMode === "days" 
+                              ? format(unit, "EEE", { locale: ru })
+                              : `Н${format(unit, "w", { locale: ru })}`
+                            }
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map(doc => (
+                    <DocumentRightRows
+                      key={doc.id}
+                      doc={doc}
+                      timeUnits={timeUnits}
+                      viewMode={viewMode}
+                      today={today}
+                      isExpanded={expandedDocs.has(doc.id)}
+                      expandedBlocks={expandedBlocks}
+                      expandedSections={expandedSections}
+                      expandedGroups={expandedGroups}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </RowHeightsContext.Provider>
