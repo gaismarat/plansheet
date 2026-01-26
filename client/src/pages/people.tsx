@@ -709,7 +709,7 @@ function DocumentDataRows({
             <td 
               key={idx} 
               className={`border-b border-r border-border h-10 ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-primary/10' : ''}`}
-              style={{ width: 32 }}
+              style={{ width: 42 }}
             />
           );
         })}
@@ -757,7 +757,7 @@ function BlockDataRows({
             <td 
               key={idx} 
               className={`border-b border-r border-border h-10 ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-primary/5' : ''}`}
-              style={{ width: 32 }}
+              style={{ width: 42 }}
             />
           );
         })}
@@ -802,7 +802,7 @@ function SectionDataRows({
             <td 
               key={idx} 
               className={`border-b border-r border-border h-10 ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-secondary/10' : ''}`}
-              style={{ width: 32 }}
+              style={{ width: 42 }}
             />
           );
         })}
@@ -984,7 +984,7 @@ function PeopleSectionInputCell({
   return (
     <td 
       className={`border-b border-r border-border p-0 h-10 text-center text-sm ${isToday ? 'bg-primary/10' : isWeekend ? 'bg-muted/5' : 'bg-muted/5'}`}
-      style={{ width: 32 }}
+      style={{ width: 42 }}
       data-testid={`cell-people-section-${groupId}-${sectionNumber}-${dateStr}`}
     >
       <input
@@ -1057,7 +1057,7 @@ function GroupDataRows({
               <td 
                 key={idx}
                 className={`border-b border-r border-border p-0 h-10 text-center text-sm ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/10' : ''}`}
-                style={{ width: 32 }}
+                style={{ width: 42 }}
               />
             );
           }
@@ -1068,7 +1068,7 @@ function GroupDataRows({
               <td 
                 key={idx}
                 className={`border-b border-r border-border p-0 h-10 text-center text-sm ${isToday ? 'bg-primary/20' : isWeekend ? 'bg-muted/10' : ''}`}
-                style={{ width: 32 }}
+                style={{ width: 42 }}
                 data-testid={`cell-people-group-${group.id}-${dateStr}`}
               >
                 {peopleCount > 0 ? peopleCount : ''}
@@ -1105,7 +1105,7 @@ function GroupDataRows({
                 <td 
                   key={idx}
                   className={`border-b border-r border-border p-0 h-10 text-center text-sm ${isToday ? 'bg-primary/10' : isWeekend ? 'bg-muted/5' : ''}`}
-                  style={{ width: 32 }}
+                  style={{ width: 42 }}
                 />
               );
             }
