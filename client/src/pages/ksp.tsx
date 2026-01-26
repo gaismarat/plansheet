@@ -296,6 +296,7 @@ export default function KSP() {
   const [scrollStart, setScrollStart] = useState({ x: 0, y: 0 });
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const leftPanelRef = useRef<HTMLDivElement>(null);
+  const headerScrollRef = useRef<HTMLDivElement>(null);
 
   // Handle window-level mouseup to prevent stuck dragging state
   useEffect(() => {
@@ -336,6 +337,10 @@ export default function KSP() {
     const deltaY = dragStart.y - e.clientY;
     chartContainerRef.current.scrollLeft = scrollStart.x + deltaX;
     leftPanelRef.current.scrollTop = scrollStart.y + deltaY;
+    // Sync header horizontal scroll
+    if (headerScrollRef.current) {
+      headerScrollRef.current.scrollLeft = scrollStart.x + deltaX;
+    }
   };
 
   const handleMouseUp = () => {
@@ -344,6 +349,13 @@ export default function KSP() {
 
   const handleMouseLeave = () => {
     setIsDragging(false);
+  };
+
+  // Sync header horizontal scroll with chart body scroll
+  const handleChartScroll = () => {
+    if (headerScrollRef.current && chartContainerRef.current) {
+      headerScrollRef.current.scrollLeft = chartContainerRef.current.scrollLeft;
+    }
   };
 
   const HEADER_HEIGHT = 64; // h-16 = 64px
@@ -392,17 +404,16 @@ export default function KSP() {
         </div>
       </header>
       <RowHeightsContext.Provider value={{ registerLeftRow, getRowHeight }}>
-        <div 
-          ref={leftPanelRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden"
-        >
-          <div className="flex">
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Fixed Header Row */}
+          <div className="flex flex-shrink-0 bg-card z-30">
+            {/* Left Header */}
             <div 
               className="flex-shrink-0 border-r border-border bg-card" 
               style={{ width: leftTableWidth }}
             >
               <table className="w-full border-collapse text-sm">
-                <thead className="sticky top-0 z-30 bg-card">
+                <thead>
                   <tr className="h-12">
                     <th className="border-b border-r border-border bg-muted p-2 text-left font-medium h-12" style={{ width: hasExpanded ? 340 : 170 }}>
                       Наименование
@@ -421,37 +432,16 @@ export default function KSP() {
                     </th>
                   </tr>
                 </thead>
-                <tbody>
-                  {documents.map(doc => (
-                    <DocumentLeftRows
-                      key={doc.id}
-                      doc={doc}
-                      isExpanded={expandedDocs.has(doc.id)}
-                      expandedBlocks={expandedBlocks}
-                      expandedSections={expandedSections}
-                      expandedGroups={expandedGroups}
-                      onToggleDoc={() => toggleDoc(doc.id)}
-                      onToggleBlock={toggleBlock}
-                      onToggleSection={toggleSection}
-                      onToggleGroup={toggleGroup}
-                    />
-                  ))}
-                </tbody>
               </table>
             </div>
-
+            {/* Right Header - syncs with horizontal scroll */}
             <div 
-              ref={chartContainerRef}
-              className="flex-1 overflow-x-auto overflow-y-visible select-none"
-              style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseLeave}
+              ref={headerScrollRef}
+              className="flex-1 overflow-x-auto scrollbar-hide"
             >
               <div className="min-w-max">
                 <table className="w-full border-collapse text-sm">
-                  <thead className="sticky top-0 z-30 bg-card">
+                  <thead>
                     <tr className="h-12">
                       {timeUnits.map((unit, idx) => {
                         const isToday = viewMode === "days" 
@@ -476,22 +466,72 @@ export default function KSP() {
                       })}
                     </tr>
                   </thead>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Scrollable Body */}
+          <div 
+            ref={leftPanelRef}
+            className="flex-1 overflow-y-auto overflow-x-hidden"
+          >
+            <div className="flex">
+              {/* Left Body */}
+              <div 
+                className="flex-shrink-0 border-r border-border bg-card" 
+                style={{ width: leftTableWidth }}
+              >
+                <table className="w-full border-collapse text-sm">
                   <tbody>
                     {documents.map(doc => (
-                      <DocumentRightRows
+                      <DocumentLeftRows
                         key={doc.id}
                         doc={doc}
-                        timeUnits={timeUnits}
-                        viewMode={viewMode}
-                        today={today}
                         isExpanded={expandedDocs.has(doc.id)}
                         expandedBlocks={expandedBlocks}
                         expandedSections={expandedSections}
                         expandedGroups={expandedGroups}
+                        onToggleDoc={() => toggleDoc(doc.id)}
+                        onToggleBlock={toggleBlock}
+                        onToggleSection={toggleSection}
+                        onToggleGroup={toggleGroup}
                       />
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Right Body */}
+              <div 
+                ref={chartContainerRef}
+                className="flex-1 overflow-x-auto overflow-y-visible select-none"
+                style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseLeave}
+                onScroll={handleChartScroll}
+              >
+                <div className="min-w-max">
+                  <table className="w-full border-collapse text-sm">
+                    <tbody>
+                      {documents.map(doc => (
+                        <DocumentRightRows
+                          key={doc.id}
+                          doc={doc}
+                          timeUnits={timeUnits}
+                          viewMode={viewMode}
+                          today={today}
+                          isExpanded={expandedDocs.has(doc.id)}
+                          expandedBlocks={expandedBlocks}
+                          expandedSections={expandedSections}
+                          expandedGroups={expandedGroups}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
