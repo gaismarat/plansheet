@@ -308,7 +308,14 @@ export default function KSP() {
   }, []);
 
   const hasExpanded = expandedDocs.size > 0 || expandedBlocks.size > 0 || expandedSections.size > 0 || expandedGroups.size > 0;
-  const leftTableWidth = hasExpanded ? 745 : 475;
+  
+  const COL_NAME_WIDTH = hasExpanded ? 540 : 270;
+  const COL_START_WIDTH = 70;
+  const COL_END_WIDTH = 70;
+  const COL_DURATION_WIDTH = 65;
+  const leftTableWidth = COL_NAME_WIDTH + COL_START_WIDTH + COL_END_WIDTH + COL_DURATION_WIDTH;
+  
+  const CELL_WIDTH = viewMode === 'days' ? 40 : 60;
 
   if (isLoading) {
     return (
@@ -412,21 +419,27 @@ export default function KSP() {
               className="flex-shrink-0 border-r border-border bg-card" 
               style={{ width: leftTableWidth }}
             >
-              <table className="w-full border-collapse text-sm">
+              <table className="w-full border-collapse text-sm" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: COL_NAME_WIDTH }} />
+                  <col style={{ width: COL_START_WIDTH }} />
+                  <col style={{ width: COL_END_WIDTH }} />
+                  <col style={{ width: COL_DURATION_WIDTH }} />
+                </colgroup>
                 <thead>
                   <tr className="h-12">
-                    <th className="border-b border-r border-border bg-muted p-2 text-left font-medium h-12" style={{ width: hasExpanded ? 340 : 170 }}>
+                    <th className="border-b border-r border-border bg-muted p-2 text-left font-medium h-12">
                       Наименование
                     </th>
-                    <th className="border-b border-r border-border bg-muted p-1 text-center font-medium w-[70px] text-xs h-12">
+                    <th className="border-b border-r border-border bg-muted p-1 text-center font-medium text-xs h-12">
                       Начало
                       <div className="text-muted-foreground text-[10px]">план / факт</div>
                     </th>
-                    <th className="border-b border-r border-border bg-muted p-1 text-center font-medium w-[70px] text-xs h-12">
+                    <th className="border-b border-r border-border bg-muted p-1 text-center font-medium text-xs h-12">
                       Конец
                       <div className="text-muted-foreground text-[10px]">план / факт</div>
                     </th>
-                    <th className="border-b border-border bg-muted p-1 text-center font-medium w-[65px] text-xs h-12">
+                    <th className="border-b border-border bg-muted p-1 text-center font-medium text-xs h-12">
                       Длит-ть
                       <div className="text-muted-foreground text-[10px]">план / факт</div>
                     </th>
@@ -439,8 +452,13 @@ export default function KSP() {
               ref={headerScrollRef}
               className="flex-1 overflow-x-auto scrollbar-hide"
             >
-              <div className="min-w-max">
-                <table className="w-full border-collapse text-sm">
+              <div style={{ minWidth: timeUnits.length * CELL_WIDTH }}>
+                <table className="border-collapse text-sm" style={{ tableLayout: 'fixed', width: timeUnits.length * CELL_WIDTH }}>
+                  <colgroup>
+                    {timeUnits.map((_, idx) => (
+                      <col key={idx} style={{ width: CELL_WIDTH }} />
+                    ))}
+                  </colgroup>
                   <thead>
                     <tr className="h-12">
                       {timeUnits.map((unit, idx) => {
@@ -453,7 +471,6 @@ export default function KSP() {
                             key={idx}
                             ref={isToday ? todayColumnRef : undefined}
                             className={`border-b border-r border-border p-0.5 text-center font-medium text-[10px] h-12 ${isToday ? 'bg-primary/20' : 'bg-muted/50'}`}
-                            style={{ width: viewMode === 'days' ? 40 : 60, minWidth: viewMode === 'days' ? 40 : 60 }}
                           >
                             <div className="text-[9px] leading-tight">{format(unit, "dd.MM.yy", { locale: ru })}</div>
                             <div className="text-muted-foreground text-[9px] leading-tight">
@@ -483,7 +500,13 @@ export default function KSP() {
                 className="flex-shrink-0 border-r border-border bg-card" 
                 style={{ width: leftTableWidth }}
               >
-                <table className="w-full border-collapse text-sm">
+                <table className="w-full border-collapse text-sm" style={{ tableLayout: 'fixed' }}>
+                  <colgroup>
+                    <col style={{ width: COL_NAME_WIDTH }} />
+                    <col style={{ width: COL_START_WIDTH }} />
+                    <col style={{ width: COL_END_WIDTH }} />
+                    <col style={{ width: COL_DURATION_WIDTH }} />
+                  </colgroup>
                   <tbody>
                     {documents.map(doc => (
                       <DocumentLeftRows
@@ -514,8 +537,13 @@ export default function KSP() {
                 onMouseLeave={handleMouseLeave}
                 onScroll={handleChartScroll}
               >
-                <div className="min-w-max">
-                  <table className="w-full border-collapse text-sm">
+                <div style={{ minWidth: timeUnits.length * CELL_WIDTH }}>
+                  <table className="border-collapse text-sm" style={{ tableLayout: 'fixed', width: timeUnits.length * CELL_WIDTH }}>
+                    <colgroup>
+                      {timeUnits.map((_, idx) => (
+                        <col key={idx} style={{ width: CELL_WIDTH }} />
+                      ))}
+                    </colgroup>
                     <tbody>
                       {documents.map(doc => (
                         <DocumentRightRows
@@ -925,7 +953,7 @@ function DocumentRightRows({
             : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
           
           return (
-            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/30' : 'bg-primary/10'}`} style={{ width: viewMode === 'days' ? 40 : 60, minWidth: viewMode === 'days' ? 40 : 60 }}>
+            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/30' : 'bg-primary/10'}`}>
               {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
             </td>
           );
@@ -977,7 +1005,7 @@ function BlockRightRows({
             : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
           
           return (
-            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/20' : 'bg-primary/5'}`} style={{ width: viewMode === 'days' ? 40 : 60, minWidth: viewMode === 'days' ? 40 : 60 }}>
+            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/20' : 'bg-primary/5'}`}>
               {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
             </td>
           );
@@ -1026,7 +1054,7 @@ function SectionRightRows({
             : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
           
           return (
-            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/20' : 'bg-secondary/10'}`} style={{ width: viewMode === 'days' ? 40 : 60, minWidth: viewMode === 'days' ? 40 : 60 }}>
+            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/20' : 'bg-secondary/10'}`}>
               {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
             </td>
           );
@@ -1135,7 +1163,7 @@ function GroupRightRow({
             : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
           
           return (
-            <td key={idx} className={`border-b border-r border-border p-0 relative ${isToday ? 'bg-primary/10' : ''}`} style={{ width: viewMode === 'days' ? 40 : 60, minWidth: viewMode === 'days' ? 40 : 60 }}>
+            <td key={idx} className={`border-b border-r border-border p-0 relative ${isToday ? 'bg-primary/10' : ''}`}>
               <div className="absolute inset-0 flex flex-col">
                 <div className={`flex-1 ${isInPlanRange ? 'bg-blue-500' : ''}`} />
                 <div className={`flex-1 ${
@@ -1164,7 +1192,7 @@ function GroupRightRow({
                 : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
               
               return (
-                <td key={idx} className={`border-b border-r border-border p-0 relative ${isToday ? 'bg-primary/5' : ''}`} style={{ width: viewMode === 'days' ? 40 : 60, minWidth: viewMode === 'days' ? 40 : 60 }}>
+                <td key={idx} className={`border-b border-r border-border p-0 relative ${isToday ? 'bg-primary/5' : ''}`}>
                   <div className="absolute inset-0 flex flex-col">
                     <div className={`flex-1 ${isInPlanRange ? 'bg-blue-300/60' : ''}`} />
                     <div className={`flex-1 ${
