@@ -1664,10 +1664,17 @@ export class DatabaseStorage implements IStorage {
                 };
               }
               
+              // Use aggregated dates only if they are not null, otherwise keep original work dates
+              const finalDates = {
+                planStartDate: aggregatedDates?.planStartDate ?? work.planStartDate,
+                planEndDate: aggregatedDates?.planEndDate ?? work.planEndDate,
+                actualStartDate: aggregatedDates?.actualStartDate ?? work.actualStartDate,
+                actualEndDate: aggregatedDates?.actualEndDate ?? work.actualEndDate
+              };
+              
               treeWorks.push({
                 ...work,
-                // Override dates with aggregated dates from sections if available
-                ...(aggregatedDates ? aggregatedDates : {}),
+                ...finalDates,
                 pdcName: pdcGroup.name,
                 pdcUnit: pdcGroup.unit || "шт.",
                 pdcQuantity: quantity,
