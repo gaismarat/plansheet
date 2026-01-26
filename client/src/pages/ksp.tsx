@@ -452,7 +452,8 @@ export default function KSP() {
                           <th 
                             key={idx}
                             ref={isToday ? todayColumnRef : undefined}
-                            className={`border-b border-r border-border p-0.5 text-center font-medium min-w-[32px] w-[32px] text-[10px] h-12 ${isToday ? 'bg-primary/20' : 'bg-muted/50'}`}
+                            className={`border-b border-r border-border p-0.5 text-center font-medium text-[10px] h-12 ${isToday ? 'bg-primary/20' : 'bg-muted/50'}`}
+                            style={{ width: viewMode === 'days' ? 40 : 60, minWidth: viewMode === 'days' ? 40 : 60 }}
                           >
                             <div className="text-[9px] leading-tight">{format(unit, "dd.MM.yy", { locale: ru })}</div>
                             <div className="text-muted-foreground text-[9px] leading-tight">
@@ -505,7 +506,7 @@ export default function KSP() {
               {/* Right Body */}
               <div 
                 ref={chartContainerRef}
-                className="flex-1 overflow-x-auto overflow-y-visible select-none"
+                className="flex-1 overflow-x-auto overflow-y-hidden select-none"
                 style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
@@ -924,7 +925,7 @@ function DocumentRightRows({
             : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
           
           return (
-            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/30' : 'bg-primary/10'}`}>
+            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/30' : 'bg-primary/10'}`} style={{ width: viewMode === 'days' ? 40 : 60, minWidth: viewMode === 'days' ? 40 : 60 }}>
               {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
             </td>
           );
@@ -976,7 +977,7 @@ function BlockRightRows({
             : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
           
           return (
-            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/20' : 'bg-primary/5'}`}>
+            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/20' : 'bg-primary/5'}`} style={{ width: viewMode === 'days' ? 40 : 60, minWidth: viewMode === 'days' ? 40 : 60 }}>
               {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
             </td>
           );
@@ -1025,7 +1026,7 @@ function SectionRightRows({
             : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
           
           return (
-            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/20' : 'bg-secondary/10'}`}>
+            <td key={idx} className={`border-b border-r border-border relative ${isToday ? 'bg-primary/20' : 'bg-secondary/10'}`} style={{ width: viewMode === 'days' ? 40 : 60, minWidth: viewMode === 'days' ? 40 : 60 }}>
               {isToday && <CurrentDateLine viewMode={viewMode} today={today} unit={unit} />}
             </td>
           );
@@ -1134,7 +1135,7 @@ function GroupRightRow({
             : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
           
           return (
-            <td key={idx} className={`border-b border-r border-border p-0 relative ${isToday ? 'bg-primary/10' : ''}`}>
+            <td key={idx} className={`border-b border-r border-border p-0 relative ${isToday ? 'bg-primary/10' : ''}`} style={{ width: viewMode === 'days' ? 40 : 60, minWidth: viewMode === 'days' ? 40 : 60 }}>
               <div className="absolute inset-0 flex flex-col">
                 <div className={`flex-1 ${isInPlanRange ? 'bg-blue-500' : ''}`} />
                 <div className={`flex-1 ${
@@ -1163,7 +1164,7 @@ function GroupRightRow({
                 : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
               
               return (
-                <td key={idx} className={`border-b border-r border-border p-0 relative ${isToday ? 'bg-primary/5' : ''}`}>
+                <td key={idx} className={`border-b border-r border-border p-0 relative ${isToday ? 'bg-primary/5' : ''}`} style={{ width: viewMode === 'days' ? 40 : 60, minWidth: viewMode === 'days' ? 40 : 60 }}>
                   <div className="absolute inset-0 flex flex-col">
                     <div className={`flex-1 ${isInPlanRange ? 'bg-blue-300/60' : ''}`} />
                     <div className={`flex-1 ${
