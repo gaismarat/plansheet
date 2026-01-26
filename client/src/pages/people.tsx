@@ -227,6 +227,9 @@ export default function People() {
   // Drag-to-pan handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
+    // Don't start drag if clicking on an input element
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'BUTTON') return;
     e.preventDefault();
     setIsDragging(true);
     setDragStart({
