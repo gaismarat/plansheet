@@ -1068,8 +1068,8 @@ function SectionsSpoiler({
   const sectionCost = displayCostPlan / sectionsCount;
 
   const gridCols = showCost 
-    ? '40px 90px 90px 100px 100px 70px 50px 120px 1fr'
-    : '40px 100px 120px 120px 70px 50px 120px 1fr';
+    ? '40px 90px 90px 180px 70px 50px 120px 1fr'
+    : '40px 100px 180px 70px 50px 120px 1fr';
 
   return (
     <div className="mt-3 bg-muted/50 rounded-lg border border-border/50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
@@ -1077,8 +1077,7 @@ function SectionsSpoiler({
         <div>Сек</div>
         <div className="text-center">Объём</div>
         {showCost && <div className="text-center">Стоимость</div>}
-        <div className="text-center">Даты план</div>
-        <div className="text-center">Даты факт</div>
+        <div className="text-center">Даты</div>
         <div className="text-center">Люди</div>
         <div className="text-center">Средн.</div>
         <div className="text-center">
@@ -1124,6 +1123,15 @@ function formatDateShort(dateStr: string | null): string {
   const parts = dateStr.split('-');
   if (parts.length === 3) {
     return `${parts[2]}.${parts[1]}`;
+  }
+  return dateStr;
+}
+
+function formatDateWithYear(dateStr: string | null): string {
+  if (!dateStr) return '-';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}.${parts[1]}.${parts[0]}`;
   }
   return dateStr;
 }
@@ -1266,8 +1274,8 @@ function SectionRow({
   const volumeProgress = sectionQuantity > 0 ? Math.round((actualVolume / sectionQuantity) * 100) : 0;
   
   const gridCols = showCost 
-    ? '40px 90px 90px 100px 100px 70px 50px 120px 1fr'
-    : '40px 100px 120px 120px 70px 50px 120px 1fr';
+    ? '40px 90px 90px 180px 70px 50px 120px 1fr'
+    : '40px 100px 180px 70px 50px 120px 1fr';
   
   const planCalendar = peopleSummary?.planCalendarDays || 0;
   const planWorking = peopleSummary?.planWorkingDays || 0;
@@ -1319,14 +1327,11 @@ function SectionRow({
       )}
       
       <div className="text-center">
-        <div className="font-mono text-xs">
-          {formatDateShort(planStartDate)} - {formatDateShort(planEndDate)}
+        <div className="font-mono text-muted-foreground text-[10px]">
+          {formatDateWithYear(planStartDate)} - {formatDateWithYear(planEndDate)}
         </div>
-      </div>
-      
-      <div className="text-center">
-        <div className="font-mono text-xs">
-          {formatDateShort(actualStartDate)} - {formatDateShort(actualEndDate)}
+        <div className="font-mono text-xs font-semibold">
+          {formatDateWithYear(actualStartDate)} - {formatDateWithYear(actualEndDate)}
         </div>
       </div>
       
