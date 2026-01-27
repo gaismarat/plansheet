@@ -938,8 +938,10 @@ function PeopleSectionInputCell({
     mutationFn: async ({ workId, date, count, sectionNumber }: { workId: number; date: string; count: number; sectionNumber: number }) => {
       return apiRequest("POST", "/api/work-people", { workId, date, count, sectionNumber });
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/work-people"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-people/sections", variables.workId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-people/summary"] });
     }
   });
 
