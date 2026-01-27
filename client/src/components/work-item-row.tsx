@@ -1068,8 +1068,8 @@ function SectionsSpoiler({
   const sectionCost = displayCostPlan / sectionsCount;
 
   const gridCols = showCost 
-    ? '40px 90px 90px 100px 100px 80px 130px 1fr'
-    : '40px 100px 120px 120px 90px 130px 1fr';
+    ? '40px 90px 90px 100px 100px 70px 50px 120px 100px'
+    : '40px 100px 120px 120px 70px 50px 120px 100px';
 
   return (
     <div className="mt-3 bg-muted/50 rounded-lg border border-border/50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
@@ -1080,6 +1080,7 @@ function SectionsSpoiler({
         <div className="text-center">Даты план</div>
         <div className="text-center">Даты факт</div>
         <div className="text-center">Люди</div>
+        <div className="text-center">Средн.</div>
         <div className="text-center">
           <div>Трудоёмкость</div>
           <div className="grid grid-cols-3 gap-0 text-[8px] mt-0.5">
@@ -1088,7 +1089,7 @@ function SectionsSpoiler({
             <span>Выходн.</span>
           </div>
         </div>
-        <div className="text-center">Прогресс</div>
+        <div className="text-right">Прогресс</div>
       </div>
       <div className="divide-y divide-border/30">
         {Array.from({ length: sectionsCount }, (_, i) => i + 1).map((sectionNum) => {
@@ -1265,8 +1266,8 @@ function SectionRow({
   const volumeProgress = sectionQuantity > 0 ? Math.round((actualVolume / sectionQuantity) * 100) : 0;
   
   const gridCols = showCost 
-    ? '40px 90px 90px 100px 100px 80px 130px 1fr'
-    : '40px 100px 120px 120px 90px 130px 1fr';
+    ? '40px 90px 90px 100px 100px 70px 50px 120px 100px'
+    : '40px 100px 120px 120px 70px 50px 120px 100px';
   
   const planCalendar = peopleSummary?.planCalendarDays || 0;
   const planWorking = peopleSummary?.planWorkingDays || 0;
@@ -1332,6 +1333,10 @@ function SectionRow({
       <div className="text-center">
         <div className="font-mono text-muted-foreground text-[10px]">план: {plannedPeople}</div>
         <div className="font-mono text-xs font-semibold">факт: {actualPeopleToday}</div>
+      </div>
+      
+      <div className="text-center">
+        <div className="font-mono text-xs font-semibold">{avgPeople.toFixed(1)}</div>
       </div>
       
       <div className="text-center">
