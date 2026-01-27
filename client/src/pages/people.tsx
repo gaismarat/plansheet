@@ -168,9 +168,17 @@ export default function People() {
   }, [days, today]);
 
   useEffect(() => {
-    if (!hasScrolled && !isLoading && todayIndex >= 0 && todayColumnRef.current) {
+    if (!hasScrolled && !isLoading && todayIndex >= 0 && headerScrollRef.current && chartContainerRef.current) {
       const timer = setTimeout(() => {
-        todayColumnRef.current?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' });
+        const containerWidth = headerScrollRef.current?.clientWidth || 0;
+        const scrollPosition = Math.max(0, (todayIndex * CELL_WIDTH) - (containerWidth / 2) + (CELL_WIDTH / 2));
+        
+        if (headerScrollRef.current) {
+          headerScrollRef.current.scrollLeft = scrollPosition;
+        }
+        if (chartContainerRef.current) {
+          chartContainerRef.current.scrollLeft = scrollPosition;
+        }
         setHasScrolled(true);
       }, 100);
       return () => clearTimeout(timer);
@@ -271,12 +279,27 @@ export default function People() {
     setIsDragging(false);
   };
 
-  // Sync header scroll with chart body
+  // Sync header scroll with chart body (bidirectional)
   const handleChartScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (isScrollingSyncRef.current) return;
+    isScrollingSyncRef.current = true;
     if (headerScrollRef.current) {
       headerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
     }
+    requestAnimationFrame(() => {
+      isScrollingSyncRef.current = false;
+    });
+  };
+
+  const handleHeaderScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (isScrollingSyncRef.current) return;
+    isScrollingSyncRef.current = true;
+    if (chartContainerRef.current) {
+      chartContainerRef.current.scrollLeft = e.currentTarget.scrollLeft;
+    }
+    requestAnimationFrame(() => {
+      isScrollingSyncRef.current = false;
+    });
   };
 
 
@@ -368,6 +391,7 @@ export default function People() {
           <div 
             ref={headerScrollRef}
             className="flex-1 overflow-x-auto scrollbar-hide"
+            onScroll={handleHeaderScroll}
           >
             <div style={{ minWidth: days.length * CELL_WIDTH }}>
               <table className="border-collapse text-sm" style={{ tableLayout: 'fixed', width: days.length * CELL_WIDTH }}>
