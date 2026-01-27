@@ -1644,6 +1644,10 @@ function PDCGroupRow({
       setAddElementOpen(false);
       setNewElementName("");
       toast({ title: "Элемент добавлен" });
+      // Auto-expand the group to show the newly created element
+      if (!isExpanded) {
+        onToggle();
+      }
     },
   });
 
