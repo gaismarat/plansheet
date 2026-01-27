@@ -840,9 +840,6 @@ function PeopleInputCell({
   isWeekend: boolean;
 }) {
   const [localValue, setLocalValue] = useState<string>(initialValue > 0 ? String(initialValue) : '');
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingValueRef = useRef<string | null>(null);
-  const lastSavedRef = useRef<string>(initialValue > 0 ? String(initialValue) : '');
 
   const updateWorkPeopleMutation = useMutation({
     mutationFn: async ({ workId, date, count }: { workId: number; date: string; count: number }) => {
@@ -850,49 +847,19 @@ function PeopleInputCell({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/work-people"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/work-people/summary"] });
     }
   });
 
-  const flushPendingValue = useCallback(() => {
-    if (pendingValueRef.current !== null && pendingValueRef.current !== lastSavedRef.current) {
-      const numValue = parseInt(pendingValueRef.current) || 0;
-      updateWorkPeopleMutation.mutate({ workId, date: dateStr, count: numValue });
-      lastSavedRef.current = pendingValueRef.current;
-      pendingValueRef.current = null;
-    }
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  }, [workId, dateStr, updateWorkPeopleMutation]);
-
   useEffect(() => {
     setLocalValue(initialValue > 0 ? String(initialValue) : '');
-    lastSavedRef.current = initialValue > 0 ? String(initialValue) : '';
   }, [initialValue]);
 
   const handleChange = (value: string) => {
     setLocalValue(value);
-    pendingValueRef.current = value;
-    
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    
-    timeoutRef.current = setTimeout(() => {
-      flushPendingValue();
-    }, 500);
+    const numValue = parseInt(value) || 0;
+    updateWorkPeopleMutation.mutate({ workId, date: dateStr, count: numValue });
   };
-
-  const handleBlur = () => {
-    flushPendingValue();
-  };
-
-  useEffect(() => {
-    return () => {
-      flushPendingValue();
-    };
-  }, [flushPendingValue]);
 
   return (
     <td 
@@ -904,7 +871,6 @@ function PeopleInputCell({
         min="0"
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}
-        onBlur={handleBlur}
         className="w-full h-full text-center bg-transparent border-0 focus:ring-1 focus:ring-primary text-sm"
         data-testid={`input-people-group-${groupId}-${dateStr}`}
       />
@@ -930,7 +896,6 @@ function PeopleSectionInputCell({
   isWeekend: boolean;
 }) {
   const [localValue, setLocalValue] = useState<string>(initialValue > 0 ? String(initialValue) : '');
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const updateWorkPeopleMutation = useMutation({
     mutationFn: async ({ workId, date, count, sectionNumber }: { workId: number; date: string; count: number; sectionNumber: number }) => {
@@ -943,42 +908,15 @@ function PeopleSectionInputCell({
     }
   });
 
-  const saveValue = useCallback((value: string) => {
-    const numValue = parseInt(value) || 0;
-    updateWorkPeopleMutation.mutate({ workId, date: dateStr, count: numValue, sectionNumber });
-  }, [workId, dateStr, sectionNumber, updateWorkPeopleMutation]);
-
   useEffect(() => {
     setLocalValue(initialValue > 0 ? String(initialValue) : '');
   }, [initialValue]);
 
   const handleChange = (value: string) => {
     setLocalValue(value);
-    
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    
-    timeoutRef.current = setTimeout(() => {
-      saveValue(value);
-    }, 800);
+    const numValue = parseInt(value) || 0;
+    updateWorkPeopleMutation.mutate({ workId, date: dateStr, count: numValue, sectionNumber });
   };
-
-  const handleBlur = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    saveValue(localValue);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
 
   return (
     <td 
@@ -991,7 +929,6 @@ function PeopleSectionInputCell({
         min="0"
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}
-        onBlur={handleBlur}
         className="w-full h-full text-center bg-transparent border-0 focus:ring-1 focus:ring-primary text-sm"
         data-testid={`input-people-section-${groupId}-${sectionNumber}-${dateStr}`}
       />
