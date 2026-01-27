@@ -1341,7 +1341,10 @@ function SectionRow({
       </div>
       
       <div className="text-center">
-        <div className="font-mono text-xs font-semibold">{avgPeople.toFixed(1)}</div>
+        <div className={cn(
+          "font-mono text-xs font-semibold",
+          avgPeople < plannedPeople ? "text-red-500" : "text-green-500"
+        )}>{avgPeople.toFixed(1)}</div>
       </div>
       
       <div className="text-center">
