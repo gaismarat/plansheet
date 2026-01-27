@@ -931,8 +931,6 @@ function PeopleSectionInputCell({
 }) {
   const [localValue, setLocalValue] = useState<string>(initialValue > 0 ? String(initialValue) : '');
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingValueRef = useRef<string | null>(null);
-  const lastSavedRef = useRef<string>(initialValue > 0 ? String(initialValue) : '');
 
   const updateWorkPeopleMutation = useMutation({
     mutationFn: async ({ workId, date, count, sectionNumber }: { workId: number; date: string; count: number; sectionNumber: number }) => {
@@ -945,46 +943,42 @@ function PeopleSectionInputCell({
     }
   });
 
-  const flushPendingValue = useCallback(() => {
-    if (pendingValueRef.current !== null && pendingValueRef.current !== lastSavedRef.current) {
-      const numValue = parseInt(pendingValueRef.current) || 0;
-      updateWorkPeopleMutation.mutate({ workId, date: dateStr, count: numValue, sectionNumber });
-      lastSavedRef.current = pendingValueRef.current;
-      pendingValueRef.current = null;
-    }
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
+  const saveValue = useCallback((value: string) => {
+    const numValue = parseInt(value) || 0;
+    updateWorkPeopleMutation.mutate({ workId, date: dateStr, count: numValue, sectionNumber });
   }, [workId, dateStr, sectionNumber, updateWorkPeopleMutation]);
 
   useEffect(() => {
     setLocalValue(initialValue > 0 ? String(initialValue) : '');
-    lastSavedRef.current = initialValue > 0 ? String(initialValue) : '';
   }, [initialValue]);
 
   const handleChange = (value: string) => {
     setLocalValue(value);
-    pendingValueRef.current = value;
     
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
     
     timeoutRef.current = setTimeout(() => {
-      flushPendingValue();
-    }, 500);
+      saveValue(value);
+    }, 800);
   };
 
   const handleBlur = () => {
-    flushPendingValue();
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    saveValue(localValue);
   };
 
   useEffect(() => {
     return () => {
-      flushPendingValue();
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-  }, [flushPendingValue]);
+  }, []);
 
   return (
     <td 
