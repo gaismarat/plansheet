@@ -840,13 +840,6 @@ function PeopleInputCell({
   isWeekend: boolean;
 }) {
   const [localValue, setLocalValue] = useState<string>(initialValue > 0 ? String(initialValue) : '');
-  const dateStrRef = useRef(dateStr);
-  const workIdRef = useRef(workId);
-
-  useEffect(() => {
-    dateStrRef.current = dateStr;
-    workIdRef.current = workId;
-  }, [dateStr, workId]);
 
   const updateWorkPeopleMutation = useMutation({
     mutationFn: async ({ workId, date, count }: { workId: number; date: string; count: number }) => {
@@ -860,12 +853,12 @@ function PeopleInputCell({
 
   useEffect(() => {
     setLocalValue(initialValue > 0 ? String(initialValue) : '');
-  }, [initialValue, dateStr]);
+  }, [initialValue, dateStr, workId]);
 
-  const handleChange = (value: string) => {
+  const handleChange = (value: string, currentDateStr: string, currentWorkId: number) => {
     setLocalValue(value);
     const numValue = parseInt(value) || 0;
-    updateWorkPeopleMutation.mutate({ workId: workIdRef.current, date: dateStrRef.current, count: numValue });
+    updateWorkPeopleMutation.mutate({ workId: currentWorkId, date: currentDateStr, count: numValue });
   };
 
   return (
@@ -877,7 +870,7 @@ function PeopleInputCell({
         type="number"
         min="0"
         value={localValue}
-        onChange={(e) => handleChange(e.target.value)}
+        onChange={(e) => handleChange(e.target.value, dateStr, workId)}
         className="w-full h-full text-center bg-transparent border-0 focus:ring-1 focus:ring-primary text-sm"
         data-testid={`input-people-group-${groupId}-${dateStr}`}
       />
@@ -903,15 +896,6 @@ function PeopleSectionInputCell({
   isWeekend: boolean;
 }) {
   const [localValue, setLocalValue] = useState<string>(initialValue > 0 ? String(initialValue) : '');
-  const dateStrRef = useRef(dateStr);
-  const workIdRef = useRef(workId);
-  const sectionNumberRef = useRef(sectionNumber);
-
-  useEffect(() => {
-    dateStrRef.current = dateStr;
-    workIdRef.current = workId;
-    sectionNumberRef.current = sectionNumber;
-  }, [dateStr, workId, sectionNumber]);
 
   const updateWorkPeopleMutation = useMutation({
     mutationFn: async ({ workId, date, count, sectionNumber }: { workId: number; date: string; count: number; sectionNumber: number }) => {
@@ -926,16 +910,16 @@ function PeopleSectionInputCell({
 
   useEffect(() => {
     setLocalValue(initialValue > 0 ? String(initialValue) : '');
-  }, [initialValue, dateStr]);
+  }, [initialValue, dateStr, workId, sectionNumber]);
 
-  const handleChange = (value: string) => {
+  const handleChange = (value: string, currentDateStr: string, currentWorkId: number, currentSectionNumber: number) => {
     setLocalValue(value);
     const numValue = parseInt(value) || 0;
     updateWorkPeopleMutation.mutate({ 
-      workId: workIdRef.current, 
-      date: dateStrRef.current, 
+      workId: currentWorkId, 
+      date: currentDateStr, 
       count: numValue, 
-      sectionNumber: sectionNumberRef.current 
+      sectionNumber: currentSectionNumber 
     });
   };
 
@@ -949,7 +933,7 @@ function PeopleSectionInputCell({
         type="number"
         min="0"
         value={localValue}
-        onChange={(e) => handleChange(e.target.value)}
+        onChange={(e) => handleChange(e.target.value, dateStr, workId, sectionNumber)}
         className="w-full h-full text-center bg-transparent border-0 focus:ring-1 focus:ring-primary text-sm"
         data-testid={`input-people-section-${groupId}-${sectionNumber}-${dateStr}`}
       />
