@@ -1330,7 +1330,7 @@ function SectionRow({
       </div>
       
       <div className="text-center">
-        <div className="font-mono text-xs">{plannedPeople}</div>
+        <div className="font-mono text-xs">план: {plannedPeople}</div>
       </div>
       
       <div className="text-center">
