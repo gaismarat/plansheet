@@ -1068,8 +1068,8 @@ function SectionsSpoiler({
   const sectionCost = displayCostPlan / sectionsCount;
 
   const gridCols = showCost 
-    ? '40px 90px 90px 100px 100px 70px 50px 120px 100px'
-    : '40px 100px 120px 120px 70px 50px 120px 100px';
+    ? '40px 90px 90px 100px 100px 70px 50px 120px 1fr'
+    : '40px 100px 120px 120px 70px 50px 120px 1fr';
 
   return (
     <div className="mt-3 bg-muted/50 rounded-lg border border-border/50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
@@ -1266,8 +1266,8 @@ function SectionRow({
   const volumeProgress = sectionQuantity > 0 ? Math.round((actualVolume / sectionQuantity) * 100) : 0;
   
   const gridCols = showCost 
-    ? '40px 90px 90px 100px 100px 70px 50px 120px 100px'
-    : '40px 100px 120px 120px 70px 50px 120px 100px';
+    ? '40px 90px 90px 100px 100px 70px 50px 120px 1fr'
+    : '40px 100px 120px 120px 70px 50px 120px 1fr';
   
   const planCalendar = peopleSummary?.planCalendarDays || 0;
   const planWorking = peopleSummary?.planWorkingDays || 0;
