@@ -995,9 +995,10 @@ export async function registerRoutes(
       const result: Record<number, { actualToday: number; averageActual: number; weekendHolidayWorkedDays: number }> = {};
       
       workPeopleByWork.forEach((entries, workId) => {
-        // Get today's actual count
-        const todayEntry = entries.find(e => e.date === todayStr);
-        const actualToday = todayEntry ? todayEntry.count : 0;
+        // Get today's actual count - sum all sections for today
+        const actualToday = entries
+          .filter(e => e.date === todayStr)
+          .reduce((sum, e) => sum + e.count, 0);
         
         // Get work's dates
         const workInfo = workMap.get(workId);
@@ -1005,9 +1006,11 @@ export async function registerRoutes(
         const actualStartDateStr = workInfo?.actualStartDate;
         const actualEndDateStr = workInfo?.actualEndDate;
         
-        // Create a map for quick lookup
+        // Create a map for quick lookup - sum counts by date (across all sections)
         const entryMap = new Map<string, number>();
-        entries.forEach(e => entryMap.set(e.date, e.count));
+        entries.forEach(e => {
+          entryMap.set(e.date, (entryMap.get(e.date) || 0) + e.count);
+        });
         
         // Calculate weekendHolidayWorkedDays for actual period
         let weekendHolidayWorkedDays = 0;

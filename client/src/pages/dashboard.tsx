@@ -254,7 +254,7 @@ function DocumentAccordionItem({ document, holidayDates, showCost = true, people
   document: WorkTreeDocument; 
   holidayDates: Set<string>; 
   showCost?: boolean; 
-  peopleSummary?: Record<number, { actualToday: number; averageActual: number }>; 
+  peopleSummary?: Record<number, { actualToday: number; averageActual: number; weekendHolidayWorkedDays: number }>; 
   isAdmin?: boolean; 
   progressSubmissions?: Record<number, any>; 
   canSetProgress?: boolean 
@@ -341,7 +341,7 @@ function BlockAccordionItem({ block, holidayDates, forceHide = false, showCost =
   holidayDates: Set<string>; 
   forceHide?: boolean; 
   showCost?: boolean; 
-  peopleSummary?: Record<number, { actualToday: number; averageActual: number }>; 
+  peopleSummary?: Record<number, { actualToday: number; averageActual: number; weekendHolidayWorkedDays: number }>; 
   isAdmin?: boolean; 
   progressSubmissions?: Record<number, any>; 
   canSetProgress?: boolean 
@@ -458,7 +458,7 @@ function SectionAccordionItem({ section, holidayDates, forceHide = false, showCo
   holidayDates: Set<string>; 
   forceHide?: boolean; 
   showCost?: boolean; 
-  peopleSummary?: Record<number, { actualToday: number; averageActual: number }>; 
+  peopleSummary?: Record<number, { actualToday: number; averageActual: number; weekendHolidayWorkedDays: number }>; 
   isAdmin?: boolean; 
   progressSubmissions?: Record<number, any>; 
   canSetProgress?: boolean 
@@ -571,7 +571,7 @@ function GroupAccordionItem({ group, holidayDates, forceHide = false, showCost =
   holidayDates: Set<string>; 
   forceHide?: boolean; 
   showCost?: boolean; 
-  peopleSummary?: Record<number, { actualToday: number; averageActual: number }>; 
+  peopleSummary?: Record<number, { actualToday: number; averageActual: number; weekendHolidayWorkedDays: number }>; 
   isAdmin?: boolean; 
   progressSubmissions?: Record<number, any>; 
   canSetProgress?: boolean 
