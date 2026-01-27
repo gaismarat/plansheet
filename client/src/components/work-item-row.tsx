@@ -1327,7 +1327,7 @@ function SectionRow({
       )}
       
       <div className="text-center">
-        <div className="font-mono text-muted-foreground text-[10px]">
+        <div className="font-mono text-muted-foreground text-xs">
           {formatDateWithYear(planStartDate)} - {formatDateWithYear(planEndDate)}
         </div>
         <div className="font-mono text-xs font-semibold">
@@ -1336,7 +1336,7 @@ function SectionRow({
       </div>
       
       <div className="text-center">
-        <div className="font-mono text-muted-foreground text-[10px]">план: {plannedPeople}</div>
+        <div className="font-mono text-muted-foreground text-xs">план: {plannedPeople}</div>
         <div className="font-mono text-xs font-semibold">факт: {actualPeopleToday}</div>
       </div>
       
