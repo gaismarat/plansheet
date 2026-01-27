@@ -840,6 +840,13 @@ function PeopleInputCell({
   isWeekend: boolean;
 }) {
   const [localValue, setLocalValue] = useState<string>(initialValue > 0 ? String(initialValue) : '');
+  const dateStrRef = useRef(dateStr);
+  const workIdRef = useRef(workId);
+
+  useEffect(() => {
+    dateStrRef.current = dateStr;
+    workIdRef.current = workId;
+  }, [dateStr, workId]);
 
   const updateWorkPeopleMutation = useMutation({
     mutationFn: async ({ workId, date, count }: { workId: number; date: string; count: number }) => {
@@ -853,12 +860,12 @@ function PeopleInputCell({
 
   useEffect(() => {
     setLocalValue(initialValue > 0 ? String(initialValue) : '');
-  }, [initialValue]);
+  }, [initialValue, dateStr]);
 
   const handleChange = (value: string) => {
     setLocalValue(value);
     const numValue = parseInt(value) || 0;
-    updateWorkPeopleMutation.mutate({ workId, date: dateStr, count: numValue });
+    updateWorkPeopleMutation.mutate({ workId: workIdRef.current, date: dateStrRef.current, count: numValue });
   };
 
   return (
@@ -896,6 +903,15 @@ function PeopleSectionInputCell({
   isWeekend: boolean;
 }) {
   const [localValue, setLocalValue] = useState<string>(initialValue > 0 ? String(initialValue) : '');
+  const dateStrRef = useRef(dateStr);
+  const workIdRef = useRef(workId);
+  const sectionNumberRef = useRef(sectionNumber);
+
+  useEffect(() => {
+    dateStrRef.current = dateStr;
+    workIdRef.current = workId;
+    sectionNumberRef.current = sectionNumber;
+  }, [dateStr, workId, sectionNumber]);
 
   const updateWorkPeopleMutation = useMutation({
     mutationFn: async ({ workId, date, count, sectionNumber }: { workId: number; date: string; count: number; sectionNumber: number }) => {
@@ -910,12 +926,17 @@ function PeopleSectionInputCell({
 
   useEffect(() => {
     setLocalValue(initialValue > 0 ? String(initialValue) : '');
-  }, [initialValue]);
+  }, [initialValue, dateStr]);
 
   const handleChange = (value: string) => {
     setLocalValue(value);
     const numValue = parseInt(value) || 0;
-    updateWorkPeopleMutation.mutate({ workId, date: dateStr, count: numValue, sectionNumber });
+    updateWorkPeopleMutation.mutate({ 
+      workId: workIdRef.current, 
+      date: dateStrRef.current, 
+      count: numValue, 
+      sectionNumber: sectionNumberRef.current 
+    });
   };
 
   return (
