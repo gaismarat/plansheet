@@ -1354,9 +1354,9 @@ function SectionRow({
           <div className="text-center text-muted-foreground">{planWorking}</div>
           <div className="text-center text-muted-foreground">{planWeekend}</div>
           <div className="text-left text-muted-foreground text-[9px]">факт</div>
-          <div className="text-center font-semibold">{actualCalendar}</div>
-          <div className="text-center font-semibold">{actualWorking}</div>
-          <div className={cn("text-center font-semibold", actualWeekend > 0 ? "text-orange-500" : "")}>{actualWeekend}</div>
+          <div className={cn("text-center font-semibold", actualCalendar <= planCalendar ? "text-green-500" : "text-red-500")}>{actualCalendar}</div>
+          <div className={cn("text-center font-semibold", actualWorking <= planWorking ? "text-green-500" : "text-red-500")}>{actualWorking}</div>
+          <div className={cn("text-center font-semibold", actualWeekend <= planWeekend ? "text-green-500" : "text-red-500")}>{actualWeekend}</div>
         </div>
       </div>
       
