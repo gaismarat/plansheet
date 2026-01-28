@@ -553,6 +553,61 @@ export function useWorkMaterials(workId: number) {
 }
 
 // ============================================
+// WORK MATERIAL PROGRESS HOOKS
+// ============================================
+
+export interface WorkMaterialProgressItem {
+  id: number;
+  workId: number;
+  pdcElementId: number;
+  sectionNumber: number;
+  quantityClosed: string;
+  costClosed: string;
+  updatedAt: string | null;
+}
+
+export function useWorkMaterialProgress(workId: number) {
+  return useQuery<WorkMaterialProgressItem[]>({
+    queryKey: ['/api/works', workId, 'material-progress'],
+    queryFn: async () => {
+      const res = await fetch(`/api/works/${workId}/material-progress`);
+      if (!res.ok) throw new Error("Failed to fetch work material progress");
+      return res.json();
+    },
+    enabled: workId > 0,
+  });
+}
+
+export function useUpdateWorkMaterialProgress() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { 
+      workId: number; 
+      pdcElementId: number; 
+      sectionNumber: number; 
+      quantityClosed?: string; 
+      costClosed?: string; 
+    }) => {
+      const res = await fetch(`/api/works/${data.workId}/material-progress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pdcElementId: data.pdcElementId,
+          sectionNumber: data.sectionNumber,
+          quantityClosed: data.quantityClosed,
+          costClosed: data.costClosed,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update work material progress");
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/works', variables.workId, 'material-progress'] });
+    },
+  });
+}
+
+// ============================================
 // WORK SECTION PROGRESS HOOKS
 // ============================================
 

@@ -940,3 +940,35 @@ export const workSectionProgressRelations = relations(workSectionProgress, ({ on
 export const insertWorkSectionProgressSchema = createInsertSchema(workSectionProgress).omit({ id: true, updatedAt: true });
 export type WorkSectionProgress = typeof workSectionProgress.$inferSelect;
 export type InsertWorkSectionProgress = z.infer<typeof insertWorkSectionProgressSchema>;
+
+// === WORK MATERIAL PROGRESS TABLE ===
+// Закрытые значения объёмов и стоимости материалов по работам/секциям
+
+export const workMaterialProgress = pgTable("work_material_progress", {
+  id: serial("id").primaryKey(),
+  workId: integer("work_id").notNull().references(() => works.id, { onDelete: "cascade" }),
+  pdcElementId: integer("pdc_element_id").notNull().references(() => pdcElements.id, { onDelete: "cascade" }),
+  sectionNumber: integer("section_number").notNull().default(1), // Номер секции (1-10)
+  quantityClosed: numeric("quantity_closed", { precision: 18, scale: 4 }).default("0"), // Закрытый объём
+  costClosed: numeric("cost_closed", { precision: 18, scale: 2 }).default("0"), // Закрытая стоимость
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// === WORK MATERIAL PROGRESS RELATIONS ===
+
+export const workMaterialProgressRelations = relations(workMaterialProgress, ({ one }) => ({
+  work: one(works, {
+    fields: [workMaterialProgress.workId],
+    references: [works.id],
+  }),
+  pdcElement: one(pdcElements, {
+    fields: [workMaterialProgress.pdcElementId],
+    references: [pdcElements.id],
+  }),
+}));
+
+// === WORK MATERIAL PROGRESS SCHEMAS ===
+
+export const insertWorkMaterialProgressSchema = createInsertSchema(workMaterialProgress).omit({ id: true, updatedAt: true });
+export type WorkMaterialProgress = typeof workMaterialProgress.$inferSelect;
+export type InsertWorkMaterialProgress = z.infer<typeof insertWorkMaterialProgressSchema>;

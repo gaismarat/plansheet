@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { type Work, type WorkTreeItem } from "@shared/schema";
-import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress, useWorkMaterials, useWorkSectionProgress, useSubmitSectionProgress, useLatestSectionSubmissions, useSectionPeopleSummary, useUpdateSectionProgress, type WorkSectionProgressItem, type SectionSubmission, type SectionPeopleSummary } from "@/hooks/use-construction";
+import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress, useWorkMaterials, useWorkMaterialProgress, useUpdateWorkMaterialProgress, useWorkSectionProgress, useSubmitSectionProgress, useLatestSectionSubmissions, useSectionPeopleSummary, useUpdateSectionProgress, type WorkSectionProgressItem, type SectionSubmission, type SectionPeopleSummary } from "@/hooks/use-construction";
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { ProgressHistoryDialog } from "@/components/progress-history-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronDown, ChevronRight, X, Users, Check, Package, Building2, Edit2, Settings2 } from "lucide-react";
+import { ChevronDown, ChevronRight, X, Users, Check, Package, Building2, Edit2, Settings2, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -95,6 +95,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   const [isExpanded, setIsExpanded] = useState(expandAll);
   const [isSectionsOpen, setIsSectionsOpen] = useState(false);
   const [isMaterialsOpen, setIsMaterialsOpen] = useState(false);
+  const [isVolumesOpen, setIsVolumesOpen] = useState(false);
   const [isEditingProgress, setIsEditingProgress] = useState(false);
   const [originalProgress, setOriginalProgress] = useState(work.progressPercentage);
 
@@ -102,6 +103,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
     setIsExpanded(expandAll);
     if (!expandAll) {
       setIsMaterialsOpen(false);
+      setIsVolumesOpen(false);
     }
   }, [expandAll]);
   
@@ -991,6 +993,19 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                   <ChevronDown className={cn("w-3 h-3 transition-transform", isMaterialsOpen && "rotate-180")} />
                 </Button>
               )}
+              {isPdcWork && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 text-xs"
+                  onClick={(e) => { e.stopPropagation(); setIsVolumesOpen(!isVolumesOpen); }}
+                  data-testid={`button-volumes-${work.id}`}
+                >
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  Объёмы, деньги
+                  <ChevronDown className={cn("w-3 h-3 transition-transform", isVolumesOpen && "rotate-180")} />
+                </Button>
+              )}
             </div>
             
             <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -1016,6 +1031,16 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
           {/* Materials Spoiler */}
           {isPdcWork && isMaterialsOpen && (
             <MaterialsSpoiler workId={work.id} showCost={showCost} />
+          )}
+
+          {/* Volumes & Money Spoiler */}
+          {isPdcWork && isVolumesOpen && (
+            <VolumesMoneySpoiler 
+              workId={work.id} 
+              showCost={showCost} 
+              planStartDate={work.planStartDate}
+              planEndDate={work.planEndDate}
+            />
           )}
         </>
       )}
@@ -1663,6 +1688,312 @@ function MaterialsSpoiler({ workId, showCost }: { workId: number; showCost: bool
                   )}
                 </div>
               ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function VolumesMoneySpoiler({ 
+  workId, 
+  showCost,
+  planStartDate,
+  planEndDate
+}: { 
+  workId: number; 
+  showCost: boolean;
+  planStartDate: string | null;
+  planEndDate: string | null;
+}) {
+  const { data: materials = [], isLoading: isLoadingMaterials } = useWorkMaterials(workId);
+  const { data: progressData = [], isLoading: isLoadingProgress } = useWorkMaterialProgress(workId);
+  const updateProgress = useUpdateWorkMaterialProgress();
+
+  const [editingCell, setEditingCell] = useState<{ pdcElementId: number; sectionNumber: number; field: 'quantity' | 'cost' } | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  if (isLoadingMaterials || isLoadingProgress) {
+    return (
+      <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border/50">
+        <p className="text-xs text-muted-foreground">Загрузка данных...</p>
+      </div>
+    );
+  }
+
+  if (materials.length === 0) {
+    return (
+      <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border/50">
+        <p className="text-xs text-muted-foreground">Материалы не найдены</p>
+      </div>
+    );
+  }
+
+  const hasMultipleSections = materials.some(m => m.sectionsCount > 1 && m.sections && m.sections.length > 0);
+
+  // Calculate plan progress based on dates
+  const calculatePlanProgress = (quantity: number) => {
+    if (!planStartDate || !planEndDate) return 0;
+    const start = new Date(planStartDate);
+    const end = new Date(planEndDate);
+    const today = new Date();
+    
+    if (today < start) return 0;
+    if (today >= end) return 100;
+    
+    const totalDays = Math.max(1, (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const elapsedDays = (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+    const progress = (elapsedDays / totalDays) * 100;
+    
+    return Math.min(100, Math.max(0, Math.round(progress)));
+  };
+
+  // Get closed values for a material/section
+  const getClosedValues = (pdcElementId: number, sectionNumber: number) => {
+    const progress = progressData.find(
+      p => p.pdcElementId === pdcElementId && p.sectionNumber === sectionNumber
+    );
+    return {
+      quantityClosed: progress ? parseFloat(progress.quantityClosed || "0") : 0,
+      costClosed: progress ? parseFloat(progress.costClosed || "0") : 0,
+    };
+  };
+
+  const handleStartEdit = (pdcElementId: number, sectionNumber: number, field: 'quantity' | 'cost', currentValue: number) => {
+    setEditingCell({ pdcElementId, sectionNumber, field });
+    setEditValue(currentValue.toString());
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingCell) return;
+    
+    const value = parseFloat(editValue) || 0;
+    const currentClosed = getClosedValues(editingCell.pdcElementId, editingCell.sectionNumber);
+    
+    updateProgress.mutate({
+      workId,
+      pdcElementId: editingCell.pdcElementId,
+      sectionNumber: editingCell.sectionNumber,
+      quantityClosed: editingCell.field === 'quantity' ? value.toString() : currentClosed.quantityClosed.toString(),
+      costClosed: editingCell.field === 'cost' ? value.toString() : currentClosed.costClosed.toString(),
+    });
+    
+    setEditingCell(null);
+    setEditValue("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCell(null);
+    setEditValue("");
+  };
+
+  const renderProgressBar = (planPercent: number, factPercent: number, testIdPrefix: string) => {
+    const variance = factPercent - planPercent;
+    
+    return (
+      <div className="space-y-1" data-testid={`progress-${testIdPrefix}`}>
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] text-muted-foreground w-6">План</span>
+          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div 
+              className="h-full rounded-full bg-blue-400"
+              style={{ width: `${Math.min(planPercent, 100)}%` }}
+            />
+          </div>
+          <span className="text-[9px] text-muted-foreground w-8 text-right" data-testid={`text-plan-${testIdPrefix}`}>{planPercent}%</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] text-muted-foreground w-6">Факт</span>
+          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div 
+              className={cn("h-full rounded-full", factPercent >= planPercent ? "bg-green-500" : "bg-red-500")}
+              style={{ width: `${Math.min(factPercent, 100)}%` }}
+            />
+          </div>
+          <span className={cn(
+            "text-[9px] w-8 text-right font-semibold",
+            factPercent >= planPercent ? "text-green-500" : "text-red-500"
+          )} data-testid={`text-fact-${testIdPrefix}`}>{factPercent}%</span>
+        </div>
+        {variance !== 0 && (
+          <div className="text-right">
+            <span className={cn(
+              "text-[8px] font-mono",
+              variance > 0 ? "text-green-500" : "text-red-500"
+            )} data-testid={`text-variance-${testIdPrefix}`}>
+              {variance > 0 ? "+" : ""}{variance}%
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Build rows for display
+  const rows: Array<{
+    key: string;
+    number: string;
+    name: string;
+    unit: string;
+    quantityPlan: number;
+    costPlan: number;
+    pdcElementId: number;
+    sectionNumber: number;
+  }> = [];
+
+  materials.forEach((material, idx) => {
+    if (hasMultipleSections && material.sections && material.sections.length > 0) {
+      material.sections.forEach((section) => {
+        rows.push({
+          key: `${material.id}-section-${section.sectionNumber}`,
+          number: `${idx + 1}-${section.sectionNumber}с`,
+          name: material.name,
+          unit: material.unit,
+          quantityPlan: section.quantity,
+          costPlan: section.costWithVat,
+          pdcElementId: material.pdcElementId,
+          sectionNumber: section.sectionNumber,
+        });
+      });
+    } else {
+      rows.push({
+        key: `${material.id}`,
+        number: `${idx + 1}`,
+        name: material.name,
+        unit: material.unit,
+        quantityPlan: material.quantity,
+        costPlan: material.costWithVat,
+        pdcElementId: material.pdcElementId,
+        sectionNumber: 1,
+      });
+    }
+  });
+
+  return (
+    <div className="mt-3 bg-muted/50 rounded-lg border border-border/50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div className={cn(
+        "grid gap-2 px-3 py-2 bg-muted/70 text-[10px] font-semibold text-muted-foreground uppercase",
+        showCost ? "grid-cols-[40px_1fr_60px_120px_120px_100px_100px]" : "grid-cols-[40px_1fr_60px_120px_100px]"
+      )}>
+        <div>N</div>
+        <div>Наименование</div>
+        <div>Ед.</div>
+        <div className="text-center">Количество</div>
+        {showCost && <div className="text-center">Стоимость</div>}
+        <div className="text-center">Прогр. матер.</div>
+        {showCost && <div className="text-center">Прогр. оплаты</div>}
+      </div>
+      <div className="divide-y divide-border/30">
+        {rows.map((row) => {
+          const closed = getClosedValues(row.pdcElementId, row.sectionNumber);
+          const planProgress = calculatePlanProgress(row.quantityPlan);
+          
+          const isEditingQuantity = editingCell?.pdcElementId === row.pdcElementId && 
+            editingCell?.sectionNumber === row.sectionNumber && 
+            editingCell?.field === 'quantity';
+          const isEditingCost = editingCell?.pdcElementId === row.pdcElementId && 
+            editingCell?.sectionNumber === row.sectionNumber && 
+            editingCell?.field === 'cost';
+
+          return (
+            <div 
+              key={row.key}
+              className={cn(
+                "grid gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors items-center",
+                showCost ? "grid-cols-[40px_1fr_60px_120px_120px_100px_100px]" : "grid-cols-[40px_1fr_60px_120px_100px]"
+              )}
+              data-testid={`volume-row-${row.key}`}
+            >
+              <div className="font-mono text-muted-foreground">{row.number}</div>
+              <div className="whitespace-normal break-words">{row.name}</div>
+              <div className="text-muted-foreground">{row.unit}</div>
+              
+              {/* Quantity column */}
+              <div className="text-center">
+                <div className="text-muted-foreground text-[10px]">план {row.quantityPlan.toLocaleString('ru-RU')}</div>
+                {isEditingQuantity ? (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="text-xs w-20"
+                      autoFocus
+                      data-testid={`input-quantity-${row.key}`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveEdit();
+                        if (e.key === 'Escape') handleCancelEdit();
+                      }}
+                    />
+                    <Button size="icon" variant="ghost" onClick={handleSaveEdit} data-testid={`save-quantity-${row.key}`}>
+                      <Check className="h-3 w-3 text-green-600" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={handleCancelEdit} data-testid={`cancel-quantity-${row.key}`}>
+                      <X className="h-3 w-3 text-red-600" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div 
+                    className="font-semibold cursor-pointer hover:text-primary"
+                    onClick={() => handleStartEdit(row.pdcElementId, row.sectionNumber, 'quantity', closed.quantityClosed)}
+                    data-testid={`edit-quantity-${row.key}`}
+                  >
+                    закрыто {closed.quantityClosed.toLocaleString('ru-RU')}
+                  </div>
+                )}
+              </div>
+
+              {/* Cost column */}
+              {showCost && (
+                <div className="text-center">
+                  <div className="text-muted-foreground text-[10px]">план {row.costPlan.toLocaleString('ru-RU')}</div>
+                  {isEditingCost ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="text-xs w-20"
+                        autoFocus
+                        data-testid={`input-cost-${row.key}`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveEdit();
+                          if (e.key === 'Escape') handleCancelEdit();
+                        }}
+                      />
+                      <Button size="icon" variant="ghost" onClick={handleSaveEdit} data-testid={`save-cost-${row.key}`}>
+                        <Check className="h-3 w-3 text-green-600" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={handleCancelEdit} data-testid={`cancel-cost-${row.key}`}>
+                        <X className="h-3 w-3 text-red-600" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div 
+                      className="font-semibold cursor-pointer hover:text-primary"
+                      onClick={() => handleStartEdit(row.pdcElementId, row.sectionNumber, 'cost', closed.costClosed)}
+                      data-testid={`edit-cost-${row.key}`}
+                    >
+                      закрыто {closed.costClosed.toLocaleString('ru-RU')}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Material progress */}
+              <div>
+                {renderProgressBar(planProgress, row.quantityPlan > 0 ? Math.round((closed.quantityClosed / row.quantityPlan) * 100) : 0, `material-${row.key}`)}
+              </div>
+
+              {/* Payment progress */}
+              {showCost && (
+                <div>
+                  {renderProgressBar(planProgress, row.costPlan > 0 ? Math.round((closed.costClosed / row.costPlan) * 100) : 0, `payment-${row.key}`)}
+                </div>
+              )}
             </div>
           );
         })}

@@ -133,6 +133,51 @@ export async function registerRoutes(
     }
   });
 
+  // Get material progress for a work item
+  app.get("/api/works/:id/material-progress", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const progress = await storage.getWorkMaterialProgress(id);
+      res.json(progress);
+    } catch (err) {
+      console.error("Error getting work material progress:", err);
+      res.status(500).json({ message: "Failed to get work material progress" });
+    }
+  });
+
+  // Validation schema for material progress update
+  const updateMaterialProgressSchema = z.object({
+    pdcElementId: z.number().int().positive(),
+    sectionNumber: z.number().int().positive(),
+    quantityClosed: z.string().optional(),
+    costClosed: z.string().optional(),
+  });
+
+  // Update material progress for a work item
+  app.post("/api/works/:id/material-progress", async (req, res) => {
+    try {
+      const workId = Number(req.params.id);
+      const parsed = updateMaterialProgressSchema.parse(req.body);
+      
+      const progress = await storage.upsertWorkMaterialProgress(
+        workId,
+        parsed.pdcElementId,
+        parsed.sectionNumber,
+        { quantityClosed: parsed.quantityClosed, costClosed: parsed.costClosed }
+      );
+      res.json(progress);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      console.error("Error updating work material progress:", err);
+      res.status(500).json({ message: "Failed to update work material progress" });
+    }
+  });
+
   app.post(api.works.create.path, async (req, res) => {
     try {
       const input = api.works.create.input.parse(req.body);

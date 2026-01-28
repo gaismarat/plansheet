@@ -27,6 +27,7 @@ import {
   priceChanges,
   sectionAllocations,
   workSectionProgress,
+  workMaterialProgress,
   type Block,
   type Work,
   type WorkGroup,
@@ -101,7 +102,9 @@ import {
   type SectionAllocation,
   type InsertSectionAllocation,
   type WorkSectionProgress,
-  type InsertWorkSectionProgress
+  type InsertWorkSectionProgress,
+  type WorkMaterialProgress,
+  type InsertWorkMaterialProgress
 } from "@shared/schema";
 import { eq, and, isNull, asc, lt, sql, or, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -245,6 +248,10 @@ export interface IStorage {
   getWorkMaterials(workId: number): Promise<WorkMaterial[]>;
   getOrCreateWorkForPdcGroup(pdcGroupId: number): Promise<Work>;
   syncWorksFromPdc(): Promise<void>;
+
+  // Work Material Progress
+  getWorkMaterialProgress(workId: number): Promise<WorkMaterialProgress[]>;
+  upsertWorkMaterialProgress(workId: number, pdcElementId: number, sectionNumber: number, data: Partial<InsertWorkMaterialProgress>): Promise<WorkMaterialProgress>;
 
   // Admin initialization
   initializeAdmin(): Promise<void>;
@@ -1548,6 +1555,46 @@ export class DatabaseStorage implements IStorage {
         sections: sectionsCount > 1 ? sections : undefined
       };
     });
+  }
+
+  async getWorkMaterialProgress(workId: number): Promise<WorkMaterialProgress[]> {
+    return db.select().from(workMaterialProgress)
+      .where(eq(workMaterialProgress.workId, workId))
+      .orderBy(asc(workMaterialProgress.pdcElementId), asc(workMaterialProgress.sectionNumber));
+  }
+
+  async upsertWorkMaterialProgress(
+    workId: number, 
+    pdcElementId: number, 
+    sectionNumber: number, 
+    data: Partial<InsertWorkMaterialProgress>
+  ): Promise<WorkMaterialProgress> {
+    const existing = await db.select().from(workMaterialProgress)
+      .where(and(
+        eq(workMaterialProgress.workId, workId),
+        eq(workMaterialProgress.pdcElementId, pdcElementId),
+        eq(workMaterialProgress.sectionNumber, sectionNumber)
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      const [updated] = await db.update(workMaterialProgress)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(workMaterialProgress.id, existing[0].id))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(workMaterialProgress)
+        .values({
+          workId,
+          pdcElementId,
+          sectionNumber,
+          quantityClosed: data.quantityClosed || "0",
+          costClosed: data.costClosed || "0"
+        })
+        .returning();
+      return created;
+    }
   }
 
   async getWorksTree(): Promise<WorksTreeResponse> {
