@@ -1771,7 +1771,7 @@ function VolumesMoneySpoiler({
     <div className="mt-3 bg-muted/50 rounded-lg border border-border/50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
       <div className={cn(
         "grid gap-2 px-3 py-2 bg-muted/70 text-[10px] font-semibold text-muted-foreground uppercase",
-        showCost ? "grid-cols-[40px_200px_60px_120px_120px_100px_100px]" : "grid-cols-[40px_200px_60px_120px_100px]"
+        showCost ? "grid-cols-[40px_200px_60px_170px_170px_100px_100px]" : "grid-cols-[40px_200px_60px_170px_100px]"
       )}>
         <div>N</div>
         <div>Наименование</div>
@@ -1798,7 +1798,7 @@ function VolumesMoneySpoiler({
               key={row.key}
               className={cn(
                 "grid gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors items-start",
-                showCost ? "grid-cols-[40px_200px_60px_120px_120px_100px_100px]" : "grid-cols-[40px_200px_60px_120px_100px]"
+                showCost ? "grid-cols-[40px_200px_60px_170px_170px_100px_100px]" : "grid-cols-[40px_200px_60px_170px_100px]"
               )}
               data-testid={`volume-row-${row.key}`}
             >
@@ -1808,7 +1808,7 @@ function VolumesMoneySpoiler({
               
               {/* Quantity column */}
               <div className="text-right">
-                <div className="text-muted-foreground text-[12px]"><span className="inline-block w-12 text-right">план</span> {row.quantityPlan.toLocaleString('ru-RU')}</div>
+                <div className="text-muted-foreground text-[12px]"><span className="inline-block w-14 text-right">план</span> {row.quantityPlan.toLocaleString('ru-RU')}</div>
                 {isEditingQuantity ? (
                   <div className="flex items-center justify-end gap-1">
                     <Input
@@ -1837,7 +1837,7 @@ function VolumesMoneySpoiler({
                     onClick={() => handleStartEdit(row.pdcElementId, row.sectionNumber, 'quantity', closed.quantityClosed)}
                     data-testid={`edit-quantity-${row.key}`}
                   >
-                    <span className="inline-block w-12 text-right">закрыто</span> {closed.quantityClosed.toLocaleString('ru-RU')}
+                    <span className="inline-block w-14 text-right">закрыто</span> {closed.quantityClosed.toLocaleString('ru-RU')}
                   </div>
                 )}
               </div>
@@ -1845,7 +1845,7 @@ function VolumesMoneySpoiler({
               {/* Cost column */}
               {showCost && (
                 <div className="text-right">
-                  <div className="text-muted-foreground text-[12px]"><span className="inline-block w-12 text-right">план</span> {row.costPlan.toLocaleString('ru-RU')} р</div>
+                  <div className="text-muted-foreground text-[12px]"><span className="inline-block w-14 text-right">план</span> {row.costPlan.toLocaleString('ru-RU')} р</div>
                   {isEditingCost ? (
                     <div className="flex items-center justify-end gap-1">
                       <Input
@@ -1874,7 +1874,7 @@ function VolumesMoneySpoiler({
                       onClick={() => handleStartEdit(row.pdcElementId, row.sectionNumber, 'cost', closed.costClosed)}
                       data-testid={`edit-cost-${row.key}`}
                     >
-                      <span className="inline-block w-12 text-right">закрыто</span> {closed.costClosed.toLocaleString('ru-RU')} р
+                      <span className="inline-block w-14 text-right">закрыто</span> {closed.costClosed.toLocaleString('ru-RU')} р
                     </div>
                   )}
                 </div>
