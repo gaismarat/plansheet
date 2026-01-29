@@ -1776,8 +1776,8 @@ function VolumesMoneySpoiler({
         <div>N</div>
         <div>Наименование</div>
         <div>Ед.</div>
-        <div className="text-center">Количество</div>
-        {showCost && <div className="text-center">Стоимость</div>}
+        <div className="text-right">Количество</div>
+        {showCost && <div className="text-right">Стоимость</div>}
         <div className="text-center">Прогр. матер.</div>
         {showCost && <div className="text-center">Прогр. оплаты</div>}
       </div>
@@ -1807,10 +1807,10 @@ function VolumesMoneySpoiler({
               <div className="text-muted-foreground">{row.unit}</div>
               
               {/* Quantity column */}
-              <div className="text-center">
+              <div className="text-right">
                 <div className="text-muted-foreground text-[12px]">план {row.quantityPlan.toLocaleString('ru-RU')}</div>
                 {isEditingQuantity ? (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center justify-end gap-1">
                     <Input
                       type="number"
                       step="0.01"
@@ -1844,10 +1844,10 @@ function VolumesMoneySpoiler({
 
               {/* Cost column */}
               {showCost && (
-                <div className="text-center">
-                  <div className="text-muted-foreground text-[12px]">план {row.costPlan.toLocaleString('ru-RU')}</div>
+                <div className="text-right">
+                  <div className="text-muted-foreground text-[12px]">план {row.costPlan.toLocaleString('ru-RU')} р</div>
                   {isEditingCost ? (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-end gap-1">
                       <Input
                         type="number"
                         step="0.01"
@@ -1874,7 +1874,7 @@ function VolumesMoneySpoiler({
                       onClick={() => handleStartEdit(row.pdcElementId, row.sectionNumber, 'cost', closed.costClosed)}
                       data-testid={`edit-cost-${row.key}`}
                     >
-                      закрыто {closed.costClosed.toLocaleString('ru-RU')}
+                      закрыто {closed.costClosed.toLocaleString('ru-RU')} р
                     </div>
                   )}
                 </div>
