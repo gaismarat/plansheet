@@ -7,7 +7,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronDown, ChevronRight, X, Users, Check, Package, Building2, Edit2, Settings2, TrendingUp } from "lucide-react";
+import { ChevronDown, ChevronRight, X, Users, Check, Building2, Edit2, Settings2, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -94,7 +94,6 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   
   const [isExpanded, setIsExpanded] = useState(expandAll);
   const [isSectionsOpen, setIsSectionsOpen] = useState(false);
-  const [isMaterialsOpen, setIsMaterialsOpen] = useState(false);
   const [isVolumesOpen, setIsVolumesOpen] = useState(false);
   const [isEditingProgress, setIsEditingProgress] = useState(false);
   const [originalProgress, setOriginalProgress] = useState(work.progressPercentage);
@@ -102,7 +101,6 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
   useEffect(() => {
     setIsExpanded(expandAll);
     if (!expandAll) {
-      setIsMaterialsOpen(false);
       setIsVolumesOpen(false);
     }
   }, [expandAll]);
@@ -354,9 +352,6 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
       onClick={() => {
         const newExpanded = !isExpanded;
         setIsExpanded(newExpanded);
-        if (!newExpanded) {
-          setIsMaterialsOpen(false);
-        }
       }}
       data-testid={`work-row-${work.id}`}
     >
@@ -985,19 +980,6 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                   variant="outline"
                   size="sm"
                   className="gap-1 text-xs"
-                  onClick={(e) => { e.stopPropagation(); setIsMaterialsOpen(!isMaterialsOpen); }}
-                  data-testid={`button-materials-${work.id}`}
-                >
-                  <Package className="w-3.5 h-3.5" />
-                  Материалы
-                  <ChevronDown className={cn("w-3 h-3 transition-transform", isMaterialsOpen && "rotate-180")} />
-                </Button>
-              )}
-              {isPdcWork && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1 text-xs"
                   onClick={(e) => { e.stopPropagation(); setIsVolumesOpen(!isVolumesOpen); }}
                   data-testid={`button-volumes-${work.id}`}
                 >
@@ -1028,10 +1010,6 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
             />
           )}
 
-          {/* Materials Spoiler */}
-          {isPdcWork && isMaterialsOpen && (
-            <MaterialsSpoiler workId={work.id} showCost={showCost} />
-          )}
 
           {/* Volumes & Money Spoiler */}
           {isPdcWork && isVolumesOpen && (
@@ -1614,87 +1592,6 @@ function SectionRow({
   );
 }
 
-function MaterialsSpoiler({ workId, showCost }: { workId: number; showCost: boolean }) {
-  const { data: materials = [], isLoading } = useWorkMaterials(workId);
-
-  if (isLoading) {
-    return (
-      <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border/50">
-        <p className="text-xs text-muted-foreground">Загрузка материалов...</p>
-      </div>
-    );
-  }
-
-  if (materials.length === 0) {
-    return (
-      <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border/50">
-        <p className="text-xs text-muted-foreground">Материалы не найдены</p>
-      </div>
-    );
-  }
-
-  // Check if any material has sections (sectionsCount > 1)
-  const hasMultipleSections = materials.some(m => m.sectionsCount > 1 && m.sections && m.sections.length > 0);
-
-  return (
-    <div className="mt-3 bg-muted/50 rounded-lg border border-border/50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-      <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/70 text-[10px] font-semibold text-muted-foreground uppercase">
-        <div className="col-span-1">N</div>
-        <div className="col-span-5">Наименование</div>
-        <div className="col-span-2">Ед. изм.</div>
-        <div className="col-span-2 text-right">Количество</div>
-        {showCost && <div className="col-span-2 text-right">Стоимость</div>}
-      </div>
-      <div className="divide-y divide-border/30">
-        {materials.map((material, index) => {
-          const showSections = hasMultipleSections && material.sections && material.sections.length > 0;
-          
-          return (
-            <div key={material.id} data-testid={`material-row-${material.id}`}>
-              {/* Main material row - only show if no sections or as header */}
-              {!showSections && (
-                <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors">
-                  <div className="col-span-1 font-mono text-muted-foreground">{material.number || (index + 1)}</div>
-                  <div className="col-span-5 whitespace-normal break-words">{material.name}</div>
-                  <div className="col-span-2 text-muted-foreground">{material.unit}</div>
-                  <div className="col-span-2 text-right font-mono">{material.quantity.toLocaleString('ru-RU')}</div>
-                  {showCost && (
-                    <div className="col-span-2 text-right font-mono">
-                      {material.costWithVat.toLocaleString('ru-RU')} <span className="text-muted-foreground text-[10px]">руб.</span>
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Section rows - when sectionsCount > 1 */}
-              {showSections && material.sections!.map((section) => (
-                <div 
-                  key={`${material.id}-section-${section.sectionNumber}`}
-                  className="grid grid-cols-12 gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors"
-                  data-testid={`material-section-row-${material.id}-${section.sectionNumber}`}
-                >
-                  <div className="col-span-1 font-mono text-muted-foreground">
-                    {material.number}-{section.sectionNumber}с
-                  </div>
-                  <div className="col-span-5 whitespace-normal break-words">
-                    {material.name}
-                  </div>
-                  <div className="col-span-2 text-muted-foreground">{material.unit}</div>
-                  <div className="col-span-2 text-right font-mono">{section.quantity.toLocaleString('ru-RU')}</div>
-                  {showCost && (
-                    <div className="col-span-2 text-right font-mono">
-                      {section.costWithVat.toLocaleString('ru-RU')} <span className="text-muted-foreground text-[10px]">руб.</span>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function VolumesMoneySpoiler({ 
   workId, 
