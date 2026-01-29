@@ -1900,7 +1900,7 @@ function VolumesMoneySpoiler({
             <div 
               key={row.key}
               className={cn(
-                "grid gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors items-center",
+                "grid gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors items-start",
                 showCost ? "grid-cols-[40px_1fr_60px_120px_120px_100px_100px]" : "grid-cols-[40px_1fr_60px_120px_100px]"
               )}
               data-testid={`volume-row-${row.key}`}
