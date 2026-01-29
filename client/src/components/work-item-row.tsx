@@ -1808,7 +1808,7 @@ function VolumesMoneySpoiler({
               
               {/* Quantity column */}
               <div className="text-right">
-                <div className="text-muted-foreground text-[12px]">план {row.quantityPlan.toLocaleString('ru-RU')}</div>
+                <div className="text-muted-foreground text-[12px]"><span className="inline-block w-12 text-right">план</span> {row.quantityPlan.toLocaleString('ru-RU')}</div>
                 {isEditingQuantity ? (
                   <div className="flex items-center justify-end gap-1">
                     <Input
@@ -1837,7 +1837,7 @@ function VolumesMoneySpoiler({
                     onClick={() => handleStartEdit(row.pdcElementId, row.sectionNumber, 'quantity', closed.quantityClosed)}
                     data-testid={`edit-quantity-${row.key}`}
                   >
-                    закрыто {closed.quantityClosed.toLocaleString('ru-RU')}
+                    <span className="inline-block w-12 text-right">закрыто</span> {closed.quantityClosed.toLocaleString('ru-RU')}
                   </div>
                 )}
               </div>
@@ -1845,7 +1845,7 @@ function VolumesMoneySpoiler({
               {/* Cost column */}
               {showCost && (
                 <div className="text-right">
-                  <div className="text-muted-foreground text-[12px]">план {row.costPlan.toLocaleString('ru-RU')} р</div>
+                  <div className="text-muted-foreground text-[12px]"><span className="inline-block w-12 text-right">план</span> {row.costPlan.toLocaleString('ru-RU')} р</div>
                   {isEditingCost ? (
                     <div className="flex items-center justify-end gap-1">
                       <Input
@@ -1874,7 +1874,7 @@ function VolumesMoneySpoiler({
                       onClick={() => handleStartEdit(row.pdcElementId, row.sectionNumber, 'cost', closed.costClosed)}
                       data-testid={`edit-cost-${row.key}`}
                     >
-                      закрыто {closed.costClosed.toLocaleString('ru-RU')} р
+                      <span className="inline-block w-12 text-right">закрыто</span> {closed.costClosed.toLocaleString('ru-RU')} р
                     </div>
                   )}
                 </div>
