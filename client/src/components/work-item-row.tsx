@@ -1775,11 +1775,11 @@ function VolumesMoneySpoiler({
       )}>
         <div>N</div>
         <div>Наименование</div>
-        <div className="pl-[15px]">Ед.</div>
-        <div className="text-right ml-[-20px]">Количество</div>
-        {showCost && <div className="text-right pl-[50px]">Стоимость</div>}
-        <div className="text-center pl-[60px]">Прогр. матер.</div>
-        {showCost && <div className="text-center pl-[60px]">Прогр. оплаты</div>}
+        <div>Ед.</div>
+        <div className="text-right">Количество</div>
+        {showCost && <div className="text-right">Стоимость</div>}
+        <div className="text-center">Прогр. матер.</div>
+        {showCost && <div className="text-center">Прогр. оплаты</div>}
       </div>
       <div className="divide-y divide-border/30">
         {rows.map((row) => {
@@ -1804,7 +1804,7 @@ function VolumesMoneySpoiler({
             >
               <div className="font-mono text-muted-foreground">{row.number}</div>
               <div className="whitespace-normal break-words">{row.name}</div>
-              <div className="text-muted-foreground pl-[15px]">{row.unit}</div>
+              <div className="text-muted-foreground">{row.unit}</div>
               
               {/* Quantity column */}
               <div>
@@ -1848,7 +1848,7 @@ function VolumesMoneySpoiler({
 
               {/* Cost column */}
               {showCost && (
-                <div className="pl-[50px]">
+                <div>
                   <div className="flex justify-between gap-2 text-muted-foreground text-[12px]">
                     <span>план</span>
                     <span>{row.costPlan.toLocaleString('ru-RU')} р</span>
@@ -1889,13 +1889,13 @@ function VolumesMoneySpoiler({
               )}
 
               {/* Material progress */}
-              <div className="pl-[60px]">
+              <div>
                 {renderProgressBar(planProgress, row.quantityPlan > 0 ? Math.round((closed.quantityClosed / row.quantityPlan) * 100) : 0, `material-${row.key}`)}
               </div>
 
               {/* Payment progress */}
               {showCost && (
-                <div className="pl-[60px]">
+                <div>
                   {renderProgressBar(planProgress, row.costPlan > 0 ? Math.round((closed.costClosed / row.costPlan) * 100) : 0, `payment-${row.key}`)}
                 </div>
               )}
