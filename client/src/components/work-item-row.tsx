@@ -1911,7 +1911,7 @@ function VolumesMoneySpoiler({
               
               {/* Quantity column */}
               <div className="text-center">
-                <div className="text-muted-foreground text-[10px]">план {row.quantityPlan.toLocaleString('ru-RU')}</div>
+                <div className="text-muted-foreground text-[12px]">план {row.quantityPlan.toLocaleString('ru-RU')}</div>
                 {isEditingQuantity ? (
                   <div className="flex items-center gap-1">
                     <Input
@@ -1948,7 +1948,7 @@ function VolumesMoneySpoiler({
               {/* Cost column */}
               {showCost && (
                 <div className="text-center">
-                  <div className="text-muted-foreground text-[10px]">план {row.costPlan.toLocaleString('ru-RU')}</div>
+                  <div className="text-muted-foreground text-[12px]">план {row.costPlan.toLocaleString('ru-RU')}</div>
                   {isEditingCost ? (
                     <div className="flex items-center gap-1">
                       <Input
