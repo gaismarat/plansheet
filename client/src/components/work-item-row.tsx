@@ -1807,8 +1807,11 @@ function VolumesMoneySpoiler({
               <div className="text-muted-foreground">{row.unit}</div>
               
               {/* Quantity column */}
-              <div className="text-right">
-                <div className="text-muted-foreground text-[12px]"><span className="inline-block w-16 text-right">план</span> {row.quantityPlan.toLocaleString('ru-RU')}</div>
+              <div>
+                <div className="flex justify-between gap-2 text-muted-foreground text-[12px]">
+                  <span>план</span>
+                  <span>{row.quantityPlan.toLocaleString('ru-RU')}</span>
+                </div>
                 {isEditingQuantity ? (
                   <div className="flex items-center justify-end gap-1">
                     <Input
@@ -1833,19 +1836,23 @@ function VolumesMoneySpoiler({
                   </div>
                 ) : (
                   <div 
-                    className="font-semibold cursor-pointer hover:text-primary"
+                    className="flex justify-between gap-2 font-semibold cursor-pointer hover:text-primary"
                     onClick={() => handleStartEdit(row.pdcElementId, row.sectionNumber, 'quantity', closed.quantityClosed)}
                     data-testid={`edit-quantity-${row.key}`}
                   >
-                    <span className="inline-block w-16 text-right">закрыто</span> {closed.quantityClosed.toLocaleString('ru-RU')}
+                    <span>закрыто</span>
+                    <span>{closed.quantityClosed.toLocaleString('ru-RU')}</span>
                   </div>
                 )}
               </div>
 
               {/* Cost column */}
               {showCost && (
-                <div className="text-right">
-                  <div className="text-muted-foreground text-[12px]"><span className="inline-block w-16 text-right">план</span> {row.costPlan.toLocaleString('ru-RU')} р</div>
+                <div>
+                  <div className="flex justify-between gap-2 text-muted-foreground text-[12px]">
+                    <span>план</span>
+                    <span>{row.costPlan.toLocaleString('ru-RU')} р</span>
+                  </div>
                   {isEditingCost ? (
                     <div className="flex items-center justify-end gap-1">
                       <Input
@@ -1870,11 +1877,12 @@ function VolumesMoneySpoiler({
                     </div>
                   ) : (
                     <div 
-                      className="font-semibold cursor-pointer hover:text-primary"
+                      className="flex justify-between gap-2 font-semibold cursor-pointer hover:text-primary"
                       onClick={() => handleStartEdit(row.pdcElementId, row.sectionNumber, 'cost', closed.costClosed)}
                       data-testid={`edit-cost-${row.key}`}
                     >
-                      <span className="inline-block w-16 text-right">закрыто</span> {closed.costClosed.toLocaleString('ru-RU')} р
+                      <span>закрыто</span>
+                      <span>{closed.costClosed.toLocaleString('ru-RU')} р</span>
                     </div>
                   )}
                 </div>
