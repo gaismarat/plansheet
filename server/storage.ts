@@ -28,6 +28,7 @@ import {
   sectionAllocations,
   workSectionProgress,
   workMaterialProgress,
+  workMaterialProgressHistory,
   type Block,
   type Work,
   type WorkGroup,
@@ -104,7 +105,9 @@ import {
   type WorkSectionProgress,
   type InsertWorkSectionProgress,
   type WorkMaterialProgress,
-  type InsertWorkMaterialProgress
+  type InsertWorkMaterialProgress,
+  type WorkMaterialProgressHistory,
+  type InsertWorkMaterialProgressHistory
 } from "@shared/schema";
 import { eq, and, isNull, asc, lt, sql, or, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -252,6 +255,11 @@ export interface IStorage {
   // Work Material Progress
   getWorkMaterialProgress(workId: number): Promise<WorkMaterialProgress[]>;
   upsertWorkMaterialProgress(workId: number, pdcElementId: number, sectionNumber: number, data: Partial<InsertWorkMaterialProgress>): Promise<WorkMaterialProgress>;
+
+  // Work Material Progress History
+  getWorkMaterialProgressHistory(workId: number, pdcElementId: number, sectionNumber: number): Promise<(WorkMaterialProgressHistory & { username: string })[]>;
+  addWorkMaterialProgressHistory(data: InsertWorkMaterialProgressHistory): Promise<WorkMaterialProgressHistory>;
+  deleteWorkMaterialProgressHistory(id: number): Promise<void>;
 
   // Admin initialization
   initializeAdmin(): Promise<void>;
@@ -1595,6 +1603,43 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return created;
     }
+  }
+
+  async getWorkMaterialProgressHistory(
+    workId: number, 
+    pdcElementId: number, 
+    sectionNumber: number
+  ): Promise<(WorkMaterialProgressHistory & { username: string })[]> {
+    const history = await db.select({
+      id: workMaterialProgressHistory.id,
+      workId: workMaterialProgressHistory.workId,
+      pdcElementId: workMaterialProgressHistory.pdcElementId,
+      sectionNumber: workMaterialProgressHistory.sectionNumber,
+      type: workMaterialProgressHistory.type,
+      value: workMaterialProgressHistory.value,
+      unit: workMaterialProgressHistory.unit,
+      userId: workMaterialProgressHistory.userId,
+      createdAt: workMaterialProgressHistory.createdAt,
+      username: users.username,
+    })
+      .from(workMaterialProgressHistory)
+      .innerJoin(users, eq(workMaterialProgressHistory.userId, users.id))
+      .where(and(
+        eq(workMaterialProgressHistory.workId, workId),
+        eq(workMaterialProgressHistory.pdcElementId, pdcElementId),
+        eq(workMaterialProgressHistory.sectionNumber, sectionNumber)
+      ))
+      .orderBy(asc(workMaterialProgressHistory.createdAt));
+    return history;
+  }
+
+  async addWorkMaterialProgressHistory(data: InsertWorkMaterialProgressHistory): Promise<WorkMaterialProgressHistory> {
+    const [created] = await db.insert(workMaterialProgressHistory).values(data).returning();
+    return created;
+  }
+
+  async deleteWorkMaterialProgressHistory(id: number): Promise<void> {
+    await db.delete(workMaterialProgressHistory).where(eq(workMaterialProgressHistory.id, id));
   }
 
   async getWorksTree(): Promise<WorksTreeResponse> {

@@ -5,7 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { requireAuth, requireAdmin } from "./auth";
 import { db } from "./db";
-import { stages, executors } from "@shared/schema";
+import { stages, executors, workMaterialProgressHistory } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export async function registerRoutes(
@@ -175,6 +175,151 @@ export async function registerRoutes(
       }
       console.error("Error updating work material progress:", err);
       res.status(500).json({ message: "Failed to update work material progress" });
+    }
+  });
+
+  // Get material progress history
+  app.get("/api/works/:workId/material-progress-history", async (req, res) => {
+    try {
+      const workId = Number(req.params.workId);
+      const pdcElementId = Number(req.query.pdcElementId);
+      const sectionNumber = Number(req.query.sectionNumber) || 1;
+      
+      if (!pdcElementId) {
+        return res.status(400).json({ message: "pdcElementId is required" });
+      }
+      
+      const history = await storage.getWorkMaterialProgressHistory(workId, pdcElementId, sectionNumber);
+      res.json(history);
+    } catch (err) {
+      console.error("Error getting material progress history:", err);
+      res.status(500).json({ message: "Failed to get material progress history" });
+    }
+  });
+
+  // Add material progress history entry (and update totals)
+  const addHistorySchema = z.object({
+    pdcElementId: z.number().int().positive(),
+    sectionNumber: z.number().int().positive().default(1),
+    type: z.enum(['quantity', 'cost']),
+    value: z.string(),
+    unit: z.string().optional().nullable(),
+  });
+
+  app.post("/api/works/:workId/material-progress-history", async (req, res) => {
+    try {
+      const workId = Number(req.params.workId);
+      const userId = (req as any).session?.userId;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const parsed = addHistorySchema.parse(req.body);
+      
+      // Add history entry
+      const history = await storage.addWorkMaterialProgressHistory({
+        workId,
+        pdcElementId: parsed.pdcElementId,
+        sectionNumber: parsed.sectionNumber,
+        type: parsed.type,
+        value: parsed.value,
+        unit: parsed.unit || null,
+        userId,
+      });
+      
+      // Get current progress values
+      const currentProgress = await storage.getWorkMaterialProgress(workId);
+      const existing = currentProgress.find(
+        p => p.pdcElementId === parsed.pdcElementId && p.sectionNumber === parsed.sectionNumber
+      );
+      
+      // Calculate new total
+      const newValue = parseFloat(parsed.value) || 0;
+      let quantityClosed = existing?.quantityClosed || "0";
+      let costClosed = existing?.costClosed || "0";
+      
+      if (parsed.type === 'quantity') {
+        quantityClosed = (parseFloat(quantityClosed) + newValue).toString();
+      } else {
+        costClosed = (parseFloat(costClosed) + newValue).toString();
+      }
+      
+      // Update progress totals
+      await storage.upsertWorkMaterialProgress(
+        workId,
+        parsed.pdcElementId,
+        parsed.sectionNumber,
+        { quantityClosed, costClosed }
+      );
+      
+      res.status(201).json(history);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      console.error("Error adding material progress history:", err);
+      res.status(500).json({ message: "Failed to add material progress history" });
+    }
+  });
+
+  // Delete material progress history entry (and update totals)
+  app.delete("/api/material-progress-history/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const userId = (req as any).session?.userId;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Get the history entry before deleting
+      const allHistory = await db.select().from(workMaterialProgressHistory).where(eq(workMaterialProgressHistory.id, id));
+      if (allHistory.length === 0) {
+        return res.status(404).json({ message: "History entry not found" });
+      }
+      
+      const entry = allHistory[0];
+      
+      // Check if user is project owner (simplified - you may need to add project context)
+      // For now, allow deletion for any authenticated user
+      // TODO: Add proper owner check based on project permissions
+      
+      // Subtract value from totals
+      const currentProgress = await storage.getWorkMaterialProgress(entry.workId);
+      const existing = currentProgress.find(
+        p => p.pdcElementId === entry.pdcElementId && p.sectionNumber === entry.sectionNumber
+      );
+      
+      if (existing) {
+        let quantityClosed = existing.quantityClosed || "0";
+        let costClosed = existing.costClosed || "0";
+        const entryValue = parseFloat(entry.value) || 0;
+        
+        if (entry.type === 'quantity') {
+          quantityClosed = Math.max(0, parseFloat(quantityClosed) - entryValue).toString();
+        } else {
+          costClosed = Math.max(0, parseFloat(costClosed) - entryValue).toString();
+        }
+        
+        await storage.upsertWorkMaterialProgress(
+          entry.workId,
+          entry.pdcElementId,
+          entry.sectionNumber,
+          { quantityClosed, costClosed }
+        );
+      }
+      
+      // Delete the history entry
+      await storage.deleteWorkMaterialProgressHistory(id);
+      
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Error deleting material progress history:", err);
+      res.status(500).json({ message: "Failed to delete material progress history" });
     }
   });
 
