@@ -284,9 +284,17 @@ export async function registerRoutes(
       
       const entry = allHistory[0];
       
-      // Check if user is project owner (simplified - you may need to add project context)
-      // For now, allow deletion for any authenticated user
-      // TODO: Add proper owner check based on project permissions
+      // Get the work item to find the project
+      const work = await storage.getWork(entry.workId);
+      if (!work) {
+        return res.status(404).json({ message: "Work not found" });
+      }
+      
+      // Check if user is project owner
+      const isOwner = await storage.isProjectOwner(userId, work.projectId);
+      if (!isOwner) {
+        return res.status(403).json({ message: "Only project owner can delete history entries" });
+      }
       
       // Subtract value from totals
       const currentProgress = await storage.getWorkMaterialProgress(entry.workId);
