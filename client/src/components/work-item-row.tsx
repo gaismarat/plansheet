@@ -1770,7 +1770,7 @@ function VolumesMoneySpoiler({
   return (
     <div className="mt-3 bg-muted/50 rounded-lg border border-border/50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
       <div className={cn(
-        "grid gap-[50px] px-3 py-2 bg-muted/70 text-[10px] font-semibold text-muted-foreground uppercase",
+        "grid gap-[30px] px-3 py-2 bg-muted/70 text-[10px] font-semibold text-muted-foreground uppercase",
         showCost ? "grid-cols-[40px_180px_50px_120px_100px_100px_120px_100px_110px]" : "grid-cols-[40px_180px_50px_120px_100px_100px]"
       )}>
         <div>N</div>
@@ -1805,7 +1805,7 @@ function VolumesMoneySpoiler({
             <div 
               key={row.key}
               className={cn(
-                "grid gap-[50px] px-3 py-2 text-xs hover:bg-muted/30 transition-colors items-start",
+                "grid gap-[30px] px-3 py-2 text-xs hover:bg-muted/30 transition-colors items-start",
                 showCost ? "grid-cols-[40px_180px_50px_120px_100px_100px_120px_100px_110px]" : "grid-cols-[40px_180px_50px_120px_100px_100px]"
               )}
               data-testid={`volume-row-${row.key}`}
