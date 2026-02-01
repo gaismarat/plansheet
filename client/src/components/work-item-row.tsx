@@ -1771,15 +1771,17 @@ function VolumesMoneySpoiler({
     <div className="mt-3 bg-muted/50 rounded-lg border border-border/50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
       <div className={cn(
         "grid gap-2 px-3 py-2 bg-muted/70 text-[10px] font-semibold text-muted-foreground uppercase",
-        showCost ? "grid-cols-[40px_200px_60px_150px_150px_100px_100px]" : "grid-cols-[40px_200px_60px_150px_100px]"
+        showCost ? "grid-cols-[40px_180px_50px_120px_100px_100px_120px_100px_110px]" : "grid-cols-[40px_180px_50px_120px_100px_100px]"
       )}>
         <div>N</div>
         <div>Наименование</div>
         <div>Ед.</div>
-        <div className="text-right">Количество</div>
-        {showCost && <div className="text-right">Стоимость</div>}
+        <div>Количество</div>
         <div className="text-center">Прогр. матер.</div>
+        <div>Остаток матер.</div>
+        {showCost && <div>Стоимость</div>}
         {showCost && <div className="text-center">Прогр. оплаты</div>}
+        {showCost && <div>Остаток оплаты</div>}
       </div>
       <div className="divide-y divide-border/30">
         {rows.map((row) => {
@@ -1793,12 +1795,18 @@ function VolumesMoneySpoiler({
             editingCell?.sectionNumber === row.sectionNumber && 
             editingCell?.field === 'cost';
 
+          // Calculate remainders
+          const quantityRemainder = row.quantityPlan - closed.quantityClosed;
+          const costRemainder = row.costPlan - closed.costClosed;
+          const quantityRemainderPercent = row.quantityPlan > 0 ? Math.round((quantityRemainder / row.quantityPlan) * 100) : 0;
+          const costRemainderPercent = row.costPlan > 0 ? Math.round((costRemainder / row.costPlan) * 100) : 0;
+
           return (
             <div 
               key={row.key}
               className={cn(
                 "grid gap-2 px-3 py-2 text-xs hover:bg-muted/30 transition-colors items-start",
-                showCost ? "grid-cols-[40px_200px_60px_150px_150px_100px_100px]" : "grid-cols-[40px_200px_60px_150px_100px]"
+                showCost ? "grid-cols-[40px_180px_50px_120px_100px_100px_120px_100px_110px]" : "grid-cols-[40px_180px_50px_120px_100px_100px]"
               )}
               data-testid={`volume-row-${row.key}`}
             >
@@ -1846,6 +1854,26 @@ function VolumesMoneySpoiler({
                 )}
               </div>
 
+              {/* Material progress */}
+              <div>
+                {renderProgressBar(planProgress, row.quantityPlan > 0 ? Math.round((closed.quantityClosed / row.quantityPlan) * 100) : 0, `material-${row.key}`)}
+              </div>
+
+              {/* Material remainder */}
+              <div>
+                <div className="text-right">
+                  <span className="text-muted-foreground">{quantityRemainder.toLocaleString('ru-RU')}</span>
+                </div>
+                <div className="text-right">
+                  <span className={cn(
+                    "font-semibold",
+                    quantityRemainderPercent >= 50 ? "text-red-500" : "text-green-500"
+                  )} data-testid={`remainder-percent-material-${row.key}`}>
+                    {quantityRemainderPercent}%
+                  </span>
+                </div>
+              </div>
+
               {/* Cost column */}
               {showCost && (
                 <div>
@@ -1888,15 +1916,27 @@ function VolumesMoneySpoiler({
                 </div>
               )}
 
-              {/* Material progress */}
-              <div>
-                {renderProgressBar(planProgress, row.quantityPlan > 0 ? Math.round((closed.quantityClosed / row.quantityPlan) * 100) : 0, `material-${row.key}`)}
-              </div>
-
               {/* Payment progress */}
               {showCost && (
                 <div>
                   {renderProgressBar(planProgress, row.costPlan > 0 ? Math.round((closed.costClosed / row.costPlan) * 100) : 0, `payment-${row.key}`)}
+                </div>
+              )}
+
+              {/* Payment remainder */}
+              {showCost && (
+                <div>
+                  <div className="text-right">
+                    <span className="text-muted-foreground">{costRemainder.toLocaleString('ru-RU')} р</span>
+                  </div>
+                  <div className="text-right">
+                    <span className={cn(
+                      "font-semibold",
+                      costRemainderPercent >= 50 ? "text-red-500" : "text-green-500"
+                    )} data-testid={`remainder-percent-payment-${row.key}`}>
+                      {costRemainderPercent}%
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
