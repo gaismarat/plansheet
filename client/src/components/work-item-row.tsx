@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { type Work, type WorkTreeItem } from "@shared/schema";
-import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress, useWorkMaterials, useWorkMaterialProgress, useUpdateWorkMaterialProgress, useWorkSectionProgress, useSubmitSectionProgress, useLatestSectionSubmissions, useSectionPeopleSummary, useUpdateSectionProgress, type WorkSectionProgressItem, type SectionSubmission, type SectionPeopleSummary } from "@/hooks/use-construction";
+import { useUpdateWork, useDeleteWork, useMoveWorkUp, useMoveWorkDown, useSubmitProgress, useApproveProgress, useRejectProgress, useWorkMaterials, useWorkMaterialProgress, useUpdateWorkMaterialProgress, useWorkMaterialProgressHistory, useAddWorkMaterialProgressHistory, useDeleteWorkMaterialProgressHistory, useWorkSectionProgress, useSubmitSectionProgress, useLatestSectionSubmissions, useSectionPeopleSummary, useUpdateSectionProgress, type WorkSectionProgressItem, type SectionSubmission, type SectionPeopleSummary, type WorkMaterialProgressHistoryItem } from "@/hooks/use-construction";
 import { EditWorkDialog } from "@/components/forms/edit-work-dialog";
 import { ProgressHistoryDialog } from "@/components/progress-history-dialog";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronDown, ChevronRight, X, Users, Check, Building2, Edit2, Settings2, TrendingUp } from "lucide-react";
+import { ChevronDown, ChevronRight, X, Users, Check, Building2, Edit2, Settings2, TrendingUp, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -1607,9 +1607,24 @@ function VolumesMoneySpoiler({
   const { data: materials = [], isLoading: isLoadingMaterials } = useWorkMaterials(workId);
   const { data: progressData = [], isLoading: isLoadingProgress } = useWorkMaterialProgress(workId);
   const updateProgress = useUpdateWorkMaterialProgress();
+  const addHistory = useAddWorkMaterialProgressHistory();
+  const deleteHistory = useDeleteWorkMaterialProgressHistory();
 
   const [editingCell, setEditingCell] = useState<{ pdcElementId: number; sectionNumber: number; field: 'quantity' | 'cost' } | null>(null);
   const [editValue, setEditValue] = useState("");
+  
+  // Modal state for history editing
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<{
+    pdcElementId: number;
+    sectionNumber: number;
+    name: string;
+    unit: string;
+    quantityPlan: number;
+    costPlan: number;
+  } | null>(null);
+  const [quantityInput, setQuantityInput] = useState("");
+  const [costInput, setCostInput] = useState("");
 
   if (isLoadingMaterials || isLoadingProgress) {
     return (
@@ -1810,7 +1825,30 @@ function VolumesMoneySpoiler({
               )}
               data-testid={`volume-row-${row.key}`}
             >
-              <div className="font-mono text-muted-foreground">{row.number}</div>
+              <div className="flex items-center gap-1">
+                <span className="font-mono text-muted-foreground">{row.number}</span>
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  className="h-5 w-5"
+                  onClick={() => {
+                    setSelectedRow({
+                      pdcElementId: row.pdcElementId,
+                      sectionNumber: row.sectionNumber,
+                      name: row.name,
+                      unit: row.unit,
+                      quantityPlan: row.quantityPlan,
+                      costPlan: row.costPlan,
+                    });
+                    setQuantityInput("");
+                    setCostInput("");
+                    setHistoryModalOpen(true);
+                  }}
+                  data-testid={`edit-history-${row.key}`}
+                >
+                  <Edit2 className="h-3 w-3" />
+                </Button>
+              </div>
               <div className="whitespace-normal break-words">{row.name}</div>
               <div className="text-muted-foreground">{row.unit}</div>
               
@@ -1943,6 +1981,249 @@ function VolumesMoneySpoiler({
           );
         })}
       </div>
+
+      {/* History Edit Modal */}
+      {selectedRow && (
+        <MaterialProgressHistoryModal
+          open={historyModalOpen}
+          onOpenChange={setHistoryModalOpen}
+          workId={workId}
+          pdcElementId={selectedRow.pdcElementId}
+          sectionNumber={selectedRow.sectionNumber}
+          materialName={selectedRow.name}
+          unit={selectedRow.unit}
+          showCost={showCost}
+          quantityInput={quantityInput}
+          setQuantityInput={setQuantityInput}
+          costInput={costInput}
+          setCostInput={setCostInput}
+          addHistory={addHistory}
+          deleteHistory={deleteHistory}
+        />
+      )}
     </div>
+  );
+}
+
+// Modal component for editing material progress history
+function MaterialProgressHistoryModal({
+  open,
+  onOpenChange,
+  workId,
+  pdcElementId,
+  sectionNumber,
+  materialName,
+  unit,
+  showCost,
+  quantityInput,
+  setQuantityInput,
+  costInput,
+  setCostInput,
+  addHistory,
+  deleteHistory,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  workId: number;
+  pdcElementId: number;
+  sectionNumber: number;
+  materialName: string;
+  unit: string;
+  showCost: boolean;
+  quantityInput: string;
+  setQuantityInput: (v: string) => void;
+  costInput: string;
+  setCostInput: (v: string) => void;
+  addHistory: ReturnType<typeof useAddWorkMaterialProgressHistory>;
+  deleteHistory: ReturnType<typeof useDeleteWorkMaterialProgressHistory>;
+}) {
+  const { data: history = [], isLoading } = useWorkMaterialProgressHistory(workId, pdcElementId, sectionNumber);
+  
+  const quantityHistory = history.filter(h => h.type === 'quantity');
+  const costHistory = history.filter(h => h.type === 'cost');
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  };
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    // Convert to Moscow time (UTC+3)
+    const moscowOffset = 3 * 60;
+    const localOffset = date.getTimezoneOffset();
+    const moscowTime = new Date(date.getTime() + (moscowOffset + localOffset) * 60000);
+    return moscowTime.toTimeString().slice(0, 5);
+  };
+
+  const handleAddQuantity = () => {
+    if (!quantityInput || parseFloat(quantityInput) === 0) return;
+    addHistory.mutate({
+      workId,
+      pdcElementId,
+      sectionNumber,
+      type: 'quantity',
+      value: quantityInput,
+      unit,
+    });
+    setQuantityInput("");
+  };
+
+  const handleAddCost = () => {
+    if (!costInput || parseFloat(costInput) === 0) return;
+    addHistory.mutate({
+      workId,
+      pdcElementId,
+      sectionNumber,
+      type: 'cost',
+      value: costInput,
+      unit: '₽',
+    });
+    setCostInput("");
+  };
+
+  const handleDelete = (id: number) => {
+    deleteHistory.mutate({ id, workId, pdcElementId, sectionNumber });
+  };
+
+  const renderHistoryTable = (items: WorkMaterialProgressHistoryItem[], type: 'quantity' | 'cost') => (
+    <div className="max-h-[180px] overflow-y-auto border rounded-md">
+      <table className="w-full text-xs">
+        <thead className="bg-muted/50 sticky top-0">
+          <tr>
+            <th className="px-2 py-1 text-left w-8">№</th>
+            <th className="px-2 py-1 text-left">Значение</th>
+            <th className="px-2 py-1 text-left">Дата</th>
+            <th className="px-2 py-1 text-left">Время</th>
+            <th className="px-2 py-1 text-left">Пользователь</th>
+            <th className="px-2 py-1 w-8"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="px-2 py-3 text-center text-muted-foreground">
+                Нет записей
+              </td>
+            </tr>
+          ) : (
+            items.map((item, idx) => (
+              <tr key={item.id} className="border-t hover:bg-muted/30">
+                <td className="px-2 py-1">{idx + 1}</td>
+                <td className="px-2 py-1">
+                  {type === 'quantity' 
+                    ? `Количество: ${parseFloat(item.value).toLocaleString('ru-RU')} ${item.unit || unit}`
+                    : `Стоимость: ${parseFloat(item.value).toLocaleString('ru-RU')} ₽`
+                  }
+                </td>
+                <td className="px-2 py-1">{formatDate(item.createdAt)}</td>
+                <td className="px-2 py-1">{formatTime(item.createdAt)} МСК</td>
+                <td className="px-2 py-1">{item.username}</td>
+                <td className="px-2 py-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-5 w-5 text-destructive hover:text-destructive"
+                    onClick={() => handleDelete(item.id)}
+                    data-testid={`delete-history-${item.id}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-sm">
+            Редактирование: {materialName}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Quantity Section */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold">Количество ({unit})</Label>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="Введите значение..."
+                value={quantityInput}
+                onChange={(e) => setQuantityInput(e.target.value)}
+                className="flex-1"
+                data-testid="input-add-quantity"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddQuantity();
+                }}
+              />
+              <Button 
+                onClick={handleAddQuantity}
+                disabled={!quantityInput || addHistory.isPending}
+                data-testid="button-add-quantity"
+              >
+                Добавить
+              </Button>
+            </div>
+            <div className="text-xs text-muted-foreground mb-1">История изменений количества:</div>
+            {isLoading ? (
+              <div className="text-xs text-muted-foreground">Загрузка...</div>
+            ) : (
+              renderHistoryTable(quantityHistory, 'quantity')
+            )}
+          </div>
+
+          {/* Cost Section */}
+          {showCost && (
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold">Стоимость (₽)</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Введите значение..."
+                  value={costInput}
+                  onChange={(e) => setCostInput(e.target.value)}
+                  className="flex-1"
+                  data-testid="input-add-cost"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddCost();
+                  }}
+                />
+                <Button 
+                  onClick={handleAddCost}
+                  disabled={!costInput || addHistory.isPending}
+                  data-testid="button-add-cost"
+                >
+                  Добавить
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground mb-1">История изменений стоимости:</div>
+              {isLoading ? (
+                <div className="text-xs text-muted-foreground">Загрузка...</div>
+              ) : (
+                renderHistoryTable(costHistory, 'cost')
+              )}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} data-testid="button-cancel-history">
+            Отмена
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
