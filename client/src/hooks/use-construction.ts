@@ -608,6 +608,89 @@ export function useUpdateWorkMaterialProgress() {
 }
 
 // ============================================
+// WORK MATERIAL PROGRESS HISTORY HOOKS
+// ============================================
+
+export interface WorkMaterialProgressHistoryItem {
+  id: number;
+  workId: number;
+  pdcElementId: number;
+  sectionNumber: number;
+  type: 'quantity' | 'cost';
+  value: string;
+  unit: string | null;
+  userId: number;
+  createdAt: string;
+  username: string;
+}
+
+export function useWorkMaterialProgressHistory(workId: number, pdcElementId: number, sectionNumber: number) {
+  return useQuery<WorkMaterialProgressHistoryItem[]>({
+    queryKey: ['/api/works', workId, 'material-progress-history', pdcElementId, sectionNumber],
+    queryFn: async () => {
+      const res = await fetch(`/api/works/${workId}/material-progress-history?pdcElementId=${pdcElementId}&sectionNumber=${sectionNumber}`);
+      if (!res.ok) throw new Error("Failed to fetch material progress history");
+      return res.json();
+    },
+    enabled: workId > 0 && pdcElementId > 0,
+  });
+}
+
+export function useAddWorkMaterialProgressHistory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { 
+      workId: number; 
+      pdcElementId: number; 
+      sectionNumber: number; 
+      type: 'quantity' | 'cost';
+      value: string;
+      unit?: string | null;
+    }) => {
+      const res = await fetch(`/api/works/${data.workId}/material-progress-history`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pdcElementId: data.pdcElementId,
+          sectionNumber: data.sectionNumber,
+          type: data.type,
+          value: data.value,
+          unit: data.unit,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to add material progress history");
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/works', variables.workId, 'material-progress-history', variables.pdcElementId, variables.sectionNumber] });
+      queryClient.invalidateQueries({ queryKey: ['/api/works', variables.workId, 'material-progress'] });
+    },
+  });
+}
+
+export function useDeleteWorkMaterialProgressHistory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { 
+      id: number;
+      workId: number;
+      pdcElementId: number;
+      sectionNumber: number;
+    }) => {
+      const res = await fetch(`/api/material-progress-history/${data.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error("Failed to delete material progress history");
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/works', variables.workId, 'material-progress-history', variables.pdcElementId, variables.sectionNumber] });
+      queryClient.invalidateQueries({ queryKey: ['/api/works', variables.workId, 'material-progress'] });
+    },
+  });
+}
+
+// ============================================
 // WORK SECTION PROGRESS HOOKS
 // ============================================
 
