@@ -972,3 +972,41 @@ export const workMaterialProgressRelations = relations(workMaterialProgress, ({ 
 export const insertWorkMaterialProgressSchema = createInsertSchema(workMaterialProgress).omit({ id: true, updatedAt: true });
 export type WorkMaterialProgress = typeof workMaterialProgress.$inferSelect;
 export type InsertWorkMaterialProgress = z.infer<typeof insertWorkMaterialProgressSchema>;
+
+// === WORK MATERIAL PROGRESS HISTORY TABLE ===
+// История изменений закрытых значений объёмов и стоимости материалов
+
+export const workMaterialProgressHistory = pgTable("work_material_progress_history", {
+  id: serial("id").primaryKey(),
+  workId: integer("work_id").notNull().references(() => works.id, { onDelete: "cascade" }),
+  pdcElementId: integer("pdc_element_id").notNull().references(() => pdcElements.id, { onDelete: "cascade" }),
+  sectionNumber: integer("section_number").notNull().default(1),
+  type: text("type").notNull(), // 'quantity' | 'cost'
+  value: numeric("value", { precision: 18, scale: 4 }).notNull(), // Добавленное значение
+  unit: text("unit"), // Единица измерения (для quantity)
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// === WORK MATERIAL PROGRESS HISTORY RELATIONS ===
+
+export const workMaterialProgressHistoryRelations = relations(workMaterialProgressHistory, ({ one }) => ({
+  work: one(works, {
+    fields: [workMaterialProgressHistory.workId],
+    references: [works.id],
+  }),
+  pdcElement: one(pdcElements, {
+    fields: [workMaterialProgressHistory.pdcElementId],
+    references: [pdcElements.id],
+  }),
+  user: one(users, {
+    fields: [workMaterialProgressHistory.userId],
+    references: [users.id],
+  }),
+}));
+
+// === WORK MATERIAL PROGRESS HISTORY SCHEMAS ===
+
+export const insertWorkMaterialProgressHistorySchema = createInsertSchema(workMaterialProgressHistory).omit({ id: true, createdAt: true });
+export type WorkMaterialProgressHistory = typeof workMaterialProgressHistory.$inferSelect;
+export type InsertWorkMaterialProgressHistory = z.infer<typeof insertWorkMaterialProgressHistorySchema>;
