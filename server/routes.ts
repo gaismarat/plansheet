@@ -209,7 +209,7 @@ export async function registerRoutes(
   app.post("/api/works/:workId/material-progress-history", async (req, res) => {
     try {
       const workId = Number(req.params.workId);
-      const userId = (req as any).session?.userId;
+      const userId = (req as any).user?.id;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -270,7 +270,7 @@ export async function registerRoutes(
   app.delete("/api/material-progress-history/:id", async (req, res) => {
     try {
       const id = Number(req.params.id);
-      const userId = (req as any).session?.userId;
+      const userId = (req as any).user?.id;
       
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
