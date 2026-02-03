@@ -1302,11 +1302,11 @@ function SectionRow({
           <Button
             size="icon"
             variant="ghost"
-            className="h-4 w-4"
+            className="h-5 w-5"
             onClick={() => setIsEditDialogOpen(true)}
             data-testid={`button-edit-section-data-${workId}-${sectionNumber}`}
           >
-            <Settings2 className="h-2.5 w-2.5" />
+            <Edit2 className="h-3 w-3" />
           </Button>
         )}
       </div>
