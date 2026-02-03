@@ -5,7 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { requireAuth, requireAdmin } from "./auth";
 import { db } from "./db";
-import { stages, executors, workMaterialProgressHistory } from "@shared/schema";
+import { stages, executors, workMaterialProgressHistory, pdcGroups, pdcSections, pdcBlocks, pdcDocuments } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export async function registerRoutes(
@@ -284,14 +284,36 @@ export async function registerRoutes(
       
       const entry = allHistory[0];
       
-      // Get the work item to find the project
+      // Get the work item to find the project through PDC chain
       const work = await storage.getWork(entry.workId);
       if (!work) {
         return res.status(404).json({ message: "Work not found" });
       }
       
+      // Get project ID through PDC chain: work -> pdcGroup -> pdcSection -> pdcBlock -> pdcDocument -> projectId
+      let projectId: number | null = null;
+      if (work.pdcGroupId) {
+        const [pdcGroup] = await db.select().from(pdcGroups).where(eq(pdcGroups.id, work.pdcGroupId));
+        if (pdcGroup) {
+          const [pdcSection] = await db.select().from(pdcSections).where(eq(pdcSections.id, pdcGroup.sectionId));
+          if (pdcSection) {
+            const [pdcBlock] = await db.select().from(pdcBlocks).where(eq(pdcBlocks.id, pdcSection.blockId));
+            if (pdcBlock) {
+              const [pdcDocument] = await db.select().from(pdcDocuments).where(eq(pdcDocuments.id, pdcBlock.documentId));
+              if (pdcDocument) {
+                projectId = pdcDocument.projectId;
+              }
+            }
+          }
+        }
+      }
+      
+      if (!projectId) {
+        return res.status(404).json({ message: "Could not determine project for this work" });
+      }
+      
       // Check if user is project owner
-      const isOwner = await storage.isProjectOwner(userId, work.projectId);
+      const isOwner = await storage.isProjectOwner(userId, projectId);
       if (!isOwner) {
         return res.status(403).json({ message: "Only project owner can delete history entries" });
       }

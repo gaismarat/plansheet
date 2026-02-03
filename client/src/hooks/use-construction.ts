@@ -650,6 +650,7 @@ export function useAddWorkMaterialProgressHistory() {
       const res = await fetch(`/api/works/${data.workId}/material-progress-history`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           pdcElementId: data.pdcElementId,
           sectionNumber: data.sectionNumber,
@@ -679,6 +680,7 @@ export function useDeleteWorkMaterialProgressHistory() {
     }) => {
       const res = await fetch(`/api/material-progress-history/${data.id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
       if (!res.ok) throw new Error("Failed to delete material progress history");
       return res.json();
