@@ -2005,6 +2005,14 @@ function VolumesMoneySpoiler({
   );
 }
 
+// Pending entry type for local state before save
+interface PendingEntry {
+  id: string;
+  type: 'quantity' | 'cost';
+  value: string;
+  unit: string;
+}
+
 // Modal component for editing material progress history
 function MaterialProgressHistoryModal({
   open,
@@ -2038,9 +2046,13 @@ function MaterialProgressHistoryModal({
   deleteHistory: ReturnType<typeof useDeleteWorkMaterialProgressHistory>;
 }) {
   const { data: history = [], isLoading } = useWorkMaterialProgressHistory(workId, pdcElementId, sectionNumber);
+  const [pendingEntries, setPendingEntries] = useState<PendingEntry[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   
   const quantityHistory = history.filter(h => h.type === 'quantity');
   const costHistory = history.filter(h => h.type === 'cost');
+  const pendingQuantity = pendingEntries.filter(e => e.type === 'quantity');
+  const pendingCost = pendingEntries.filter(e => e.type === 'cost');
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -2052,44 +2064,79 @@ function MaterialProgressHistoryModal({
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
-    // Convert to Moscow time (UTC+3)
     const moscowOffset = 3 * 60;
     const localOffset = date.getTimezoneOffset();
     const moscowTime = new Date(date.getTime() + (moscowOffset + localOffset) * 60000);
     return moscowTime.toTimeString().slice(0, 5);
   };
 
-  const handleAddQuantity = () => {
+  const handleAddQuantityToPending = () => {
     if (!quantityInput || parseFloat(quantityInput) === 0) return;
-    addHistory.mutate({
-      workId,
-      pdcElementId,
-      sectionNumber,
+    setPendingEntries(prev => [...prev, {
+      id: crypto.randomUUID(),
       type: 'quantity',
       value: quantityInput,
       unit,
-    });
+    }]);
     setQuantityInput("");
   };
 
-  const handleAddCost = () => {
+  const handleAddCostToPending = () => {
     if (!costInput || parseFloat(costInput) === 0) return;
-    addHistory.mutate({
-      workId,
-      pdcElementId,
-      sectionNumber,
+    setPendingEntries(prev => [...prev, {
+      id: crypto.randomUUID(),
       type: 'cost',
       value: costInput,
       unit: '₽',
-    });
+    }]);
     setCostInput("");
+  };
+
+  const handleRemovePending = (id: string) => {
+    setPendingEntries(prev => prev.filter(e => e.id !== id));
+  };
+
+  const handleSave = async () => {
+    if (pendingEntries.length === 0) {
+      onOpenChange(false);
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      for (const entry of pendingEntries) {
+        await addHistory.mutateAsync({
+          workId,
+          pdcElementId,
+          sectionNumber,
+          type: entry.type,
+          value: entry.value,
+          unit: entry.unit,
+        });
+      }
+      setPendingEntries([]);
+      setQuantityInput("");
+      setCostInput("");
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Failed to save entries:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setPendingEntries([]);
+    setQuantityInput("");
+    setCostInput("");
+    onOpenChange(false);
   };
 
   const handleDelete = (id: number) => {
     deleteHistory.mutate({ id, workId, pdcElementId, sectionNumber });
   };
 
-  const renderHistoryTable = (items: WorkMaterialProgressHistoryItem[], type: 'quantity' | 'cost') => (
+  const renderHistoryTable = (items: WorkMaterialProgressHistoryItem[], pending: PendingEntry[], type: 'quantity' | 'cost') => (
     <div className="max-h-[180px] overflow-y-auto border rounded-md">
       <table className="w-full text-xs">
         <thead className="bg-muted/50 sticky top-0">
@@ -2103,7 +2150,33 @@ function MaterialProgressHistoryModal({
           </tr>
         </thead>
         <tbody>
-          {items.length === 0 ? (
+          {pending.map((entry, idx) => (
+            <tr key={entry.id} className="border-t bg-yellow-50 dark:bg-yellow-900/20">
+              <td className="px-2 py-1 text-amber-600">*</td>
+              <td className="px-2 py-1 text-amber-600">
+                {type === 'quantity' 
+                  ? `Количество: ${parseFloat(entry.value).toLocaleString('ru-RU')} ${entry.unit}`
+                  : `Стоимость: ${parseFloat(entry.value).toLocaleString('ru-RU')} ₽`
+                }
+                <span className="ml-2 text-amber-500 text-[10px]">(не сохранено)</span>
+              </td>
+              <td className="px-2 py-1 text-amber-500">-</td>
+              <td className="px-2 py-1 text-amber-500">-</td>
+              <td className="px-2 py-1 text-amber-500">-</td>
+              <td className="px-2 py-1">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-5 w-5 text-amber-600 hover:text-amber-700"
+                  onClick={() => handleRemovePending(entry.id)}
+                  data-testid={`remove-pending-${entry.id}`}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </td>
+            </tr>
+          ))}
+          {items.length === 0 && pending.length === 0 ? (
             <tr>
               <td colSpan={6} className="px-2 py-3 text-center text-muted-foreground">
                 Нет записей
@@ -2142,7 +2215,13 @@ function MaterialProgressHistoryModal({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (!newOpen) {
+        handleCancel();
+      } else {
+        onOpenChange(newOpen);
+      }
+    }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sm">
@@ -2164,12 +2243,13 @@ function MaterialProgressHistoryModal({
                 className="flex-1"
                 data-testid="input-add-quantity"
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleAddQuantity();
+                  if (e.key === 'Enter') handleAddQuantityToPending();
                 }}
               />
               <Button 
-                onClick={handleAddQuantity}
-                disabled={!quantityInput || addHistory.isPending}
+                onClick={handleAddQuantityToPending}
+                disabled={!quantityInput}
+                variant="secondary"
                 data-testid="button-add-quantity"
               >
                 Добавить
@@ -2179,7 +2259,7 @@ function MaterialProgressHistoryModal({
             {isLoading ? (
               <div className="text-xs text-muted-foreground">Загрузка...</div>
             ) : (
-              renderHistoryTable(quantityHistory, 'quantity')
+              renderHistoryTable(quantityHistory, pendingQuantity, 'quantity')
             )}
           </div>
 
@@ -2197,12 +2277,13 @@ function MaterialProgressHistoryModal({
                   className="flex-1"
                   data-testid="input-add-cost"
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAddCost();
+                    if (e.key === 'Enter') handleAddCostToPending();
                   }}
                 />
                 <Button 
-                  onClick={handleAddCost}
-                  disabled={!costInput || addHistory.isPending}
+                  onClick={handleAddCostToPending}
+                  disabled={!costInput}
+                  variant="secondary"
                   data-testid="button-add-cost"
                 >
                   Добавить
@@ -2212,15 +2293,22 @@ function MaterialProgressHistoryModal({
               {isLoading ? (
                 <div className="text-xs text-muted-foreground">Загрузка...</div>
               ) : (
-                renderHistoryTable(costHistory, 'cost')
+                renderHistoryTable(costHistory, pendingCost, 'cost')
               )}
             </div>
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} data-testid="button-cancel-history">
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={handleCancel} data-testid="button-cancel-history">
             Отмена
+          </Button>
+          <Button 
+            onClick={handleSave} 
+            disabled={isSaving}
+            data-testid="button-save-history"
+          >
+            {isSaving ? "Сохранение..." : "Сохранить"}
           </Button>
         </DialogFooter>
       </DialogContent>
