@@ -1297,7 +1297,7 @@ function SectionRow({
       data-testid={`section-row-${workId}-${sectionNumber}`}
     >
       <div className="flex items-center gap-1">
-        <span className="font-mono text-muted-foreground font-semibold">{sectionNumber}с</span>
+        <span className="font-mono text-muted-foreground">{sectionNumber}с</span>
         {(canSetProgress || isAdmin) && (
           <Button
             size="icon"
@@ -1312,8 +1312,8 @@ function SectionRow({
       </div>
       
       <div className="text-center">
-        <div className="font-mono text-muted-foreground text-xs">{sectionQuantity.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</div>
-        <div className={cn("font-mono font-semibold text-xs", volumeDevClass)}>
+        <div className="font-mono text-muted-foreground text-[12px]">{sectionQuantity.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</div>
+        <div className={cn("font-mono font-semibold text-[12px]", volumeDevClass)}>
           {actualVolume.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}
           <span className="text-muted-foreground text-[10px] ml-0.5">{displayUnit}</span>
         </div>
@@ -1321,8 +1321,8 @@ function SectionRow({
       
       {showCost && (
         <div className="text-center">
-          <div className="font-mono text-muted-foreground text-xs">{sectionCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}</div>
-          <div className={cn("font-mono font-semibold text-xs", costDevClass)}>
+          <div className="font-mono text-muted-foreground text-[12px]">{sectionCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}</div>
+          <div className={cn("font-mono font-semibold text-[12px]", costDevClass)}>
             {actualCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}
             <span className="text-muted-foreground text-[10px] ml-0.5">р</span>
           </div>
@@ -1330,17 +1330,17 @@ function SectionRow({
       )}
       
       <div className="text-center">
-        <div className="font-mono text-muted-foreground text-xs">
+        <div className="font-mono text-muted-foreground text-[12px]">
           {formatDateWithYear(planStartDate)} - {formatDateWithYear(planEndDate)}
         </div>
-        <div className="font-mono text-xs font-semibold">
+        <div className="font-mono text-[12px] font-semibold">
           {formatDateWithYear(actualStartDate)} - {formatDateWithYear(actualEndDate)}
         </div>
       </div>
       
       <div className="text-center">
-        <div className="font-mono text-muted-foreground text-xs">план: {plannedPeople}</div>
-        <div className="font-mono text-xs">
+        <div className="font-mono text-muted-foreground text-[12px]">план: {plannedPeople}</div>
+        <div className="font-mono text-[12px]">
           <span className="text-muted-foreground">факт: </span>
           <span className={cn(
             "font-semibold",
@@ -1351,13 +1351,13 @@ function SectionRow({
       
       <div className="text-center">
         <div className={cn(
-          "font-mono text-xs font-semibold",
+          "font-mono text-[12px] font-semibold",
           avgPeople < plannedPeople ? "text-red-500" : "text-green-500"
         )}>{avgPeople.toFixed(1)}</div>
       </div>
       
       <div className="text-center">
-        <div className="grid grid-cols-4 gap-0 font-mono text-xs">
+        <div className="grid grid-cols-4 gap-0 font-mono text-[12px]">
           <div className="text-left text-muted-foreground text-[9px]">план</div>
           <div className="text-center text-muted-foreground">{planCalendar}</div>
           <div className="text-center text-muted-foreground">{planWorking}</div>
