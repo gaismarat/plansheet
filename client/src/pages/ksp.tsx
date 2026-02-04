@@ -136,6 +136,17 @@ async function exportToExcel(
     summaryRight: false
   };
 
+  // Freeze panes: first 7 columns (name + dates + durations) and header row
+  worksheet.views = [
+    {
+      state: 'frozen',
+      xSplit: 7,  // Freeze first 7 columns
+      ySplit: 1,  // Freeze header row
+      topLeftCell: 'H2',  // First scrollable cell
+      activeCell: 'H2'
+    }
+  ];
+
   // Excel colors (ARGB format without #)
   const COLORS = {
     plan: 'FF3B82F6',       // blue-500
