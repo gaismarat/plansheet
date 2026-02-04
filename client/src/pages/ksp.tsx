@@ -3,10 +3,12 @@ import { useWorksTree } from "@/hooks/use-construction";
 import { useSyncedRowHeights } from "@/hooks/use-synced-row-heights";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { ArrowLeft, CalendarDays, ChevronRight, ChevronDown } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronRight, ChevronDown, Download } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { addDays, startOfWeek, endOfWeek, format, parseISO, differenceInDays, eachDayOfInterval, eachWeekOfInterval, isWithinInterval, isBefore, isAfter, startOfDay, isSameDay } from "date-fns";
 import { ru } from "date-fns/locale";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
 interface RowHeightsContextType {
   registerLeftRow: (key: string, el: HTMLTableRowElement | null) => void;
@@ -117,6 +119,272 @@ function getGroupDates(group: GroupNode) {
   });
 
   return { planStart, planEnd, actualStart, actualEnd };
+}
+
+async function exportToExcel(
+  documents: DocumentNode[],
+  timeUnits: Date[],
+  viewMode: ViewMode,
+  dateRange: { start: Date; end: Date }
+) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('КСП');
+
+  // Excel colors (ARGB format without #)
+  const COLORS = {
+    plan: 'FF3B82F6',       // blue-500
+    actual: 'FFC8A2C8',     // lilac
+    delay: 'FFEF4444',      // red-500
+    ahead: 'FF22C55E',      // green-500
+    docHeader: 'FFE0E7FF',  // primary/20
+    blockHeader: 'FFF0F4FF', // primary/10
+    sectionHeader: 'FFF5F5F5', // secondary/30
+    todayBg: 'FFFEF3C7',    // yellow-100
+  };
+
+  // Helper to check cell content for timeline
+  const getCellContent = (
+    unit: Date,
+    planStart: Date | null,
+    planEnd: Date | null,
+    actualStart: Date | null,
+    actualEnd: Date | null
+  ) => {
+    const unitEnd = viewMode === "weeks" ? endOfWeek(unit, { weekStartsOn: 1 }) : unit;
+    const unitStart = startOfDay(unit);
+
+    const isInPlanRange = planStart && planEnd && (
+      isWithinInterval(unitStart, { start: startOfDay(planStart), end: startOfDay(planEnd) }) ||
+      isWithinInterval(unitEnd, { start: startOfDay(planStart), end: startOfDay(planEnd) }) ||
+      (isBefore(unitStart, planStart) && isAfter(unitEnd, planEnd))
+    );
+
+    const isInActualRange = actualStart && actualEnd && (
+      isWithinInterval(unitStart, { start: startOfDay(actualStart), end: startOfDay(actualEnd) }) ||
+      isWithinInterval(unitEnd, { start: startOfDay(actualStart), end: startOfDay(actualEnd) }) ||
+      (isBefore(unitStart, actualStart) && isAfter(unitEnd, actualEnd))
+    );
+
+    const isDelay = planEnd && actualEnd && isAfter(startOfDay(actualEnd), startOfDay(planEnd)) &&
+      isWithinInterval(unitStart, { start: startOfDay(planEnd), end: startOfDay(actualEnd) });
+
+    const isAhead = planEnd && actualEnd && isBefore(startOfDay(actualEnd), startOfDay(planEnd)) &&
+      isWithinInterval(unitStart, { start: startOfDay(actualEnd), end: startOfDay(planEnd) });
+
+    return { isInPlanRange, isInActualRange, isDelay, isAhead };
+  };
+
+  // Setup columns
+  const columns: Partial<ExcelJS.Column>[] = [
+    { header: 'Наименование', key: 'name', width: 50 },
+    { header: 'Начало план', key: 'planStart', width: 12 },
+    { header: 'Начало факт', key: 'actualStart', width: 12 },
+    { header: 'Конец план', key: 'planEnd', width: 12 },
+    { header: 'Конец факт', key: 'actualEnd', width: 12 },
+    { header: 'Длит. план', key: 'planDuration', width: 10 },
+    { header: 'Длит. факт', key: 'actualDuration', width: 10 },
+  ];
+
+  // Add time unit columns
+  timeUnits.forEach((unit) => {
+    const header = viewMode === "days" 
+      ? format(unit, "dd.MM", { locale: ru })
+      : `Н${format(unit, "w", { locale: ru })} ${format(unit, "dd.MM", { locale: ru })}`;
+    columns.push({ header, width: 8 });
+  });
+
+  worksheet.columns = columns;
+
+  // Style header row
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { bold: true, size: 10 };
+  headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+  headerRow.height = 30;
+  headerRow.eachCell((cell) => {
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE5E7EB' }
+    };
+    cell.border = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      bottom: { style: 'thin' },
+      right: { style: 'thin' }
+    };
+  });
+
+  const formatDateExcel = (date: Date | null) => date ? format(date, "dd.MM.yy", { locale: ru }) : "—";
+  const today = startOfDay(new Date());
+
+  // Process documents
+  documents.forEach(doc => {
+    // Document row
+    const docRow = worksheet.addRow({
+      name: doc.name,
+      planStart: '',
+      actualStart: '',
+      planEnd: '',
+      actualEnd: '',
+      planDuration: '',
+      actualDuration: '',
+    });
+    docRow.font = { bold: true, size: 11 };
+    docRow.getCell('name').fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: COLORS.docHeader }
+    };
+
+    // Process blocks
+    doc.blocks?.forEach(block => {
+      const blockRow = worksheet.addRow({
+        name: `  ${block.number} ${block.name}`,
+        planStart: '',
+        actualStart: '',
+        planEnd: '',
+        actualEnd: '',
+        planDuration: '',
+        actualDuration: '',
+      });
+      blockRow.font = { bold: true, size: 10 };
+      blockRow.getCell('name').fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: COLORS.blockHeader }
+      };
+
+      // Process sections
+      block.sections?.forEach(section => {
+        const sectionRow = worksheet.addRow({
+          name: `    ${section.number} ${section.name}`,
+          planStart: '',
+          actualStart: '',
+          planEnd: '',
+          actualEnd: '',
+          planDuration: '',
+          actualDuration: '',
+        });
+        sectionRow.font = { bold: true, size: 10 };
+        sectionRow.getCell('name').fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: COLORS.sectionHeader }
+        };
+
+        // Process groups (works)
+        section.groups?.forEach(group => {
+          const { planStart, planEnd, actualStart, actualEnd } = getGroupDates(group);
+          const planDuration = planStart && planEnd ? differenceInDays(planEnd, planStart) + 1 : null;
+          const actualDuration = actualStart && actualEnd ? differenceInDays(actualEnd, actualStart) + 1 : null;
+
+          const groupRowData: Record<string, string | number | null> = {
+            name: `      ${group.number} ${group.name}`,
+            planStart: formatDateExcel(planStart),
+            actualStart: formatDateExcel(actualStart),
+            planEnd: formatDateExcel(planEnd),
+            actualEnd: formatDateExcel(actualEnd),
+            planDuration: planDuration ?? '—',
+            actualDuration: actualDuration ?? '—',
+          };
+
+          const groupRow = worksheet.addRow(groupRowData);
+          groupRow.font = { size: 10 };
+
+          // Add timeline cells with colored fill
+          const startCol = 8; // First timeline column (after 7 data columns)
+          timeUnits.forEach((unit, idx) => {
+            const cell = groupRow.getCell(startCol + idx);
+            const { isInPlanRange, isInActualRange, isDelay, isAhead } = getCellContent(
+              unit, planStart, planEnd, actualStart, actualEnd
+            );
+
+            // Determine fill color based on priority: delay > ahead > actual > plan
+            let fillColor: string | null = null;
+            if (isDelay) {
+              fillColor = COLORS.delay;
+            } else if (isAhead) {
+              fillColor = COLORS.ahead;
+            } else if (isInActualRange) {
+              fillColor = COLORS.actual;
+            } else if (isInPlanRange) {
+              fillColor = COLORS.plan;
+            }
+
+            if (fillColor) {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: fillColor }
+              };
+            }
+
+            // Mark today's column
+            const isToday = viewMode === "days" 
+              ? isSameDay(unit, today)
+              : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+            
+            if (isToday && !fillColor) {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: COLORS.todayBg }
+              };
+            }
+
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+              left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+              bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+              right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+            };
+          });
+        });
+      });
+    });
+  });
+
+  // Add borders to all cells
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      if (!cell.border) {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+          right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+        };
+      }
+    });
+  });
+
+  // Add legend at the bottom
+  const legendStartRow = worksheet.rowCount + 2;
+  worksheet.getCell(legendStartRow, 1).value = 'Легенда:';
+  worksheet.getCell(legendStartRow, 1).font = { bold: true };
+  
+  const legendItems = [
+    { color: COLORS.plan, label: 'План' },
+    { color: COLORS.actual, label: 'Факт' },
+    { color: COLORS.delay, label: 'Отставание' },
+    { color: COLORS.ahead, label: 'Опережение' },
+  ];
+
+  legendItems.forEach((item, idx) => {
+    const row = legendStartRow + idx + 1;
+    worksheet.getCell(row, 1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: item.color }
+    };
+    worksheet.getCell(row, 2).value = item.label;
+  });
+
+  // Generate file
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const filename = `КСП_${format(new Date(), 'yyyy-MM-dd_HH-mm', { locale: ru })}.xlsx`;
+  saveAs(blob, filename);
 }
 
 export default function KSP() {
@@ -406,6 +674,15 @@ export default function KSP() {
             </Button>
             <Button variant="ghost" size="sm" onClick={collapseAll} data-testid="button-collapse-all">
               Свернуть все
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => exportToExcel(documents, timeUnits, viewMode, dateRange)}
+              data-testid="button-export-excel"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Выгрузка
             </Button>
           </div>
         </div>
