@@ -216,61 +216,186 @@ async function exportToExcel(
 
   const formatDateExcel = (date: Date | null) => date ? format(date, "dd.MM.yy", { locale: ru }) : "—";
   const today = startOfDay(new Date());
+  const startCol = 8; // First timeline column (after 7 data columns)
+
+  // Helper to aggregate dates from groups
+  const getAggregatedDates = (groups: GroupNode[]) => {
+    let planStart: Date | null = null;
+    let planEnd: Date | null = null;
+    let actualStart: Date | null = null;
+    let actualEnd: Date | null = null;
+    
+    groups.forEach(group => {
+      const dates = getGroupDates(group);
+      if (dates.planStart && (!planStart || isBefore(dates.planStart, planStart))) planStart = dates.planStart;
+      if (dates.planEnd && (!planEnd || isAfter(dates.planEnd, planEnd))) planEnd = dates.planEnd;
+      if (dates.actualStart && (!actualStart || isBefore(dates.actualStart, actualStart))) actualStart = dates.actualStart;
+      if (dates.actualEnd && (!actualEnd || isAfter(dates.actualEnd, actualEnd))) actualEnd = dates.actualEnd;
+    });
+    
+    return { planStart, planEnd, actualStart, actualEnd };
+  };
+
+  // Helper to add timeline cells to a row
+  const addTimelineCells = (
+    row: ExcelJS.Row, 
+    planStart: Date | null, 
+    planEnd: Date | null, 
+    actualStart: Date | null, 
+    actualEnd: Date | null,
+    isActualRow: boolean,
+    bgColor: string
+  ) => {
+    timeUnits.forEach((unit, idx) => {
+      const cell = row.getCell(startCol + idx);
+      const { isInPlanRange, isInActualRange, isDelay, isAhead } = getCellContent(unit, planStart, planEnd, actualStart, actualEnd);
+      
+      let fillColor: string | null = null;
+      if (isActualRow) {
+        if (isDelay) fillColor = COLORS.delay;
+        else if (isAhead) fillColor = COLORS.ahead;
+        else if (isInActualRange) fillColor = COLORS.actual;
+      } else {
+        if (isInPlanRange) fillColor = COLORS.plan;
+      }
+
+      if (fillColor) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+      } else {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+      }
+
+      const isToday = viewMode === "days" 
+        ? isSameDay(unit, today)
+        : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+      
+      if (isToday && !fillColor) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.todayBg } };
+      }
+
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+      };
+    });
+  };
 
   // Process documents
   documents.forEach(doc => {
-    // Document row
-    const docRow = worksheet.addRow({
-      name: doc.name,
-      planStart: '',
+    // Aggregate dates for document
+    const allDocGroups: GroupNode[] = [];
+    doc.blocks?.forEach(block => {
+      block.sections?.forEach(section => {
+        section.groups?.forEach(group => allDocGroups.push(group));
+      });
+    });
+    const docDates = getAggregatedDates(allDocGroups);
+    const docPlanDur = docDates.planStart && docDates.planEnd ? differenceInDays(docDates.planEnd, docDates.planStart) + 1 : null;
+    const docActualDur = docDates.actualStart && docDates.actualEnd ? differenceInDays(docDates.actualEnd, docDates.actualStart) + 1 : null;
+
+    // Document plan row
+    const docPlanRow = worksheet.addRow({
+      name: `${doc.name} — план`,
+      planStart: formatDateExcel(docDates.planStart),
       actualStart: '',
-      planEnd: '',
+      planEnd: formatDateExcel(docDates.planEnd),
       actualEnd: '',
-      planDuration: '',
+      planDuration: docPlanDur ?? '—',
       actualDuration: '',
     });
-    docRow.font = { bold: true, size: 11 };
-    docRow.getCell('name').fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: COLORS.docHeader }
-    };
+    docPlanRow.font = { bold: true, size: 11 };
+    docPlanRow.getCell('name').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.docHeader } };
+    addTimelineCells(docPlanRow, docDates.planStart, docDates.planEnd, null, null, false, COLORS.docHeader);
+
+    // Document actual row
+    const docActualRow = worksheet.addRow({
+      name: `${doc.name} — факт`,
+      planStart: '',
+      actualStart: formatDateExcel(docDates.actualStart),
+      planEnd: '',
+      actualEnd: formatDateExcel(docDates.actualEnd),
+      planDuration: '',
+      actualDuration: docActualDur ?? '—',
+    });
+    docActualRow.font = { bold: true, size: 11 };
+    docActualRow.getCell('name').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.docHeader } };
+    addTimelineCells(docActualRow, docDates.planStart, docDates.planEnd, docDates.actualStart, docDates.actualEnd, true, COLORS.docHeader);
 
     // Process blocks
     doc.blocks?.forEach(block => {
-      const blockRow = worksheet.addRow({
-        name: `  ${block.number} ${block.name}`,
-        planStart: '',
+      // Aggregate dates for block
+      const allBlockGroups: GroupNode[] = [];
+      block.sections?.forEach(section => {
+        section.groups?.forEach(group => allBlockGroups.push(group));
+      });
+      const blockDates = getAggregatedDates(allBlockGroups);
+      const blockPlanDur = blockDates.planStart && blockDates.planEnd ? differenceInDays(blockDates.planEnd, blockDates.planStart) + 1 : null;
+      const blockActualDur = blockDates.actualStart && blockDates.actualEnd ? differenceInDays(blockDates.actualEnd, blockDates.actualStart) + 1 : null;
+
+      // Block plan row
+      const blockPlanRow = worksheet.addRow({
+        name: `  ${block.number} ${block.name} — план`,
+        planStart: formatDateExcel(blockDates.planStart),
         actualStart: '',
-        planEnd: '',
+        planEnd: formatDateExcel(blockDates.planEnd),
         actualEnd: '',
-        planDuration: '',
+        planDuration: blockPlanDur ?? '—',
         actualDuration: '',
       });
-      blockRow.font = { bold: true, size: 10 };
-      blockRow.getCell('name').fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: COLORS.blockHeader }
-      };
+      blockPlanRow.font = { bold: true, size: 10 };
+      blockPlanRow.getCell('name').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.blockHeader } };
+      addTimelineCells(blockPlanRow, blockDates.planStart, blockDates.planEnd, null, null, false, COLORS.blockHeader);
+
+      // Block actual row
+      const blockActualRow = worksheet.addRow({
+        name: `  ${block.number} ${block.name} — факт`,
+        planStart: '',
+        actualStart: formatDateExcel(blockDates.actualStart),
+        planEnd: '',
+        actualEnd: formatDateExcel(blockDates.actualEnd),
+        planDuration: '',
+        actualDuration: blockActualDur ?? '—',
+      });
+      blockActualRow.font = { bold: true, size: 10 };
+      blockActualRow.getCell('name').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.blockHeader } };
+      addTimelineCells(blockActualRow, blockDates.planStart, blockDates.planEnd, blockDates.actualStart, blockDates.actualEnd, true, COLORS.blockHeader);
 
       // Process sections
       block.sections?.forEach(section => {
-        const sectionRow = worksheet.addRow({
-          name: `    ${section.number} ${section.name}`,
-          planStart: '',
+        // Aggregate dates for section
+        const sectionDates = getAggregatedDates(section.groups || []);
+        const sectionPlanDur = sectionDates.planStart && sectionDates.planEnd ? differenceInDays(sectionDates.planEnd, sectionDates.planStart) + 1 : null;
+        const sectionActualDur = sectionDates.actualStart && sectionDates.actualEnd ? differenceInDays(sectionDates.actualEnd, sectionDates.actualStart) + 1 : null;
+
+        // Section plan row
+        const sectionPlanRow = worksheet.addRow({
+          name: `    ${section.number} ${section.name} — план`,
+          planStart: formatDateExcel(sectionDates.planStart),
           actualStart: '',
-          planEnd: '',
+          planEnd: formatDateExcel(sectionDates.planEnd),
           actualEnd: '',
-          planDuration: '',
+          planDuration: sectionPlanDur ?? '—',
           actualDuration: '',
         });
-        sectionRow.font = { bold: true, size: 10 };
-        sectionRow.getCell('name').fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: COLORS.sectionHeader }
-        };
+        sectionPlanRow.font = { bold: true, size: 10 };
+        sectionPlanRow.getCell('name').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.sectionHeader } };
+        addTimelineCells(sectionPlanRow, sectionDates.planStart, sectionDates.planEnd, null, null, false, COLORS.sectionHeader);
+
+        // Section actual row
+        const sectionActualRow = worksheet.addRow({
+          name: `    ${section.number} ${section.name} — факт`,
+          planStart: '',
+          actualStart: formatDateExcel(sectionDates.actualStart),
+          planEnd: '',
+          actualEnd: formatDateExcel(sectionDates.actualEnd),
+          planDuration: '',
+          actualDuration: sectionActualDur ?? '—',
+        });
+        sectionActualRow.font = { bold: true, size: 10 };
+        sectionActualRow.getCell('name').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.sectionHeader } };
+        addTimelineCells(sectionActualRow, sectionDates.planStart, sectionDates.planEnd, sectionDates.actualStart, sectionDates.actualEnd, true, COLORS.sectionHeader);
 
         // Process groups (works)
         section.groups?.forEach(group => {
@@ -278,28 +403,72 @@ async function exportToExcel(
           const planDuration = planStart && planEnd ? differenceInDays(planEnd, planStart) + 1 : null;
           const actualDuration = actualStart && actualEnd ? differenceInDays(actualEnd, actualStart) + 1 : null;
 
-          const groupRowData: Record<string, string | number | null> = {
-            name: `      ${group.number} ${group.name}`,
+          // Row 1: Plan row (blue)
+          const planRowData: Record<string, string | number | null> = {
+            name: `      ${group.number} ${group.name} — план`,
             planStart: formatDateExcel(planStart),
-            actualStart: formatDateExcel(actualStart),
+            actualStart: '',
             planEnd: formatDateExcel(planEnd),
-            actualEnd: formatDateExcel(actualEnd),
+            actualEnd: '',
             planDuration: planDuration ?? '—',
+            actualDuration: '',
+          };
+          const planRow = worksheet.addRow(planRowData);
+          planRow.font = { size: 10 };
+          planRow.height = 15;
+
+          // Add plan timeline cells
+          timeUnits.forEach((unit, idx) => {
+            const cell = planRow.getCell(startCol + idx);
+            const { isInPlanRange } = getCellContent(unit, planStart, planEnd, null, null);
+            
+            if (isInPlanRange) {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: COLORS.plan }
+              };
+            }
+
+            const isToday = viewMode === "days" 
+              ? isSameDay(unit, today)
+              : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
+            
+            if (isToday && !isInPlanRange) {
+              cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: COLORS.todayBg }
+              };
+            }
+
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+              left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+              bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+              right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+            };
+          });
+
+          // Row 2: Actual row (lilac/red/green)
+          const actualRowData: Record<string, string | number | null> = {
+            name: `      ${group.number} ${group.name} — факт`,
+            planStart: '',
+            actualStart: formatDateExcel(actualStart),
+            planEnd: '',
+            actualEnd: formatDateExcel(actualEnd),
+            planDuration: '',
             actualDuration: actualDuration ?? '—',
           };
+          const actualRow = worksheet.addRow(actualRowData);
+          actualRow.font = { size: 10 };
+          actualRow.height = 15;
 
-          const groupRow = worksheet.addRow(groupRowData);
-          groupRow.font = { size: 10 };
-
-          // Add timeline cells with colored fill
-          const startCol = 8; // First timeline column (after 7 data columns)
+          // Add actual timeline cells
           timeUnits.forEach((unit, idx) => {
-            const cell = groupRow.getCell(startCol + idx);
-            const { isInPlanRange, isInActualRange, isDelay, isAhead } = getCellContent(
-              unit, planStart, planEnd, actualStart, actualEnd
-            );
-
-            // Determine fill color based on priority: delay > ahead > actual > plan
+            const cell = actualRow.getCell(startCol + idx);
+            const { isInActualRange, isDelay, isAhead } = getCellContent(unit, planStart, planEnd, actualStart, actualEnd);
+            
             let fillColor: string | null = null;
             if (isDelay) {
               fillColor = COLORS.delay;
@@ -307,8 +476,6 @@ async function exportToExcel(
               fillColor = COLORS.ahead;
             } else if (isInActualRange) {
               fillColor = COLORS.actual;
-            } else if (isInPlanRange) {
-              fillColor = COLORS.plan;
             }
 
             if (fillColor) {
@@ -319,7 +486,6 @@ async function exportToExcel(
               };
             }
 
-            // Mark today's column
             const isToday = viewMode === "days" 
               ? isSameDay(unit, today)
               : isWithinInterval(today, { start: unit, end: endOfWeek(unit, { weekStartsOn: 1 }) });
@@ -339,6 +505,95 @@ async function exportToExcel(
               right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
             };
           });
+
+          // Export building sections if present
+          const work = group.works?.[0];
+          const sectionsCount = work?.sectionsCount || 1;
+          const buildingSections = work?.buildingSections || [];
+
+          if (sectionsCount > 1 && buildingSections.length > 0) {
+            buildingSections.forEach(section => {
+              const secPlanStart = section.planStartDate ? parseISO(section.planStartDate) : null;
+              const secPlanEnd = section.planEndDate ? parseISO(section.planEndDate) : null;
+              const secActualStart = section.actualStartDate ? parseISO(section.actualStartDate) : null;
+              const secActualEnd = section.actualEndDate ? parseISO(section.actualEndDate) : null;
+              const secPlanDur = secPlanStart && secPlanEnd ? differenceInDays(secPlanEnd, secPlanStart) + 1 : null;
+              const secActualDur = secActualStart && secActualEnd ? differenceInDays(secActualEnd, secActualStart) + 1 : null;
+
+              // Section plan row
+              const secPlanRow = worksheet.addRow({
+                name: `        ${group.number}-${section.sectionNumber}с — план`,
+                planStart: formatDateExcel(secPlanStart),
+                actualStart: '',
+                planEnd: formatDateExcel(secPlanEnd),
+                actualEnd: '',
+                planDuration: secPlanDur ?? '—',
+                actualDuration: '',
+              });
+              secPlanRow.font = { size: 9, color: { argb: 'FF6B7280' } };
+              secPlanRow.height = 13;
+
+              timeUnits.forEach((unit, idx) => {
+                const cell = secPlanRow.getCell(startCol + idx);
+                const { isInPlanRange } = getCellContent(unit, secPlanStart, secPlanEnd, null, null);
+                
+                if (isInPlanRange) {
+                  cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FF93C5FD' } // blue-300
+                  };
+                }
+                cell.border = {
+                  top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                  left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                  bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                  right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+                };
+              });
+
+              // Section actual row
+              const secActualRow = worksheet.addRow({
+                name: `        ${group.number}-${section.sectionNumber}с — факт`,
+                planStart: '',
+                actualStart: formatDateExcel(secActualStart),
+                planEnd: '',
+                actualEnd: formatDateExcel(secActualEnd),
+                planDuration: '',
+                actualDuration: secActualDur ?? '—',
+              });
+              secActualRow.font = { size: 9, color: { argb: 'FF6B7280' } };
+              secActualRow.height = 13;
+
+              timeUnits.forEach((unit, idx) => {
+                const cell = secActualRow.getCell(startCol + idx);
+                const { isInActualRange, isDelay, isAhead } = getCellContent(unit, secPlanStart, secPlanEnd, secActualStart, secActualEnd);
+                
+                let fillColor: string | null = null;
+                if (isDelay) {
+                  fillColor = 'FFFCA5A5'; // red-300
+                } else if (isAhead) {
+                  fillColor = 'FF86EFAC'; // green-300
+                } else if (isInActualRange) {
+                  fillColor = 'FFD8BFD8'; // lighter lilac
+                }
+
+                if (fillColor) {
+                  cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: fillColor }
+                  };
+                }
+                cell.border = {
+                  top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                  left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                  bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                  right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+                };
+              });
+            });
+          }
         });
       });
     });
