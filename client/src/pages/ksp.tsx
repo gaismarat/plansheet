@@ -130,6 +130,12 @@ async function exportToExcel(
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('КСП');
 
+  // Enable row grouping (outline) - summary rows above detail rows
+  worksheet.properties.outlineProperties = {
+    summaryBelow: false,  // Summary (parent) rows are above details
+    summaryRight: false
+  };
+
   // Excel colors (ARGB format without #)
   const COLORS = {
     plan: 'FF3B82F6',       // blue-500
@@ -295,7 +301,7 @@ async function exportToExcel(
     const docPlanDur = docDates.planStart && docDates.planEnd ? differenceInDays(docDates.planEnd, docDates.planStart) + 1 : null;
     const docActualDur = docDates.actualStart && docDates.actualEnd ? differenceInDays(docDates.actualEnd, docDates.actualStart) + 1 : null;
 
-    // Document plan row
+    // Document plan row (level 0 - top level parent)
     const docPlanRow = worksheet.addRow({
       name: `${doc.name} — план`,
       planStart: formatDateExcel(docDates.planStart),
@@ -305,11 +311,12 @@ async function exportToExcel(
       planDuration: docPlanDur ?? '—',
       actualDuration: '',
     });
+    docPlanRow.outlineLevel = 0;
     docPlanRow.font = { bold: true, size: 11 };
     docPlanRow.getCell('name').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.docHeader } };
     addTimelineCells(docPlanRow, docDates.planStart, docDates.planEnd, null, null, false, COLORS.docHeader);
 
-    // Document actual row
+    // Document actual row (level 0 - top level parent)
     const docActualRow = worksheet.addRow({
       name: `${doc.name} — факт`,
       planStart: '',
@@ -319,6 +326,7 @@ async function exportToExcel(
       planDuration: '',
       actualDuration: docActualDur ?? '—',
     });
+    docActualRow.outlineLevel = 0;
     docActualRow.font = { bold: true, size: 11 };
     docActualRow.getCell('name').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.docHeader } };
     addTimelineCells(docActualRow, docDates.planStart, docDates.planEnd, docDates.actualStart, docDates.actualEnd, true, COLORS.docHeader);
@@ -334,7 +342,7 @@ async function exportToExcel(
       const blockPlanDur = blockDates.planStart && blockDates.planEnd ? differenceInDays(blockDates.planEnd, blockDates.planStart) + 1 : null;
       const blockActualDur = blockDates.actualStart && blockDates.actualEnd ? differenceInDays(blockDates.actualEnd, blockDates.actualStart) + 1 : null;
 
-      // Block plan row
+      // Block plan row (level 1)
       const blockPlanRow = worksheet.addRow({
         name: `  ${block.number} ${block.name} — план`,
         planStart: formatDateExcel(blockDates.planStart),
@@ -344,11 +352,12 @@ async function exportToExcel(
         planDuration: blockPlanDur ?? '—',
         actualDuration: '',
       });
+      blockPlanRow.outlineLevel = 1;
       blockPlanRow.font = { bold: true, size: 10 };
       blockPlanRow.getCell('name').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.blockHeader } };
       addTimelineCells(blockPlanRow, blockDates.planStart, blockDates.planEnd, null, null, false, COLORS.blockHeader);
 
-      // Block actual row
+      // Block actual row (level 1)
       const blockActualRow = worksheet.addRow({
         name: `  ${block.number} ${block.name} — факт`,
         planStart: '',
@@ -358,6 +367,7 @@ async function exportToExcel(
         planDuration: '',
         actualDuration: blockActualDur ?? '—',
       });
+      blockActualRow.outlineLevel = 1;
       blockActualRow.font = { bold: true, size: 10 };
       blockActualRow.getCell('name').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.blockHeader } };
       addTimelineCells(blockActualRow, blockDates.planStart, blockDates.planEnd, blockDates.actualStart, blockDates.actualEnd, true, COLORS.blockHeader);
@@ -369,7 +379,7 @@ async function exportToExcel(
         const sectionPlanDur = sectionDates.planStart && sectionDates.planEnd ? differenceInDays(sectionDates.planEnd, sectionDates.planStart) + 1 : null;
         const sectionActualDur = sectionDates.actualStart && sectionDates.actualEnd ? differenceInDays(sectionDates.actualEnd, sectionDates.actualStart) + 1 : null;
 
-        // Section plan row
+        // Section plan row (level 2)
         const sectionPlanRow = worksheet.addRow({
           name: `    ${section.number} ${section.name} — план`,
           planStart: formatDateExcel(sectionDates.planStart),
@@ -379,11 +389,12 @@ async function exportToExcel(
           planDuration: sectionPlanDur ?? '—',
           actualDuration: '',
         });
+        sectionPlanRow.outlineLevel = 2;
         sectionPlanRow.font = { bold: true, size: 10 };
         sectionPlanRow.getCell('name').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.sectionHeader } };
         addTimelineCells(sectionPlanRow, sectionDates.planStart, sectionDates.planEnd, null, null, false, COLORS.sectionHeader);
 
-        // Section actual row
+        // Section actual row (level 2)
         const sectionActualRow = worksheet.addRow({
           name: `    ${section.number} ${section.name} — факт`,
           planStart: '',
@@ -393,6 +404,7 @@ async function exportToExcel(
           planDuration: '',
           actualDuration: sectionActualDur ?? '—',
         });
+        sectionActualRow.outlineLevel = 2;
         sectionActualRow.font = { bold: true, size: 10 };
         sectionActualRow.getCell('name').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.sectionHeader } };
         addTimelineCells(sectionActualRow, sectionDates.planStart, sectionDates.planEnd, sectionDates.actualStart, sectionDates.actualEnd, true, COLORS.sectionHeader);
@@ -403,7 +415,7 @@ async function exportToExcel(
           const planDuration = planStart && planEnd ? differenceInDays(planEnd, planStart) + 1 : null;
           const actualDuration = actualStart && actualEnd ? differenceInDays(actualEnd, actualStart) + 1 : null;
 
-          // Row 1: Plan row (blue)
+          // Row 1: Plan row (blue) - level 3
           const planRowData: Record<string, string | number | null> = {
             name: `      ${group.number} ${group.name} — план`,
             planStart: formatDateExcel(planStart),
@@ -414,6 +426,7 @@ async function exportToExcel(
             actualDuration: '',
           };
           const planRow = worksheet.addRow(planRowData);
+          planRow.outlineLevel = 3;
           planRow.font = { size: 10 };
           planRow.height = 15;
 
@@ -450,7 +463,7 @@ async function exportToExcel(
             };
           });
 
-          // Row 2: Actual row (lilac/red/green)
+          // Row 2: Actual row (lilac/red/green) - level 3
           const actualRowData: Record<string, string | number | null> = {
             name: `      ${group.number} ${group.name} — факт`,
             planStart: '',
@@ -461,6 +474,7 @@ async function exportToExcel(
             actualDuration: actualDuration ?? '—',
           };
           const actualRow = worksheet.addRow(actualRowData);
+          actualRow.outlineLevel = 3;
           actualRow.font = { size: 10 };
           actualRow.height = 15;
 
@@ -520,7 +534,7 @@ async function exportToExcel(
               const secPlanDur = secPlanStart && secPlanEnd ? differenceInDays(secPlanEnd, secPlanStart) + 1 : null;
               const secActualDur = secActualStart && secActualEnd ? differenceInDays(secActualEnd, secActualStart) + 1 : null;
 
-              // Section plan row
+              // Building section plan row - level 4
               const secPlanRow = worksheet.addRow({
                 name: `        ${group.number}-${section.sectionNumber}с — план`,
                 planStart: formatDateExcel(secPlanStart),
@@ -530,6 +544,7 @@ async function exportToExcel(
                 planDuration: secPlanDur ?? '—',
                 actualDuration: '',
               });
+              secPlanRow.outlineLevel = 4;
               secPlanRow.font = { size: 9, color: { argb: 'FF6B7280' } };
               secPlanRow.height = 13;
 
@@ -552,7 +567,7 @@ async function exportToExcel(
                 };
               });
 
-              // Section actual row
+              // Building section actual row - level 4
               const secActualRow = worksheet.addRow({
                 name: `        ${group.number}-${section.sectionNumber}с — факт`,
                 planStart: '',
@@ -562,6 +577,7 @@ async function exportToExcel(
                 planDuration: '',
                 actualDuration: secActualDur ?? '—',
               });
+              secActualRow.outlineLevel = 4;
               secActualRow.font = { size: 9, color: { argb: 'FF6B7280' } };
               secActualRow.height = 13;
 
