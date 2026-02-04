@@ -263,6 +263,12 @@ async function exportToExcel(
     isActualRow: boolean,
     bgColor: string
   ) => {
+    // Fill frozen columns (1-7) with background color for grouping rows
+    for (let col = 1; col <= 7; col++) {
+      row.getCell(col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+    }
+
+    // Fill timeline cells only where there are actual date ranges
     timeUnits.forEach((unit, idx) => {
       const cell = row.getCell(startCol + idx);
       const { isInPlanRange, isInActualRange, isDelay, isAhead } = getCellContent(unit, planStart, planEnd, actualStart, actualEnd);
@@ -276,11 +282,11 @@ async function exportToExcel(
         if (isInPlanRange) fillColor = COLORS.plan;
       }
 
+      // Only fill timeline cells if they're in a date range
       if (fillColor) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
-      } else {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
       }
+      // No else - leave empty timeline cells without fill
 
       const isToday = viewMode === "days" 
         ? isSameDay(unit, today)
