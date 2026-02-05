@@ -380,6 +380,16 @@ export async function registerRoutes(
       }
 
       const updated = await storage.updateWork(id, input);
+      
+      // If actual dates changed, cascade update dependent works
+      const actualDatesChanged = 
+        (input.actualStartDate !== undefined && input.actualStartDate !== existing.actualStartDate) ||
+        (input.actualEndDate !== undefined && input.actualEndDate !== existing.actualEndDate);
+      
+      if (actualDatesChanged) {
+        await storage.cascadeUpdateDependentDates(id);
+      }
+      
       res.json(updated);
     } catch (err) {
       if (err instanceof z.ZodError) {

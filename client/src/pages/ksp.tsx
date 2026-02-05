@@ -10,6 +10,7 @@ import { ru } from "date-fns/locale";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { DatePickerCell } from "@/components/date-picker-cell";
+import { DependencyDialog } from "@/components/dependency-dialog";
 import { calculateMinActualStartDate, getDisabledDays } from "@/lib/dependency-utils";
 
 interface RowHeightsContextType {
@@ -669,6 +670,27 @@ export default function KSP() {
     return works;
   }, [documents]);
 
+  const allWorksForDependencies = useMemo((): AllWorkItem[] => {
+    const items: AllWorkItem[] = [];
+    documents.forEach(doc => {
+      doc.blocks?.forEach(block => {
+        block.sections?.forEach(section => {
+          section.groups?.forEach(group => {
+            const work = group.works?.[0];
+            if (work) {
+              items.push({
+                id: work.id,
+                groupNumber: group.number,
+                groupName: group.name,
+              });
+            }
+          });
+        });
+      });
+    });
+    return items;
+  }, [documents]);
+
   const dateRange = useMemo(() => {
     if (allWorks.length === 0) {
       return {
@@ -1051,6 +1073,7 @@ export default function KSP() {
                         onToggleBlock={toggleBlock}
                         onToggleSection={toggleSection}
                         onToggleGroup={toggleGroup}
+                        allWorks={allWorksForDependencies}
                       />
                     ))}
                   </tbody>
@@ -1134,7 +1157,8 @@ function DocumentLeftRows({
   onToggleDoc,
   onToggleBlock,
   onToggleSection,
-  onToggleGroup
+  onToggleGroup,
+  allWorks
 }: {
   doc: DocumentNode;
   isExpanded: boolean;
@@ -1145,6 +1169,7 @@ function DocumentLeftRows({
   onToggleBlock: (id: number) => void;
   onToggleSection: (id: number) => void;
   onToggleGroup: (id: number) => void;
+  allWorks: AllWorkItem[];
 }) {
   const { registerLeftRow } = useRowHeights();
   const rowKey = `doc-${doc.id}`;
@@ -1180,6 +1205,7 @@ function DocumentLeftRows({
           onToggleSection={onToggleSection}
           onToggleGroup={onToggleGroup}
           indentLevel={1}
+          allWorks={allWorks}
         />
       ))}
     </>
@@ -1194,7 +1220,8 @@ function BlockLeftRows({
   onToggleBlock,
   onToggleSection,
   onToggleGroup,
-  indentLevel
+  indentLevel,
+  allWorks
 }: {
   block: BlockNode;
   isExpanded: boolean;
@@ -1204,6 +1231,7 @@ function BlockLeftRows({
   onToggleSection: (id: number) => void;
   onToggleGroup: (id: number) => void;
   indentLevel: number;
+  allWorks: AllWorkItem[];
 }) {
   const { registerLeftRow } = useRowHeights();
   const rowKey = `block-${block.id}`;
@@ -1241,6 +1269,7 @@ function BlockLeftRows({
           onToggleSection={() => onToggleSection(section.id)}
           onToggleGroup={onToggleGroup}
           indentLevel={indentLevel + 1}
+          allWorks={allWorks}
         />
       ))}
     </>
@@ -1253,7 +1282,8 @@ function SectionLeftRows({
   expandedGroups,
   onToggleSection,
   onToggleGroup,
-  indentLevel
+  indentLevel,
+  allWorks
 }: {
   section: SectionNode;
   isExpanded: boolean;
@@ -1261,6 +1291,7 @@ function SectionLeftRows({
   onToggleSection: () => void;
   onToggleGroup: (id: number) => void;
   indentLevel: number;
+  allWorks: AllWorkItem[];
 }) {
   const { registerLeftRow } = useRowHeights();
   const rowKey = `section-${section.id}`;
@@ -1296,22 +1327,31 @@ function SectionLeftRows({
           isExpanded={expandedGroups.has(group.id)}
           onToggleGroup={() => onToggleGroup(group.id)}
           indentLevel={indentLevel + 1}
+          allWorks={allWorks}
         />
       ))}
     </>
   );
 }
 
+interface AllWorkItem {
+  id: number;
+  groupNumber: string;
+  groupName: string;
+}
+
 function GroupLeftRow({
   group,
   isExpanded,
   onToggleGroup,
-  indentLevel
+  indentLevel,
+  allWorks
 }: {
   group: GroupNode;
   isExpanded: boolean;
   onToggleGroup: () => void;
   indentLevel: number;
+  allWorks: AllWorkItem[];
 }) {
   const { registerLeftRow } = useRowHeights();
   const rowKey = `group-${group.id}`;
@@ -1402,7 +1442,15 @@ function GroupLeftRow({
               <div className="w-4" />
             )}
             <span className="text-muted-foreground text-xs">{group.number}</span>
-            <span className="text-foreground truncate">{group.name}</span>
+            <span className="text-foreground truncate flex-1">{group.name}</span>
+            {workId && (
+              <DependencyDialog
+                workId={workId}
+                workNumber={group.number}
+                workName={group.name}
+                allWorks={allWorks}
+              />
+            )}
           </div>
         </td>
         <td className="border-b border-r border-border p-1 text-center text-xs">

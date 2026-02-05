@@ -28,10 +28,6 @@ import { Edit2 } from "lucide-react";
 const editWorkFormSchema = z.object({
   plannedPeople: z.coerce.number().min(0).max(9999),
   volumeActual: z.coerce.number().min(0),
-  planStartDate: z.string(),
-  planEndDate: z.string(),
-  actualStartDate: z.string(),
-  actualEndDate: z.string(),
 });
 
 type EditWorkFormValues = z.infer<typeof editWorkFormSchema>;
@@ -49,10 +45,6 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
     defaultValues: {
       plannedPeople: work.plannedPeople ?? 0,
       volumeActual: work.volumeActual ?? 0,
-      planStartDate: work.planStartDate || '',
-      planEndDate: work.planEndDate || '',
-      actualStartDate: work.actualStartDate || '',
-      actualEndDate: work.actualEndDate || '',
     },
   });
 
@@ -61,10 +53,6 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
       id: work.id, 
       plannedPeople: values.plannedPeople,
       volumeActual: values.volumeActual,
-      planStartDate: values.planStartDate || undefined,
-      planEndDate: values.planEndDate || undefined,
-      actualStartDate: values.actualStartDate || undefined,
-      actualEndDate: values.actualEndDate || undefined,
     }, {
       onSuccess: () => {
         setOpen(false);
@@ -149,80 +137,38 @@ export function EditWorkDialog({ work }: EditWorkDialogProps) {
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="planStartDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>План начало</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="date" 
-                        {...field}
-                        data-testid={`input-plan-start-${work.id}`}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="planEndDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>План конец</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="date" 
-                        {...field}
-                        data-testid={`input-plan-end-${work.id}`}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="actualStartDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Факт начало</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="date" 
-                        {...field}
-                        data-testid={`input-actual-start-${work.id}`}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="actualEndDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Факт конец</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="date" 
-                        {...field}
-                        data-testid={`input-actual-end-${work.id}`}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <div className="bg-muted/30 p-3 rounded-md space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Даты редактируются на странице КСП (Гантт)
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">План начало</p>
+                  <p className="text-sm" data-testid={`text-plan-start-${work.id}`}>
+                    {work.planStartDate || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">План конец</p>
+                  <p className="text-sm" data-testid={`text-plan-end-${work.id}`}>
+                    {work.planEndDate || "—"}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Факт начало</p>
+                  <p className="text-sm" data-testid={`text-actual-start-${work.id}`}>
+                    {work.actualStartDate || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Факт конец</p>
+                  <p className="text-sm" data-testid={`text-actual-end-${work.id}`}>
+                    {work.actualEndDate || "—"}
+                  </p>
+                </div>
+              </div>
             </div>
 
             <DialogFooter>

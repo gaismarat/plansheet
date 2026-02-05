@@ -340,6 +340,7 @@ export interface IStorage {
   updateWorkDependency(id: number, updates: Partial<InsertWorkDependency>): Promise<WorkDependency>;
   deleteWorkDependency(id: number): Promise<void>;
   hasCyclicDependency(workId: number, dependsOnWorkId: number): Promise<boolean>;
+  cascadeUpdateDependentDates(predecessorWorkId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2676,6 +2677,127 @@ export class DatabaseStorage implements IStorage {
     }
     
     return false;
+  }
+
+  async cascadeUpdateDependentDates(predecessorWorkId: number): Promise<void> {
+    // Get all works that depend on this predecessor
+    const successors = await this.getWorkSuccessors(predecessorWorkId);
+    
+    // Get predecessor work dates
+    const predecessor = await this.getWork(predecessorWorkId);
+    if (!predecessor) return;
+    
+    for (const dep of successors) {
+      const successorWork = await this.getWork(dep.workId);
+      if (!successorWork) continue;
+      
+      const predActualEnd = predecessor.actualEndDate ? new Date(predecessor.actualEndDate) : null;
+      const predActualStart = predecessor.actualStartDate ? new Date(predecessor.actualStartDate) : null;
+      const lagDays = dep.lagDays || 0;
+      
+      let needsUpdate = false;
+      let newActualStart = successorWork.actualStartDate;
+      let newActualEnd = successorWork.actualEndDate;
+      
+      switch (dep.dependencyType) {
+        case 'FS': // Finish-Start: successor starts after predecessor finishes
+          if (predActualEnd) {
+            const minStartDate = new Date(predActualEnd);
+            minStartDate.setDate(minStartDate.getDate() + 1 + lagDays);
+            
+            if (successorWork.actualStartDate) {
+              const successorStart = new Date(successorWork.actualStartDate);
+              if (successorStart < minStartDate) {
+                const shiftDays = Math.ceil((minStartDate.getTime() - successorStart.getTime()) / (1000 * 60 * 60 * 24));
+                newActualStart = minStartDate.toISOString().split('T')[0];
+                if (successorWork.actualEndDate) {
+                  const endDate = new Date(successorWork.actualEndDate);
+                  endDate.setDate(endDate.getDate() + shiftDays);
+                  newActualEnd = endDate.toISOString().split('T')[0];
+                }
+                needsUpdate = true;
+              }
+            }
+          }
+          break;
+          
+        case 'SS': // Start-Start: successor starts when predecessor starts
+          if (predActualStart) {
+            const minStartDate = new Date(predActualStart);
+            minStartDate.setDate(minStartDate.getDate() + lagDays);
+            
+            if (successorWork.actualStartDate) {
+              const successorStart = new Date(successorWork.actualStartDate);
+              if (successorStart < minStartDate) {
+                const shiftDays = Math.ceil((minStartDate.getTime() - successorStart.getTime()) / (1000 * 60 * 60 * 24));
+                newActualStart = minStartDate.toISOString().split('T')[0];
+                if (successorWork.actualEndDate) {
+                  const endDate = new Date(successorWork.actualEndDate);
+                  endDate.setDate(endDate.getDate() + shiftDays);
+                  newActualEnd = endDate.toISOString().split('T')[0];
+                }
+                needsUpdate = true;
+              }
+            }
+          }
+          break;
+          
+        case 'FF': // Finish-Finish: successor finishes when predecessor finishes
+          if (predActualEnd && successorWork.actualEndDate) {
+            const minEndDate = new Date(predActualEnd);
+            minEndDate.setDate(minEndDate.getDate() + lagDays);
+            
+            const successorEnd = new Date(successorWork.actualEndDate);
+            if (successorEnd < minEndDate) {
+              const shiftDays = Math.ceil((minEndDate.getTime() - successorEnd.getTime()) / (1000 * 60 * 60 * 24));
+              newActualEnd = minEndDate.toISOString().split('T')[0];
+              if (successorWork.actualStartDate) {
+                const startDate = new Date(successorWork.actualStartDate);
+                startDate.setDate(startDate.getDate() + shiftDays);
+                newActualStart = startDate.toISOString().split('T')[0];
+              }
+              needsUpdate = true;
+            }
+          }
+          break;
+          
+        case 'SF': // Start-Finish: successor finishes when predecessor starts
+          if (predActualStart && successorWork.actualEndDate) {
+            const minEndDate = new Date(predActualStart);
+            minEndDate.setDate(minEndDate.getDate() + lagDays);
+            
+            const successorEnd = new Date(successorWork.actualEndDate);
+            if (successorEnd < minEndDate) {
+              const shiftDays = Math.ceil((minEndDate.getTime() - successorEnd.getTime()) / (1000 * 60 * 60 * 24));
+              newActualEnd = minEndDate.toISOString().split('T')[0];
+              if (successorWork.actualStartDate) {
+                const startDate = new Date(successorWork.actualStartDate);
+                startDate.setDate(startDate.getDate() + shiftDays);
+                newActualStart = startDate.toISOString().split('T')[0];
+              }
+              needsUpdate = true;
+            }
+          }
+          break;
+      }
+      
+      // Update successor work if constraints violated
+      if (needsUpdate) {
+        const updates: { actualStartDate?: string; actualEndDate?: string } = {};
+        if (newActualStart && newActualStart !== successorWork.actualStartDate) {
+          updates.actualStartDate = newActualStart;
+        }
+        if (newActualEnd && newActualEnd !== successorWork.actualEndDate) {
+          updates.actualEndDate = newActualEnd;
+        }
+        
+        if (Object.keys(updates).length > 0) {
+          await this.updateWork(dep.workId, updates);
+          // Recursively update successors of this work
+          await this.cascadeUpdateDependentDates(dep.workId);
+        }
+      }
+    }
   }
 }
 
