@@ -1163,3 +1163,147 @@ export function useTransferOwnership() {
     },
   });
 }
+
+// ============================================
+// WORK DEPENDENCIES HOOKS
+// ============================================
+
+import type { WorkDependency, InsertWorkDependency } from "@shared/schema";
+import type { DependencyConstraint } from "@/lib/dependency-utils";
+
+export function useAllDependencies() {
+  return useQuery<WorkDependency[]>({
+    queryKey: ['/api/work-dependencies'],
+    queryFn: async () => {
+      const res = await fetch('/api/work-dependencies');
+      if (!res.ok) throw new Error("Failed to fetch dependencies");
+      return res.json();
+    },
+  });
+}
+
+export function useWorkDependencies(workId: number | null) {
+  return useQuery<WorkDependency[]>({
+    queryKey: ['/api/work-dependencies', workId],
+    queryFn: async () => {
+      if (!workId) return [];
+      const res = await fetch(`/api/work-dependencies/${workId}`);
+      if (!res.ok) throw new Error("Failed to fetch work dependencies");
+      return res.json();
+    },
+    enabled: !!workId,
+  });
+}
+
+export function useWorkPredecessors(workId: number | null) {
+  return useQuery<(WorkDependency & { predecessorName: string })[]>({
+    queryKey: ['/api/work-dependencies', workId, 'predecessors'],
+    queryFn: async () => {
+      if (!workId) return [];
+      const res = await fetch(`/api/work-dependencies/${workId}/predecessors`);
+      if (!res.ok) throw new Error("Failed to fetch predecessors");
+      return res.json();
+    },
+    enabled: !!workId,
+  });
+}
+
+export function useWorkSuccessors(workId: number | null) {
+  return useQuery<(WorkDependency & { successorName: string })[]>({
+    queryKey: ['/api/work-dependencies', workId, 'successors'],
+    queryFn: async () => {
+      if (!workId) return [];
+      const res = await fetch(`/api/work-dependencies/${workId}/successors`);
+      if (!res.ok) throw new Error("Failed to fetch successors");
+      return res.json();
+    },
+    enabled: !!workId,
+  });
+}
+
+export function useDependencyConstraints(workId: number | null) {
+  return useQuery<DependencyConstraint[]>({
+    queryKey: ['/api/work-dependencies', workId, 'constraints'],
+    queryFn: async () => {
+      if (!workId) return [];
+      const res = await fetch(`/api/work-dependencies/${workId}/constraints`);
+      if (!res.ok) throw new Error("Failed to fetch constraints");
+      return res.json();
+    },
+    enabled: !!workId,
+  });
+}
+
+export function useCreateDependency() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { workId: number; dependsOnWorkId: number; dependencyType?: string; lagDays?: number }) => {
+      const res = await fetch('/api/work-dependencies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to create dependency");
+      }
+      return res.json();
+    },
+    onSuccess: (_, { workId, dependsOnWorkId }) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/work-dependencies'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-dependencies', workId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-dependencies', dependsOnWorkId] });
+      toast({ title: "Зависимость добавлена" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useUpdateDependency() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: number; dependencyType?: string; lagDays?: number }) => {
+      const res = await fetch(`/api/work-dependencies/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) throw new Error("Failed to update dependency");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/work-dependencies'] });
+      toast({ title: "Зависимость обновлена" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeleteDependency() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/work-dependencies/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error("Failed to delete dependency");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/work-dependencies'] });
+      toast({ title: "Зависимость удалена" });
+    },
+    onError: (error) => {
+      toast({ title: "Ошибка", description: error.message, variant: "destructive" });
+    },
+  });
+}

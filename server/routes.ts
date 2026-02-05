@@ -798,6 +798,32 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  app.get('/api/work-dependencies/:workId/constraints', requireAuth, async (req, res) => {
+    const workId = Number(req.params.workId);
+    const predecessors = await storage.getWorkPredecessors(workId);
+    
+    const constraints = [];
+    for (const pred of predecessors) {
+      const work = await storage.getWork(pred.dependsOnWorkId);
+      if (work) {
+        constraints.push({
+          dependencyType: pred.dependencyType as 'FS' | 'SS' | 'FF' | 'SF',
+          lagDays: pred.lagDays,
+          predecessorWorkId: pred.dependsOnWorkId,
+          predecessorDates: {
+            workId: work.id,
+            planStartDate: work.planStartDate,
+            planEndDate: work.planEndDate,
+            actualStartDate: work.actualStartDate,
+            actualEndDate: work.actualEndDate,
+          },
+        });
+      }
+    }
+    
+    res.json(constraints);
+  });
+
   // === Contracts (Budgets) ===
 
   app.get('/api/contracts', async (_req, res) => {
