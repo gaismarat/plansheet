@@ -1010,3 +1010,39 @@ export const workMaterialProgressHistoryRelations = relations(workMaterialProgre
 export const insertWorkMaterialProgressHistorySchema = createInsertSchema(workMaterialProgressHistory).omit({ id: true, createdAt: true });
 export type WorkMaterialProgressHistory = typeof workMaterialProgressHistory.$inferSelect;
 export type InsertWorkMaterialProgressHistory = z.infer<typeof insertWorkMaterialProgressHistorySchema>;
+
+// === WORK DEPENDENCIES TABLE ===
+// Зависимости между работами для КСП (Gantt)
+
+export const dependencyTypeEnum = z.enum(["FS", "SS", "FF", "SF"]);
+export type DependencyType = z.infer<typeof dependencyTypeEnum>;
+
+export const workDependencies = pgTable("work_dependencies", {
+  id: serial("id").primaryKey(),
+  workId: integer("work_id").notNull().references(() => works.id, { onDelete: "cascade" }), // Работа-последователь
+  dependsOnWorkId: integer("depends_on_work_id").notNull().references(() => works.id, { onDelete: "cascade" }), // Работа-предшественник
+  dependencyType: text("dependency_type").notNull().default("FS"), // FS, SS, FF, SF
+  lagDays: integer("lag_days").default(0).notNull(), // Лаг в днях (может быть отрицательным)
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// === WORK DEPENDENCIES RELATIONS ===
+
+export const workDependenciesRelations = relations(workDependencies, ({ one }) => ({
+  work: one(works, {
+    fields: [workDependencies.workId],
+    references: [works.id],
+    relationName: "workDependencies",
+  }),
+  dependsOnWork: one(works, {
+    fields: [workDependencies.dependsOnWorkId],
+    references: [works.id],
+    relationName: "workPredecessors",
+  }),
+}));
+
+// === WORK DEPENDENCIES SCHEMAS ===
+
+export const insertWorkDependencySchema = createInsertSchema(workDependencies).omit({ id: true, createdAt: true });
+export type WorkDependency = typeof workDependencies.$inferSelect;
+export type InsertWorkDependency = z.infer<typeof insertWorkDependencySchema>;
