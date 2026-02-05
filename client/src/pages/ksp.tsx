@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, createContext, useContext } from "react";
-import { useWorksTree, useUpdateWorkDates, useUpdateSectionDates, useDependencyConstraints } from "@/hooks/use-construction";
+import { useWorksTree, useUpdateWorkDates, useUpdateSectionDates, useDependencyConstraints, useAllDependencies } from "@/hooks/use-construction";
 import { useSyncedRowHeights } from "@/hooks/use-synced-row-heights";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -11,6 +11,7 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { DatePickerCell } from "@/components/date-picker-cell";
 import { DependencyDialog } from "@/components/dependency-dialog";
+import { DependencyArrows, DEPENDENCY_COLORS, DEPENDENCY_LABELS } from "@/components/dependency-arrows";
 import { calculateMinActualStartDate, getDisabledDays } from "@/lib/dependency-utils";
 
 interface RowHeightsContextType {
@@ -1091,7 +1092,14 @@ export default function KSP() {
                 onMouseLeave={handleMouseLeave}
                 onScroll={handleChartScroll}
               >
-                <div style={{ minWidth: timeUnits.length * CELL_WIDTH }}>
+                <div style={{ minWidth: timeUnits.length * CELL_WIDTH, position: 'relative' }}>
+                  <DependencyArrows 
+                    containerRef={chartContainerRef}
+                    timeUnits={timeUnits}
+                    cellWidth={CELL_WIDTH}
+                    dateRange={dateRange}
+                    viewMode={viewMode}
+                  />
                   <table className="border-collapse text-sm" style={{ tableLayout: 'fixed', width: timeUnits.length * CELL_WIDTH }}>
                     <colgroup>
                       {timeUnits.map((_, idx) => (
@@ -1141,6 +1149,25 @@ export default function KSP() {
           <div className="flex items-center gap-2">
             <div className="w-4 h-0.5 border-t-2 border-dashed border-primary" style={{ width: 16 }} />
             <span className="text-muted-foreground">Текущая дата</span>
+          </div>
+          <div className="border-l border-border pl-4 ml-2 flex items-center gap-4">
+            <span className="text-muted-foreground font-medium">Зависимости:</span>
+            <div className="flex items-center gap-2">
+              <svg width="20" height="10"><line x1="0" y1="5" x2="14" y2="5" stroke={DEPENDENCY_COLORS.FS} strokeWidth="2"/><polygon points="14,2 20,5 14,8" fill={DEPENDENCY_COLORS.FS}/></svg>
+              <span className="text-muted-foreground">{DEPENDENCY_LABELS.FS}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="20" height="10"><line x1="0" y1="5" x2="14" y2="5" stroke={DEPENDENCY_COLORS.SS} strokeWidth="2"/><polygon points="14,2 20,5 14,8" fill={DEPENDENCY_COLORS.SS}/></svg>
+              <span className="text-muted-foreground">{DEPENDENCY_LABELS.SS}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="20" height="10"><line x1="0" y1="5" x2="14" y2="5" stroke={DEPENDENCY_COLORS.FF} strokeWidth="2"/><polygon points="14,2 20,5 14,8" fill={DEPENDENCY_COLORS.FF}/></svg>
+              <span className="text-muted-foreground">{DEPENDENCY_LABELS.FF}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="20" height="10"><line x1="0" y1="5" x2="14" y2="5" stroke={DEPENDENCY_COLORS.SF} strokeWidth="2"/><polygon points="14,2 20,5 14,8" fill={DEPENDENCY_COLORS.SF}/></svg>
+              <span className="text-muted-foreground">{DEPENDENCY_LABELS.SF}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1812,9 +1839,18 @@ function GroupRightRow({
     return { isInPlanRange, isInActualRange, isDelay, isAhead };
   };
 
+  const workData = work || group.works?.[0];
+  
   return (
     <>
-      <tr style={height ? { height } : undefined}>
+      <tr 
+        style={height ? { height } : undefined}
+        data-work-id={workData?.id}
+        data-plan-start={workData?.planStartDate || ''}
+        data-plan-end={workData?.planEndDate || ''}
+        data-actual-start={workData?.actualStartDate || ''}
+        data-actual-end={workData?.actualEndDate || ''}
+      >
         {timeUnits.map((unit, idx) => {
           const { isInPlanRange, isInActualRange, isDelay, isAhead } = getCellContent(unit);
           const isToday = viewMode === "days" 
