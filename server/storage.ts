@@ -107,7 +107,10 @@ import {
   type WorkMaterialProgress,
   type InsertWorkMaterialProgress,
   type WorkMaterialProgressHistory,
-  type InsertWorkMaterialProgressHistory
+  type InsertWorkMaterialProgressHistory,
+  workDependencies,
+  type WorkDependency,
+  type InsertWorkDependency
 } from "@shared/schema";
 import { eq, and, isNull, asc, lt, sql, or, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -327,6 +330,16 @@ export interface IStorage {
   getSectionAllocations(params: { groupId?: number; elementId?: number }): Promise<SectionAllocation[]>;
   upsertSectionAllocations(allocations: InsertSectionAllocation[]): Promise<void>;
   deleteSectionAllocations(params: { groupId?: number; elementId?: number; sectionNumber?: number }): Promise<void>;
+
+  // Work Dependencies (Зависимости между работами)
+  getWorkDependencies(workId: number): Promise<WorkDependency[]>;
+  getWorkPredecessors(workId: number): Promise<(WorkDependency & { predecessorName: string })[]>;
+  getWorkSuccessors(workId: number): Promise<(WorkDependency & { successorName: string })[]>;
+  getAllDependencies(): Promise<WorkDependency[]>;
+  createWorkDependency(dep: InsertWorkDependency): Promise<WorkDependency>;
+  updateWorkDependency(id: number, updates: Partial<InsertWorkDependency>): Promise<WorkDependency>;
+  deleteWorkDependency(id: number): Promise<void>;
+  hasCyclicDependency(workId: number, dependsOnWorkId: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2571,6 +2584,98 @@ export class DatabaseStorage implements IStorage {
     if (conditions.length === 0) return;
     
     await db.delete(sectionAllocations).where(and(...conditions));
+  }
+
+  // === WORK DEPENDENCIES ===
+
+  async getWorkDependencies(workId: number): Promise<WorkDependency[]> {
+    return db.select()
+      .from(workDependencies)
+      .where(eq(workDependencies.workId, workId));
+  }
+
+  async getWorkPredecessors(workId: number): Promise<(WorkDependency & { predecessorName: string })[]> {
+    const deps = await db.select({
+      id: workDependencies.id,
+      workId: workDependencies.workId,
+      dependsOnWorkId: workDependencies.dependsOnWorkId,
+      dependencyType: workDependencies.dependencyType,
+      lagDays: workDependencies.lagDays,
+      createdAt: workDependencies.createdAt,
+      predecessorName: works.name,
+    })
+      .from(workDependencies)
+      .innerJoin(works, eq(workDependencies.dependsOnWorkId, works.id))
+      .where(eq(workDependencies.workId, workId));
+    return deps;
+  }
+
+  async getWorkSuccessors(workId: number): Promise<(WorkDependency & { successorName: string })[]> {
+    const deps = await db.select({
+      id: workDependencies.id,
+      workId: workDependencies.workId,
+      dependsOnWorkId: workDependencies.dependsOnWorkId,
+      dependencyType: workDependencies.dependencyType,
+      lagDays: workDependencies.lagDays,
+      createdAt: workDependencies.createdAt,
+      successorName: works.name,
+    })
+      .from(workDependencies)
+      .innerJoin(works, eq(workDependencies.workId, works.id))
+      .where(eq(workDependencies.dependsOnWorkId, workId));
+    return deps;
+  }
+
+  async getAllDependencies(): Promise<WorkDependency[]> {
+    return db.select().from(workDependencies);
+  }
+
+  async createWorkDependency(dep: InsertWorkDependency): Promise<WorkDependency> {
+    const [created] = await db.insert(workDependencies).values(dep).returning();
+    return created;
+  }
+
+  async updateWorkDependency(id: number, updates: Partial<InsertWorkDependency>): Promise<WorkDependency> {
+    const [updated] = await db.update(workDependencies)
+      .set(updates)
+      .where(eq(workDependencies.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteWorkDependency(id: number): Promise<void> {
+    await db.delete(workDependencies).where(eq(workDependencies.id, id));
+  }
+
+  async hasCyclicDependency(workId: number, dependsOnWorkId: number): Promise<boolean> {
+    // Check if adding dependency from workId -> dependsOnWorkId creates a cycle
+    // We need to verify that dependsOnWorkId doesn't eventually depend on workId
+    const visited = new Set<number>();
+    const queue: number[] = [dependsOnWorkId];
+    
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      if (current === workId) {
+        return true; // Cycle detected
+      }
+      if (visited.has(current)) {
+        continue;
+      }
+      visited.add(current);
+      
+      // Get all works that current depends on
+      const predecessors = await db.select({ dependsOnWorkId: workDependencies.dependsOnWorkId })
+        .from(workDependencies)
+        .where(eq(workDependencies.workId, current));
+      
+      for (const pred of predecessors) {
+        if (!visited.has(pred.dependsOnWorkId)) {
+          queue.push(pred.dependsOnWorkId);
+        }
+      }
+    }
+    
+    return false;
   }
 }
 

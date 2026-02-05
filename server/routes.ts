@@ -730,6 +730,74 @@ export async function registerRoutes(
     res.status(200).json({ success: true });
   });
 
+  // === Work Dependencies (Зависимости между работами) ===
+
+  app.get('/api/work-dependencies', requireAuth, async (_req, res) => {
+    const dependencies = await storage.getAllDependencies();
+    res.json(dependencies);
+  });
+
+  app.get('/api/work-dependencies/:workId', requireAuth, async (req, res) => {
+    const workId = Number(req.params.workId);
+    const dependencies = await storage.getWorkDependencies(workId);
+    res.json(dependencies);
+  });
+
+  app.get('/api/work-dependencies/:workId/predecessors', requireAuth, async (req, res) => {
+    const workId = Number(req.params.workId);
+    const predecessors = await storage.getWorkPredecessors(workId);
+    res.json(predecessors);
+  });
+
+  app.get('/api/work-dependencies/:workId/successors', requireAuth, async (req, res) => {
+    const workId = Number(req.params.workId);
+    const successors = await storage.getWorkSuccessors(workId);
+    res.json(successors);
+  });
+
+  app.post('/api/work-dependencies', requireAuth, async (req, res) => {
+    const { workId, dependsOnWorkId, dependencyType, lagDays } = req.body;
+    
+    if (!workId || !dependsOnWorkId) {
+      return res.status(400).json({ error: 'workId and dependsOnWorkId are required' });
+    }
+    
+    if (workId === dependsOnWorkId) {
+      return res.status(400).json({ error: 'Работа не может зависеть от самой себя' });
+    }
+    
+    // Check for cyclic dependency
+    const hasCycle = await storage.hasCyclicDependency(workId, dependsOnWorkId);
+    if (hasCycle) {
+      return res.status(400).json({ error: 'Добавление этой зависимости создаст циклическую связь' });
+    }
+    
+    const dependency = await storage.createWorkDependency({
+      workId,
+      dependsOnWorkId,
+      dependencyType: dependencyType || 'FS',
+      lagDays: lagDays || 0,
+    });
+    res.status(201).json(dependency);
+  });
+
+  app.put('/api/work-dependencies/:id', requireAuth, async (req, res) => {
+    const id = Number(req.params.id);
+    const { dependencyType, lagDays } = req.body;
+    
+    const updated = await storage.updateWorkDependency(id, {
+      ...(dependencyType !== undefined && { dependencyType }),
+      ...(lagDays !== undefined && { lagDays }),
+    });
+    res.json(updated);
+  });
+
+  app.delete('/api/work-dependencies/:id', requireAuth, async (req, res) => {
+    const id = Number(req.params.id);
+    await storage.deleteWorkDependency(id);
+    res.status(204).send();
+  });
+
   // === Contracts (Budgets) ===
 
   app.get('/api/contracts', async (_req, res) => {
