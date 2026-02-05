@@ -1307,3 +1307,86 @@ export function useDeleteDependency() {
     },
   });
 }
+
+// ============================================
+// WORK DATES HOOKS (для КСП)
+// ============================================
+
+export function useUpdateWorkDates() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      workId, 
+      planStartDate, 
+      planEndDate, 
+      actualStartDate, 
+      actualEndDate 
+    }: { 
+      workId: number; 
+      planStartDate?: string | null; 
+      planEndDate?: string | null; 
+      actualStartDate?: string | null; 
+      actualEndDate?: string | null;
+    }) => {
+      const url = buildUrl(api.works.update.path, { id: workId });
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(planStartDate !== undefined && { planStartDate }),
+          ...(planEndDate !== undefined && { planEndDate }),
+          ...(actualStartDate !== undefined && { actualStartDate }),
+          ...(actualEndDate !== undefined && { actualEndDate }),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update work dates");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/works/tree'] });
+      queryClient.invalidateQueries({ queryKey: [api.workGroups.list.path] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-dependencies'] });
+    },
+  });
+}
+
+export function useUpdateSectionDates() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      workId, 
+      sectionNumber,
+      planStartDate, 
+      planEndDate, 
+      actualStartDate, 
+      actualEndDate 
+    }: { 
+      workId: number; 
+      sectionNumber: number;
+      planStartDate?: string | null; 
+      planEndDate?: string | null; 
+      actualStartDate?: string | null; 
+      actualEndDate?: string | null;
+    }) => {
+      const res = await fetch(`/api/work-section-progress/${workId}/${sectionNumber}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(planStartDate !== undefined && { planStartDate }),
+          ...(planEndDate !== undefined && { planEndDate }),
+          ...(actualStartDate !== undefined && { actualStartDate }),
+          ...(actualEndDate !== undefined && { actualEndDate }),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update section dates");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/works/tree'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-section-progress'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/work-dependencies'] });
+    },
+  });
+}

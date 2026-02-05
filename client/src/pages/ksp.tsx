@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, createContext, useContext } from "react";
-import { useWorksTree } from "@/hooks/use-construction";
+import { useWorksTree, useUpdateWorkDates, useUpdateSectionDates, useDependencyConstraints } from "@/hooks/use-construction";
 import { useSyncedRowHeights } from "@/hooks/use-synced-row-heights";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -9,6 +9,8 @@ import { addDays, startOfWeek, endOfWeek, format, parseISO, differenceInDays, ea
 import { ru } from "date-fns/locale";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+import { DatePickerCell } from "@/components/date-picker-cell";
+import { calculateMinActualStartDate, getDisabledDays } from "@/lib/dependency-utils";
 
 interface RowHeightsContextType {
   registerLeftRow: (key: string, el: HTMLTableRowElement | null) => void;
@@ -1320,24 +1322,36 @@ function GroupLeftRow({
   const endDeviation = planEnd && actualEnd ? differenceInDays(actualEnd, planEnd) : null;
   const durationDeviation = planDuration && actualDuration ? actualDuration - planDuration : null;
 
-  // Check if this group has building sections (sectionsCount > 1)
   const work = group.works?.[0];
+  const workId = work?.id;
   const sectionsCount = work?.sectionsCount || 1;
   const hasBuildingSections = sectionsCount > 1;
   const buildingSections = work?.buildingSections || [];
 
+  const updateWorkDates = useUpdateWorkDates();
+  const updateSectionDates = useUpdateSectionDates();
+  const { data: constraints } = useDependencyConstraints(workId || null);
+
+  const minActualStartDate = useMemo(() => {
+    if (!constraints || constraints.length === 0) return null;
+    return calculateMinActualStartDate(constraints);
+  }, [constraints]);
+
+  const disabledDays = useMemo(() => getDisabledDays(minActualStartDate), [minActualStartDate]);
+
+  const handleWorkDateChange = (field: 'planStartDate' | 'planEndDate' | 'actualStartDate' | 'actualEndDate', value: string | null) => {
+    if (!workId) return;
+    updateWorkDates.mutate({ workId, [field]: value });
+  };
+
+  const handleSectionDateChange = (sectionNumber: number, field: 'planStartDate' | 'planEndDate' | 'actualStartDate' | 'actualEndDate', value: string | null) => {
+    if (!workId) return;
+    updateSectionDates.mutate({ workId, sectionNumber, [field]: value });
+  };
+
   const formatDate = (date: Date | null) => {
     if (!date) return "—";
     return format(date, "dd.MM", { locale: ru });
-  };
-
-  const formatDateString = (dateStr: string | null) => {
-    if (!dateStr) return "—";
-    try {
-      return format(parseISO(dateStr), "dd.MM", { locale: ru });
-    } catch {
-      return "—";
-    }
   };
 
   const getDeviationIndicator = (deviation: number | null) => {
@@ -1362,6 +1376,8 @@ function GroupLeftRow({
     }
     return { plan: planDur, actual: actualDur };
   };
+
+  const canEditMainWork = !hasBuildingSections;
 
   return (
     <>
@@ -1391,15 +1407,48 @@ function GroupLeftRow({
         </td>
         <td className="border-b border-r border-border p-1 text-center text-xs">
           <div className="flex flex-col items-center gap-0.5">
-            <span className="text-muted-foreground">{formatDate(planStart)}</span>
-            <span className="font-medium">{formatDate(actualStart)}</span>
+            {canEditMainWork && workId ? (
+              <>
+                <DatePickerCell
+                  value={work?.planStartDate || null}
+                  onChange={(v) => handleWorkDateChange('planStartDate', v)}
+                  isPlan
+                />
+                <DatePickerCell
+                  value={work?.actualStartDate || null}
+                  onChange={(v) => handleWorkDateChange('actualStartDate', v)}
+                  disabledDays={disabledDays}
+                />
+              </>
+            ) : (
+              <>
+                <span className="text-muted-foreground">{formatDate(planStart)}</span>
+                <span className="font-medium">{formatDate(actualStart)}</span>
+              </>
+            )}
             {getDeviationIndicator(startDeviation)}
           </div>
         </td>
         <td className="border-b border-r border-border p-1 text-center text-xs">
           <div className="flex flex-col items-center gap-0.5">
-            <span className="text-muted-foreground">{formatDate(planEnd)}</span>
-            <span className="font-medium">{formatDate(actualEnd)}</span>
+            {canEditMainWork && workId ? (
+              <>
+                <DatePickerCell
+                  value={work?.planEndDate || null}
+                  onChange={(v) => handleWorkDateChange('planEndDate', v)}
+                  isPlan
+                />
+                <DatePickerCell
+                  value={work?.actualEndDate || null}
+                  onChange={(v) => handleWorkDateChange('actualEndDate', v)}
+                />
+              </>
+            ) : (
+              <>
+                <span className="text-muted-foreground">{formatDate(planEnd)}</span>
+                <span className="font-medium">{formatDate(actualEnd)}</span>
+              </>
+            )}
             {getDeviationIndicator(endDeviation)}
           </div>
         </td>
@@ -1427,14 +1476,47 @@ function GroupLeftRow({
             </td>
             <td className="border-b border-r border-border p-1 text-center text-xs">
               <div className="flex flex-col items-center gap-0.5">
-                <span className="text-muted-foreground">{formatDateString(section.planStartDate)}</span>
-                <span className="font-medium text-muted-foreground">{formatDateString(section.actualStartDate)}</span>
+                {workId ? (
+                  <>
+                    <DatePickerCell
+                      value={section.planStartDate}
+                      onChange={(v) => handleSectionDateChange(section.sectionNumber, 'planStartDate', v)}
+                      isPlan
+                    />
+                    <DatePickerCell
+                      value={section.actualStartDate}
+                      onChange={(v) => handleSectionDateChange(section.sectionNumber, 'actualStartDate', v)}
+                      disabledDays={disabledDays}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <span className="text-muted-foreground">{section.planStartDate ? format(parseISO(section.planStartDate), "dd.MM", { locale: ru }) : "—"}</span>
+                    <span className="font-medium text-muted-foreground">{section.actualStartDate ? format(parseISO(section.actualStartDate), "dd.MM", { locale: ru }) : "—"}</span>
+                  </>
+                )}
               </div>
             </td>
             <td className="border-b border-r border-border p-1 text-center text-xs">
               <div className="flex flex-col items-center gap-0.5">
-                <span className="text-muted-foreground">{formatDateString(section.planEndDate)}</span>
-                <span className="font-medium text-muted-foreground">{formatDateString(section.actualEndDate)}</span>
+                {workId ? (
+                  <>
+                    <DatePickerCell
+                      value={section.planEndDate}
+                      onChange={(v) => handleSectionDateChange(section.sectionNumber, 'planEndDate', v)}
+                      isPlan
+                    />
+                    <DatePickerCell
+                      value={section.actualEndDate}
+                      onChange={(v) => handleSectionDateChange(section.sectionNumber, 'actualEndDate', v)}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <span className="text-muted-foreground">{section.planEndDate ? format(parseISO(section.planEndDate), "dd.MM", { locale: ru }) : "—"}</span>
+                    <span className="font-medium text-muted-foreground">{section.actualEndDate ? format(parseISO(section.actualEndDate), "dd.MM", { locale: ru }) : "—"}</span>
+                  </>
+                )}
               </div>
             </td>
             <td className="border-b border-border p-1 text-center text-xs">

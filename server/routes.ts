@@ -1850,6 +1850,26 @@ export async function registerRoutes(
     }
   });
 
+  // Update section progress dates
+  app.put('/api/work-section-progress/:workId/:sectionNumber', requireAuth, async (req, res) => {
+    try {
+      const workId = Number(req.params.workId);
+      const sectionNumber = Number(req.params.sectionNumber);
+      const { planStartDate, planEndDate, actualStartDate, actualEndDate } = req.body;
+      
+      const updated = await storage.upsertWorkSectionProgress(workId, sectionNumber, {
+        ...(planStartDate !== undefined && { planStartDate }),
+        ...(planEndDate !== undefined && { planEndDate }),
+        ...(actualStartDate !== undefined && { actualStartDate }),
+        ...(actualEndDate !== undefined && { actualEndDate }),
+      });
+      
+      res.json(updated);
+    } catch (err) {
+      throw err;
+    }
+  });
+
   // === User Management (Admin only, or project owners/admins for listing) ===
 
   app.get('/api/users', requireAuth, async (req, res) => {
