@@ -1298,7 +1298,17 @@ function SectionRow({
   
   const volumeDevClass = getDeviationClass(localVolumeActual, sectionQuantity, true);
   const costDevClass = getDeviationClass(actualCost, sectionCost, true);
-  const volumeProgress = sectionQuantity > 0 ? Math.round((actualVolume / sectionQuantity) * 100) : 0;
+  const volumeProgress = (() => {
+    if (!planStartDate || !planEndDate) return 0;
+    const start = new Date(planStartDate);
+    const end = new Date(planEndDate);
+    const today = new Date();
+    if (today < start) return 0;
+    if (today >= end) return 100;
+    const totalDays = Math.max(1, (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const elapsedDays = (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+    return Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100)));
+  })();
   
   const gridCols = showCost 
     ? '40px 90px 90px 180px 70px 50px 120px 1fr'
