@@ -78,6 +78,18 @@ export default function Analytics() {
     },
   });
 
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxOpen(false);
+      if (photos.length === 0) return;
+      if (e.key === "ArrowLeft") setCurrentPhotoIndex((i) => Math.max(0, i - 1));
+      if (e.key === "ArrowRight") setCurrentPhotoIndex((i) => Math.min(photos.length - 1, i + 1));
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightboxOpen, photos.length]);
+
   if (isLoading) return <AnalyticsSkeleton />;
   if (error) return <div className="p-8 text-destructive">Error loading analytics: {error.message}</div>;
 
@@ -109,18 +121,6 @@ export default function Analytics() {
     name: group.name,
     value: group.works?.length || 0
   }));
-
-  useEffect(() => {
-    if (!lightboxOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightboxOpen(false);
-      if (photos.length === 0) return;
-      if (e.key === "ArrowLeft") setCurrentPhotoIndex((i) => Math.max(0, i - 1));
-      if (e.key === "ArrowRight") setCurrentPhotoIndex((i) => Math.min(photos.length - 1, i + 1));
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [lightboxOpen, photos.length]);
 
   const cameraUrl = currentProject?.cameraUrl;
   const isAdmin = canEdit("analytics");
