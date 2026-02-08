@@ -8,8 +8,9 @@ import { relations } from "drizzle-orm";
 export const projects = pgTable("projects", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  cameraUrl: text("camera_url"),
   createdAt: timestamp("created_at").defaultNow(),
-  deletedAt: timestamp("deleted_at"), // Soft delete, удаляется через 30 дней
+  deletedAt: timestamp("deleted_at"),
 });
 
 // === PROJECT PERMISSIONS TABLE ===

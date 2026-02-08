@@ -1,76 +1,39 @@
+import { useState } from "react";
 import { useWorkGroups } from "@/hooks/use-construction";
+import { useProjectContext } from "@/contexts/project-context";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, Label } from "recharts";
-import { HardHat, ChevronLeft } from "lucide-react";
-import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
+import { HardHat, ChevronLeft, Camera, ExternalLink, Settings, Check, X } from "lucide-react";
+import { Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 const COLORS = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
 
-// Custom label renderer for outer ring (completed/total works)
-const renderOuterLabel = (group: any) => {
-  return (cx: number, cy: number, midAngle: number) => {
-    if (midAngle < -90 || midAngle > 90) return null;
-    const radius = 120;
-    const x = cx + radius * Math.cos((midAngle * Math.PI) / 180);
-    const y = cy + radius * Math.sin((midAngle * Math.PI) / 180);
-    return (
-      <text 
-        x={x} 
-        y={y} 
-        fill="#1f2937" 
-        textAnchor={x > cx ? 'start' : 'end'} 
-        dominantBaseline="central"
-        className="font-bold text-xs"
-      >
-        {group.value}/{group.total}
-      </text>
-    );
-  };
-};
-
-// Custom label renderer for inner ring (progress percentage)
-const renderInnerLabel = (group: any) => {
-  return (cx: number, cy: number, midAngle: number) => {
-    if (midAngle < -90 || midAngle > 90) return null;
-    const radius = 75;
-    const x = cx + radius * Math.cos((midAngle * Math.PI) / 180);
-    const y = cy + radius * Math.sin((midAngle * Math.PI) / 180);
-    return (
-      <text 
-        x={x} 
-        y={y} 
-        fill="#059669" 
-        textAnchor={x > cx ? 'start' : 'end'} 
-        dominantBaseline="central"
-        className="font-bold text-xs"
-      >
-        {group.avgProgress}%
-      </text>
-    );
-  };
-};
-
 export default function Analytics() {
   const { data: groups, isLoading, error } = useWorkGroups();
+  const { currentProject, canEdit } = useProjectContext();
+  const { toast } = useToast();
+  const [isEditingCamera, setIsEditingCamera] = useState(false);
+  const [cameraUrlInput, setCameraUrlInput] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   if (isLoading) return <AnalyticsSkeleton />;
   if (error) return <div className="p-8 text-destructive">Error loading analytics: {error.message}</div>;
 
-  // Calculate overall progress
   const allWorks = groups?.flatMap(g => g.works || []) || [];
   const overallProgress = allWorks.length > 0 
     ? Math.round(allWorks.reduce((acc, w) => acc + w.progressPercentage, 0) / allWorks.length)
     : 0;
 
-  // Data for overall pie chart (completed vs pending)
   const overallData = [
     { name: "Выполнено", value: overallProgress },
     { name: "Осталось", value: 100 - overallProgress }
   ];
 
-  // Data for group progress pie chart
   const groupProgressData = (groups || []).map(group => {
     const works = group.works || [];
     const completed = works.filter(w => w.progressPercentage === 100).length;
@@ -85,24 +48,52 @@ export default function Analytics() {
     };
   });
 
-  // Data for overall work count by group
   const groupWorkCountData = (groups || []).map(group => ({
     name: group.name,
     value: group.works?.length || 0
   }));
 
+  const cameraUrl = currentProject?.cameraUrl;
+  const isAdmin = canEdit("analytics");
+
+  const handleStartEditing = () => {
+    setCameraUrlInput(cameraUrl || "");
+    setIsEditingCamera(true);
+  };
+
+  const handleSaveCamera = async () => {
+    if (!currentProject) return;
+    setIsSaving(true);
+    try {
+      await apiRequest("PUT", `/api/projects/${currentProject.id}`, {
+        cameraUrl: cameraUrlInput.trim() || null,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setIsEditingCamera(false);
+      toast({ title: "Ссылка на камеру сохранена" });
+    } catch (err) {
+      toast({ title: "Ошибка сохранения", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEditing = () => {
+    setIsEditingCamera(false);
+    setCameraUrlInput("");
+  };
+
   return (
     <div className="min-h-screen bg-background/50">
-      {/* Header */}
       <header className="bg-card border-b border-border sticky top-0 z-10 backdrop-blur-sm bg-card/80">
-        <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
             <Link href="/">
               <Button variant="ghost" size="icon" data-testid="button-back">
                 <ChevronLeft className="w-5 h-5" />
               </Button>
             </Link>
-            <div className="bg-primary text-primary-foreground p-2 rounded-lg">
+            <div className="bg-primary text-primary-foreground p-2 rounded-md">
               <HardHat className="w-5 h-5" />
             </div>
             <h1 className="text-xl font-bold font-display tracking-tight text-foreground">
@@ -112,11 +103,71 @@ export default function Analytics() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 md:px-6 py-8">
+        {(cameraUrl || isAdmin) && (
+          <Card className="p-4 mb-8" data-testid="card-camera">
+            <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Camera className="w-5 h-5 text-muted-foreground" />
+                <h2 className="text-base font-semibold text-foreground">Камера объекта</h2>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {cameraUrl && !isEditingCamera && (
+                  <a href={cameraUrl} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" size="sm" data-testid="button-open-camera">
+                      <ExternalLink className="w-4 h-4 mr-1" />
+                      Открыть в новом окне
+                    </Button>
+                  </a>
+                )}
+                {isAdmin && !isEditingCamera && (
+                  <Button variant="ghost" size="icon" onClick={handleStartEditing} data-testid="button-edit-camera">
+                    <Settings className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {isEditingCamera && (
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                <Input
+                  value={cameraUrlInput}
+                  onChange={(e) => setCameraUrlInput(e.target.value)}
+                  placeholder="https://fpst.mdrk.ru/account/camera/..."
+                  className="flex-1 min-w-[200px]"
+                  data-testid="input-camera-url"
+                />
+                <Button size="icon" onClick={handleSaveCamera} disabled={isSaving} data-testid="button-save-camera">
+                  <Check className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={handleCancelEditing} data-testid="button-cancel-camera">
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+
+            {cameraUrl && !isEditingCamera && (
+              <div className="relative w-full overflow-hidden rounded-md" style={{ paddingBottom: "56.25%" }}>
+                <iframe
+                  src={cameraUrl}
+                  className="absolute inset-0 w-full h-full border-0"
+                  allow="autoplay; fullscreen"
+                  allowFullScreen
+                  title="Камера объекта"
+                  data-testid="iframe-camera"
+                />
+              </div>
+            )}
+
+            {!cameraUrl && !isEditingCamera && isAdmin && (
+              <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+                Камера не настроена. Нажмите на шестерёнку, чтобы добавить ссылку.
+              </div>
+            )}
+          </Card>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
-          {/* Overall Progress */}
           <Card className="p-6 flex flex-col items-center justify-center">
             <h2 className="text-lg font-bold text-foreground mb-6 w-full text-center">Общий прогресс</h2>
             <ResponsiveContainer width="100%" height={300}>
@@ -143,7 +194,6 @@ export default function Analytics() {
             </div>
           </Card>
 
-          {/* Work Distribution by Group */}
           <Card className="p-6 flex flex-col items-center justify-center">
             <h2 className="text-lg font-bold text-foreground mb-6 w-full text-center">Распределение работ по группам</h2>
             <ResponsiveContainer width="100%" height={300}>
@@ -168,17 +218,15 @@ export default function Analytics() {
           </Card>
         </div>
 
-        {/* Group Progress Cards */}
         {groupProgressData.length > 0 && (
           <div className="mt-8">
             <h2 className="text-lg font-bold text-foreground mb-6">Прогресс по группам</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {groupProgressData.map((group, index) => (
+              {groupProgressData.map((group) => (
                 <Card key={group.name} className="p-6 flex flex-col items-center justify-center">
                   <h3 className="text-sm font-bold text-foreground mb-4 text-center line-clamp-2">{group.name}</h3>
                   <ResponsiveContainer width="100%" height={280}>
                     <PieChart>
-                      {/* Outer ring: Completed vs Pending works */}
                       <Pie
                         data={[
                           { name: "Завершено", value: group.value },
@@ -211,7 +259,6 @@ export default function Analytics() {
                         <Cell fill="#3b82f6" />
                         <Cell fill="#dbeafe" />
                       </Pie>
-                      {/* Inner ring: Progress percentage */}
                       <Pie
                         data={[
                           { name: "Выполнено", value: group.avgProgress },
@@ -227,7 +274,6 @@ export default function Analytics() {
                         <Cell fill="#10b981" />
                         <Cell fill="#f0fdf4" />
                       </Pie>
-                      {/* Center text showing progress percentage */}
                       <text 
                         x="50%" 
                         y="50%" 

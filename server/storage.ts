@@ -273,7 +273,7 @@ export interface IStorage {
   getDeletedProjectsForUser(userId: number): Promise<Project[]>;
   getProject(id: number): Promise<Project | undefined>;
   createProject(name: string, ownerId: number): Promise<Project>;
-  updateProject(id: number, name: string): Promise<Project>;
+  updateProject(id: number, data: { name?: string; cameraUrl?: string | null }): Promise<Project>;
   softDeleteProject(id: number): Promise<void>;
   restoreProject(id: number): Promise<void>;
   hardDeleteProject(id: number): Promise<void>;
@@ -1933,8 +1933,11 @@ export class DatabaseStorage implements IStorage {
     return newProject;
   }
 
-  async updateProject(id: number, name: string): Promise<Project> {
-    const [updated] = await db.update(projects).set({ name }).where(eq(projects.id, id)).returning();
+  async updateProject(id: number, data: { name?: string; cameraUrl?: string | null }): Promise<Project> {
+    const setData: any = {};
+    if (data.name !== undefined) setData.name = data.name;
+    if (data.cameraUrl !== undefined) setData.cameraUrl = data.cameraUrl;
+    const [updated] = await db.update(projects).set(setData).where(eq(projects.id, id)).returning();
     return updated;
   }
 

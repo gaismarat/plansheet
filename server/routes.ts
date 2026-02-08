@@ -2041,14 +2041,14 @@ export async function registerRoutes(
     try {
       const id = Number(req.params.id);
       const userId = (req.user as any).id;
-      const { name } = req.body;
+      const { name, cameraUrl } = req.body;
       
       const isAdmin = await storage.isProjectAdmin(userId, id);
       if (!isAdmin) {
         return res.status(403).json({ message: "Нет прав на редактирование проекта" });
       }
       
-      const updated = await storage.updateProject(id, name);
+      const updated = await storage.updateProject(id, { name, cameraUrl });
       res.json(updated);
     } catch (err) {
       console.error("Error updating project:", err);
