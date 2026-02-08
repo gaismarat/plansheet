@@ -1351,7 +1351,7 @@ function SectionRow({
       </div>
       <div className="text-center">
         <div className="grid grid-cols-4 gap-0 font-sans text-[12px]">
-          <div className="text-left text-muted-foreground text-[9px]">план</div>
+          <div className="text-left text-muted-foreground text-[12px]">план</div>
           <div className="text-center text-muted-foreground">{planCalendar}</div>
           <div className="text-center text-muted-foreground">{planWorking}</div>
           <div className="text-center text-muted-foreground">{planWeekend}</div>
