@@ -1705,7 +1705,7 @@ function VolumesMoneySpoiler({
     return (
       <div className="space-y-1" data-testid={`progress-${testIdPrefix}`}>
         <div className="flex items-center gap-1">
-          <span className="text-muted-foreground w-6 text-[12px]">План</span>
+          <span className="text-muted-foreground w-[34px] text-[12px]">План</span>
           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
             <div 
               className="h-full rounded-full bg-blue-400"
@@ -1715,7 +1715,7 @@ function VolumesMoneySpoiler({
           <span className="text-[9px] text-muted-foreground w-8 text-right" data-testid={`text-plan-${testIdPrefix}`}>{planPercent}%</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-muted-foreground w-6 text-[12px]">Факт</span>
+          <span className="text-muted-foreground w-[34px] text-[12px]">Факт</span>
           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
             <div 
               className={cn("h-full rounded-full", factPercent >= planPercent ? "bg-green-500" : "bg-red-500")}
