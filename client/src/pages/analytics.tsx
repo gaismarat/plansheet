@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
-import { HardHat, ChevronLeft, Camera, ExternalLink, Settings, Check, X } from "lucide-react";
+import { HardHat, ChevronLeft, Camera, Settings, Check, X } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -112,14 +112,6 @@ export default function Analytics() {
                 <h2 className="text-base font-semibold text-foreground">Камера объекта</h2>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                {cameraUrl && !isEditingCamera && (
-                  <a href={cameraUrl} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" size="sm" data-testid="button-open-camera">
-                      <ExternalLink className="w-4 h-4 mr-1" />
-                      Открыть в новом окне
-                    </Button>
-                  </a>
-                )}
                 {isAdmin && !isEditingCamera && (
                   <Button variant="ghost" size="icon" onClick={handleStartEditing} data-testid="button-edit-camera">
                     <Settings className="w-4 h-4" />
@@ -147,16 +139,19 @@ export default function Analytics() {
             )}
 
             {cameraUrl && !isEditingCamera && (
-              <div className="relative w-full overflow-hidden rounded-md" style={{ paddingBottom: "56.25%" }}>
-                <iframe
-                  src={cameraUrl}
-                  className="absolute inset-0 w-full h-full border-0"
-                  allow="autoplay; fullscreen"
-                  allowFullScreen
-                  title="Камера объекта"
-                  data-testid="iframe-camera"
-                />
-              </div>
+              <a
+                href={cameraUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center justify-center py-10 rounded-md bg-muted/50 hover-elevate cursor-pointer"
+                data-testid="link-camera-open"
+              >
+                <div className="bg-primary/10 p-4 rounded-full mb-3">
+                  <Camera className="w-8 h-8 text-primary" />
+                </div>
+                <span className="text-sm font-medium text-foreground">Нажмите, чтобы открыть трансляцию</span>
+                <span className="text-xs text-muted-foreground mt-1">Откроется в новом окне браузера</span>
+              </a>
             )}
 
             {!cameraUrl && !isEditingCamera && isAdmin && (
