@@ -1364,7 +1364,7 @@ function SectionRow({
       <div className="flex flex-col gap-1">
         {/* План прогресс на основе объёма */}
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground w-8">План</span>
+          <span className="text-muted-foreground w-8 text-[12px]">План</span>
           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
             <div 
               className={cn(
