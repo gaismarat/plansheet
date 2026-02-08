@@ -172,9 +172,9 @@ export default function Analytics() {
       </header>
 
       <main className="container mx-auto px-4 md:px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="flex flex-wrap gap-6 mb-8">
           {(cameraUrl || isAdmin) && (
-            <Card className="p-4" data-testid="card-camera">
+            <Card className="p-4 shrink-0" data-testid="card-camera">
               <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                 <div className="flex items-center gap-2">
                   <Camera className="w-5 h-5 text-muted-foreground" />
@@ -212,22 +212,23 @@ export default function Analytics() {
                   href={cameraUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block aspect-square rounded-md bg-muted/50 hover-elevate cursor-pointer overflow-visible"
+                  className="block rounded-md bg-muted/50 hover-elevate cursor-pointer overflow-visible"
+                  style={{ width: 200, height: 200 }}
                   data-testid="link-camera-open"
                 >
                   <div className="flex flex-col items-center justify-center h-full">
-                    <div className="bg-primary/10 p-4 rounded-full mb-3">
-                      <Camera className="w-8 h-8 text-primary" />
+                    <div className="bg-primary/10 p-3 rounded-full mb-2">
+                      <Camera className="w-6 h-6 text-primary" />
                     </div>
-                    <span className="text-sm font-medium text-foreground">Нажмите, чтобы открыть трансляцию</span>
-                    <span className="text-xs text-muted-foreground mt-1">Откроется в новом окне браузера</span>
+                    <span className="text-xs font-medium text-foreground text-center px-2">Нажмите, чтобы открыть трансляцию</span>
+                    <span className="text-[10px] text-muted-foreground mt-1">Откроется в новом окне</span>
                   </div>
                 </a>
               )}
 
               {!cameraUrl && !isEditingCamera && isAdmin && (
-                <div className="aspect-square rounded-md bg-muted/30 flex items-center justify-center">
-                  <p className="text-muted-foreground text-sm text-center px-4">
+                <div className="rounded-md bg-muted/30 flex items-center justify-center" style={{ width: 200, height: 200 }}>
+                  <p className="text-muted-foreground text-xs text-center px-3">
                     Камера не настроена. Нажмите на шестерёнку, чтобы добавить ссылку.
                   </p>
                 </div>
@@ -235,7 +236,7 @@ export default function Analytics() {
             </Card>
           )}
 
-          <Card className="p-4" data-testid="card-photos">
+          <Card className="p-4 shrink-0" data-testid="card-photos">
             <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
               <div className="flex items-center gap-2">
                 <ImagePlus className="w-5 h-5 text-muted-foreground" />
@@ -270,7 +271,7 @@ export default function Analytics() {
               </div>
             </div>
 
-            <div className="aspect-square rounded-md bg-muted/30 relative overflow-hidden">
+            <div className="rounded-md bg-muted/30 relative overflow-hidden" style={{ width: Math.round(200 * 16 / 9), height: 200 }}>
               {photos.length > 0 && currentPhoto ? (
                 <>
                   <img
@@ -488,9 +489,9 @@ function AnalyticsSkeleton() {
         <Skeleton className="w-32 h-8" />
       </header>
       <main className="container mx-auto px-4 md:px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <Skeleton className="aspect-square" />
-          <Skeleton className="aspect-square" />
+        <div className="flex flex-wrap gap-6 mb-8">
+          <Skeleton style={{ width: 200, height: 200 }} />
+          <Skeleton style={{ width: Math.round(200 * 16 / 9), height: 200 }} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {Array(2).fill(0).map((_, i) => (
