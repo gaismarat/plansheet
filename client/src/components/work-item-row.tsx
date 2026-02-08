@@ -1704,7 +1704,7 @@ function VolumesMoneySpoiler({
               style={{ width: `${Math.min(planPercent, 100)}%` }}
             />
           </div>
-          <span className="text-[9px] text-muted-foreground w-8 text-right" data-testid={`text-plan-${testIdPrefix}`}>{planPercent}%</span>
+          <span className="text-muted-foreground w-8 text-right text-[12px]" data-testid={`text-plan-${testIdPrefix}`}>{planPercent}%</span>
         </div>
         <div className="flex items-center gap-1">
           <span className="text-muted-foreground w-[34px] text-[12px]">Факт</span>
