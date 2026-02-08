@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useWorkGroups } from "@/hooks/use-construction";
 import { useProjectContext } from "@/contexts/project-context";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -23,6 +23,7 @@ export default function Analytics() {
   const [cameraUrlInput, setCameraUrlInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const projectId = currentProject?.id;
@@ -108,6 +109,18 @@ export default function Analytics() {
     name: group.name,
     value: group.works?.length || 0
   }));
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxOpen(false);
+      if (photos.length === 0) return;
+      if (e.key === "ArrowLeft") setCurrentPhotoIndex((i) => Math.max(0, i - 1));
+      if (e.key === "ArrowRight") setCurrentPhotoIndex((i) => Math.min(photos.length - 1, i + 1));
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightboxOpen, photos.length]);
 
   const cameraUrl = currentProject?.cameraUrl;
   const isAdmin = canEdit("analytics");
@@ -277,7 +290,8 @@ export default function Analytics() {
                   <img
                     src={`/uploads/photos/${currentPhoto.filename}`}
                     alt={currentPhoto.originalName}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover cursor-pointer"
+                    onClick={() => setLightboxOpen(true)}
                     data-testid="img-current-photo"
                   />
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
@@ -478,6 +492,70 @@ export default function Analytics() {
           </div>
         )}
       </main>
+
+      {lightboxOpen && currentPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+          onClick={() => setLightboxOpen(false)}
+          data-testid="lightbox-overlay"
+        >
+          <div
+            className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={`/uploads/photos/${currentPhoto.filename}`}
+              alt={currentPhoto.originalName}
+              className="max-w-full max-h-[85vh] object-contain rounded-md"
+              data-testid="img-lightbox-photo"
+            />
+
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute top-2 right-2"
+              onClick={() => setLightboxOpen(false)}
+              data-testid="button-lightbox-close"
+            >
+              <X className="w-5 h-5" />
+            </Button>
+
+            {photos.length > 1 && (
+              <>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute left-2 top-1/2 -translate-y-1/2"
+                  onClick={() => setCurrentPhotoIndex(Math.max(0, currentPhotoIndex - 1))}
+                  disabled={currentPhotoIndex === 0}
+                  data-testid="button-lightbox-prev"
+                >
+                  <ChevronLeftIcon className="w-5 h-5" />
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute right-2 top-1/2 -translate-y-1/2"
+                  onClick={() => setCurrentPhotoIndex(Math.min(photos.length - 1, currentPhotoIndex + 1))}
+                  disabled={currentPhotoIndex === photos.length - 1}
+                  data-testid="button-lightbox-next"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </Button>
+              </>
+            )}
+
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/50 px-3 py-1.5 rounded-full">
+              <span className="text-xs text-white/80" data-testid="text-lightbox-counter">
+                {currentPhotoIndex + 1} / {photos.length}
+              </span>
+              <span className="text-xs text-white/60">
+                {currentPhoto.createdAt ? new Date(currentPhoto.createdAt).toLocaleDateString("ru-RU") : ""}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
