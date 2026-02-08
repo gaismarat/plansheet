@@ -1892,12 +1892,12 @@ function VolumesMoneySpoiler({
               </div>
 
               {/* Material progress */}
-              <div>
+              <div className="pl-[10px]">
                 {renderProgressBar(planProgress, row.quantityPlan > 0 ? Math.round((closed.quantityClosed / row.quantityPlan) * 100) : 0, `material-${row.key}`)}
               </div>
 
               {/* Material remainder */}
-              <div>
+              <div className="pl-[10px]">
                 <div className="text-right">
                   <span className="text-muted-foreground">{quantityRemainder.toLocaleString('ru-RU')}</span>
                 </div>
