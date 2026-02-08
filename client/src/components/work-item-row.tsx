@@ -1187,6 +1187,7 @@ function SectionRow({
   const workload = peopleSummary?.workload || 0;
   
   const [localProgress, setLocalProgress] = useState(progressPercent);
+  const [localVolumeActual, setLocalVolumeActual] = useState(actualVolume);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -1263,17 +1264,41 @@ function SectionRow({
   useEffect(() => {
     setLocalProgress(progressPercent);
   }, [progressPercent]);
+
+  useEffect(() => {
+    setLocalVolumeActual(actualVolume);
+  }, [actualVolume]);
+
+  const handleSliderChange = (percent: number) => {
+    setLocalProgress(percent);
+    if (sectionQuantity > 0) {
+      const newVolume = parseFloat(((percent / 100) * sectionQuantity).toFixed(2));
+      setLocalVolumeActual(newVolume);
+      setFormData(prev => ({ ...prev, volumeActual: newVolume }));
+    }
+  };
+
+  const handleVolumeActualChange = (volume: number) => {
+    setLocalVolumeActual(volume);
+    if (sectionQuantity > 0) {
+      const newPercent = Math.min(100, Math.max(0, Math.round((volume / sectionQuantity) * 100)));
+      setLocalProgress(newPercent);
+    }
+  };
   
   const handleSubmit = () => {
     submitSectionProgress({ workId, sectionNumber, percent: localProgress });
+    if (localVolumeActual !== actualVolume) {
+      updateSectionProgress({ workId, sectionNumber, volumeActual: localVolumeActual });
+    }
   };
   
   const isPending = pendingSubmission !== undefined;
   const pendingPercent = pendingSubmission?.percent;
   
-  const volumeDevClass = getDeviationClass(actualVolume, sectionQuantity, true);
+  const volumeDevClass = getDeviationClass(localVolumeActual, sectionQuantity, true);
   const costDevClass = getDeviationClass(actualCost, sectionCost, true);
-  const volumeProgress = sectionQuantity > 0 ? Math.round((actualVolume / sectionQuantity) * 100) : 0;
+  const volumeProgress = sectionQuantity > 0 ? Math.round((localVolumeActual / sectionQuantity) * 100) : 0;
   
   const gridCols = showCost 
     ? '40px 90px 90px 180px 70px 50px 120px 1fr'
@@ -1312,7 +1337,7 @@ function SectionRow({
       <div className="text-center">
         <div className="font-sans text-muted-foreground text-[12px]">{sectionQuantity.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</div>
         <div className={cn("font-sans font-semibold text-[12px]", volumeDevClass)}>
-          {actualVolume.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}
+          {localVolumeActual.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}
           <span className="text-muted-foreground text-[10px] ml-0.5">{displayUnit}</span>
         </div>
       </div>
@@ -1426,7 +1451,7 @@ function SectionRow({
                   value={[localProgress]}
                   max={100}
                   step={1}
-                  onValueChange={canSetProgress ? (value) => setLocalProgress(value[0]) : undefined}
+                  onValueChange={canSetProgress ? (value) => handleSliderChange(value[0]) : undefined}
                   disabled={!canSetProgress}
                   className={cn("h-2", canSetProgress ? "cursor-pointer" : "cursor-not-allowed opacity-60")}
                   data-testid={`slider-section-progress-${workId}-${sectionNumber}`}
@@ -1437,7 +1462,7 @@ function SectionRow({
                 min={0}
                 max={100}
                 value={localProgress}
-                onChange={canSetProgress ? (e) => setLocalProgress(Math.min(100, Math.max(0, parseInt(e.target.value) || 0))) : undefined}
+                onChange={canSetProgress ? (e) => handleSliderChange(Math.min(100, Math.max(0, parseInt(e.target.value) || 0))) : undefined}
                 disabled={!canSetProgress}
                 readOnly={!canSetProgress}
                 className={cn(
@@ -1447,7 +1472,7 @@ function SectionRow({
                 data-testid={`input-section-progress-${workId}-${sectionNumber}`}
               />
               <span className="text-muted-foreground text-xs w-2">%</span>
-              {canSetProgress && localProgress !== progressPercent && (
+              {canSetProgress && (localProgress !== progressPercent || localVolumeActual !== actualVolume) && (
                 <>
                   <Button
                     size="icon"
@@ -1463,7 +1488,7 @@ function SectionRow({
                     size="icon"
                     variant="ghost"
                     className="h-5 w-5 text-red-600 hover:text-red-700"
-                    onClick={() => setLocalProgress(progressPercent)}
+                    onClick={() => { setLocalProgress(progressPercent); setLocalVolumeActual(actualVolume); }}
                     data-testid={`button-cancel-section-${workId}-${sectionNumber}`}
                   >
                     <X className="h-3 w-3" />
@@ -1536,7 +1561,11 @@ function SectionRow({
                   type="number"
                   step="0.01"
                   value={formData.volumeActual}
-                  onChange={(e) => setFormData(prev => ({ ...prev, volumeActual: parseFloat(e.target.value) || 0 }))}
+                  onChange={(e) => {
+                    const newVolume = parseFloat(e.target.value) || 0;
+                    setFormData(prev => ({ ...prev, volumeActual: newVolume }));
+                    handleVolumeActualChange(newVolume);
+                  }}
                   className="h-8 text-xs"
                   data-testid={`input-volume-actual-${workId}-${sectionNumber}`}
                 />
