@@ -456,7 +456,6 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
           </div>
         </>
       )}
-      
       {/* Expanded View */}
       {isExpanded && (
         <>
@@ -819,7 +818,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
               {/* Fact Progress - Slider for single section, read-only aggregate for multiple sections */}
               {hasMultipleSections ? (
                 // Read-only aggregated progress for multi-section works
-                <div className="flex items-center gap-2 p-1 rounded transition-all">
+                (<div className="flex items-center gap-2 p-1 rounded transition-all">
                   <span className="text-[10px] text-muted-foreground w-8 shrink-0">Факт</span>
                   <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                     <div 
@@ -830,10 +829,10 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                   <span className="text-xs font-sans w-16 text-right" data-testid={`text-aggregated-progress-${work.id}`}>
                     {aggregatedProgress}%
                   </span>
-                </div>
+                </div>)
               ) : (
                 // Editable slider for single-section works
-                <div className={cn(
+                (<div className={cn(
                   "flex items-center gap-2 p-1 rounded transition-all",
                   progressSubmission?.status === "submitted" && "border border-dashed border-gray-400",
                   progressSubmission?.status === "rejected" && "border border-dashed border-red-500"
@@ -866,7 +865,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                     data-testid={`input-progress-${work.id}`}
                   />
                   <span className="text-muted-foreground text-xs w-2">%</span>
-                </div>
+                </div>)
               )}
 
               {/* Progress Approval Buttons - only for single-section works */}
@@ -1716,7 +1715,7 @@ function VolumesMoneySpoiler({
           <span className="text-[9px] text-muted-foreground w-8 text-right" data-testid={`text-plan-${testIdPrefix}`}>{planPercent}%</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-[9px] text-muted-foreground w-6">Факт</span>
+          <span className="text-muted-foreground w-6 text-[12px]">Факт</span>
           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
             <div 
               className={cn("h-full rounded-full", factPercent >= planPercent ? "bg-green-500" : "bg-red-500")}
