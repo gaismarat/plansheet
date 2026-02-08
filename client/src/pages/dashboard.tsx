@@ -303,7 +303,7 @@ function DocumentAccordionItem({ document, holidayDates, showCost = true, people
                 style={{ width: `${document.progressPercentage}%` }}
               />
             </div>
-            <span className="text-xs font-mono w-8 text-right">{document.progressPercentage}%</span>
+            <span className="text-xs font-sans w-8 text-right">{document.progressPercentage}%</span>
           </div>
         </div>
       </div>
@@ -372,7 +372,7 @@ function BlockAccordionItem({ block, holidayDates, forceHide = false, showCost =
                 style={{ width: `${block.progressPercentage}%` }}
               />
             </div>
-            <span className="text-xs font-mono w-8 text-right">{block.progressPercentage}%</span>
+            <span className="text-xs font-sans w-8 text-right">{block.progressPercentage}%</span>
           </div>
         </div>
       </div>
@@ -421,7 +421,7 @@ function BlockAccordionItem({ block, holidayDates, forceHide = false, showCost =
                 style={{ width: `${block.progressPercentage}%` }}
               />
             </div>
-            <span className="text-xs font-mono w-8 text-right">{block.progressPercentage}%</span>
+            <span className="text-xs font-sans w-8 text-right">{block.progressPercentage}%</span>
           </div>
         </div>
       </div>
@@ -486,7 +486,7 @@ function SectionAccordionItem({ section, holidayDates, forceHide = false, showCo
                 style={{ width: `${section.progressPercentage}%` }}
               />
             </div>
-            <span className="text-xs font-mono w-8 text-right">{section.progressPercentage}%</span>
+            <span className="text-xs font-sans w-8 text-right">{section.progressPercentage}%</span>
           </div>
         </div>
       </div>
@@ -534,7 +534,7 @@ function SectionAccordionItem({ section, holidayDates, forceHide = false, showCo
                 style={{ width: `${section.progressPercentage}%` }}
               />
             </div>
-            <span className="text-xs font-mono w-8 text-right">{section.progressPercentage}%</span>
+            <span className="text-xs font-sans w-8 text-right">{section.progressPercentage}%</span>
           </div>
         </div>
       </div>
@@ -599,7 +599,7 @@ function GroupAccordionItem({ group, holidayDates, forceHide = false, showCost =
                 style={{ width: `${group.progressPercentage}%` }}
               />
             </div>
-            <span className="text-xs font-mono w-8 text-right">{group.progressPercentage}%</span>
+            <span className="text-xs font-sans w-8 text-right">{group.progressPercentage}%</span>
           </div>
         </div>
       </div>
@@ -649,7 +649,7 @@ function GroupAccordionItem({ group, holidayDates, forceHide = false, showCost =
                 style={{ width: `${group.progressPercentage}%` }}
               />
             </div>
-            <span className="text-xs font-mono w-8 text-right">{group.progressPercentage}%</span>
+            <span className="text-xs font-sans w-8 text-right">{group.progressPercentage}%</span>
           </div>
         </div>
       </div>

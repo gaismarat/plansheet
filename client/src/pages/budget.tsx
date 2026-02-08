@@ -755,11 +755,11 @@ export default function Budget() {
             const deviationColor = getDeviationColor(row, totalValues.manual, totalValues.pdc);
             return (
               <div key={totalCol.id} className="w-[120px] shrink-0 border-l border-border flex flex-col justify-center px-2 py-1 text-right bg-muted/30">
-                <div className="text-xs font-mono font-semibold">{formatNumber(totalValues.manual)}</div>
+                <div className="text-xs font-sans font-semibold">{formatNumber(totalValues.manual)}</div>
                 {isItemRow && !totalValues.hasActual ? (
-                  <div className="text-xs font-mono text-muted-foreground">—</div>
+                  <div className="text-xs font-sans text-muted-foreground">—</div>
                 ) : showPdc && totalValues.pdc !== totalValues.manual ? (
-                  <div className={`text-xs font-mono ${deviationColor}`}>
+                  <div className={`text-xs font-sans ${deviationColor}`}>
                     {formatNumber(totalValues.pdc)} 
                     <span className="ml-1">
                       ({deviation > 0 ? "+" : ""}{deviation.toFixed(1)}%)
@@ -782,7 +782,7 @@ export default function Budget() {
                 {isItem && row.rowType === "manual" ? (
                   <>
                     <div className="flex items-center justify-end gap-1">
-                      <div className="text-xs font-mono">{formatNumber(values.manual)}</div>
+                      <div className="text-xs font-sans">{formatNumber(values.manual)}</div>
                       <Button
                         size="icon"
                         variant="ghost"
@@ -802,23 +802,23 @@ export default function Budget() {
                       </Button>
                     </div>
                     {values.hasActual ? (
-                      <div className={`text-xs font-mono ${deviationColor}`}>
+                      <div className={`text-xs font-sans ${deviationColor}`}>
                         {formatNumber(values.pdc)} 
                         <span className="ml-1">
                           ({deviation > 0 ? "+" : ""}{deviation.toFixed(1)}%)
                         </span>
                       </div>
                     ) : (
-                      <div className="text-xs font-mono text-muted-foreground">—</div>
+                      <div className="text-xs font-sans text-muted-foreground">—</div>
                     )}
                   </>
                 ) : (
                   <>
-                    <div className="text-xs font-mono">{formatNumber(values.manual)}</div>
+                    <div className="text-xs font-sans">{formatNumber(values.manual)}</div>
                     {isItemRow && !values.hasActual ? (
-                      <div className="text-xs font-mono text-muted-foreground">—</div>
+                      <div className="text-xs font-sans text-muted-foreground">—</div>
                     ) : showPdc && pdcForCalc !== values.manual ? (
-                      <div className={`text-xs font-mono ${deviationColor}`}>
+                      <div className={`text-xs font-sans ${deviationColor}`}>
                         {formatNumber(pdcForCalc)} 
                         <span className="ml-1">
                           ({deviation > 0 ? "+" : ""}{deviation.toFixed(1)}%)
@@ -1319,7 +1319,7 @@ function ClassifierCodeTree({
           />
         )}
         <span className="text-sm">
-          <span className="font-mono text-xs text-muted-foreground mr-2">{code.cipher}</span>
+          <span className="font-sans text-xs text-muted-foreground mr-2">{code.cipher}</span>
           {code.name}
         </span>
       </div>

@@ -367,7 +367,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
               <span className="font-semibold text-foreground truncate text-sm" title={displayName}>
                 {displayName}
               </span>
-              <span className="text-xs text-muted-foreground font-mono">
+              <span className="text-xs text-muted-foreground font-sans">
                 ID: {work.id.toString().padStart(4, '0')}{isPdcWork && work.executorName ? ` | ${work.executorName}` : ''}
               </span>
             </div>
@@ -484,7 +484,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
               >
                 {displayName}
               </span>
-              <span className="text-xs text-muted-foreground font-mono mt-0.5">
+              <span className="text-xs text-muted-foreground font-sans mt-0.5">
                 ID: {work.id.toString().padStart(4, '0')}
               </span>
               {isPdcWork && work.executorName && (
@@ -499,7 +499,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
               <div className="text-muted-foreground font-medium">План</div>
               <div className="flex items-center gap-0.5">
                 {isPdcWork ? (
-                  <span className="font-mono text-xs text-foreground" data-testid={`text-volume-plan-${work.id}`}>
+                  <span className="font-sans text-xs text-foreground" data-testid={`text-volume-plan-${work.id}`}>
                     {displayQuantityPlan.toLocaleString('ru-RU')}
                   </span>
                 ) : (
@@ -511,7 +511,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                       handleVolumeAmountChange({ target: { value: val.toString() } } as any);
                     }}
                     onBlur={handleVolumeAmountBlur}
-                    className="w-14 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-mono"
+                    className="w-14 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-sans"
                     data-testid={`input-volume-plan-${work.id}`}
                   />
                 )}
@@ -543,7 +543,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                     handleVolumeActualChange({ target: { value: val.toString() } } as any);
                   }}
                   onBlur={handleVolumeActualBlur}
-                  className="w-14 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-mono"
+                  className="w-14 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-sans"
                   data-testid={`input-volume-actual-${work.id}`}
                 />
                 <span className="text-muted-foreground text-[10px]">{displayUnit}</span>
@@ -556,7 +556,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                 <div className="text-muted-foreground font-medium">План</div>
                 <div className="flex items-center gap-0.5">
                   {isPdcWork ? (
-                    <span className="font-mono text-xs text-foreground" data-testid={`text-cost-plan-${work.id}`}>
+                    <span className="font-sans text-xs text-foreground" data-testid={`text-cost-plan-${work.id}`}>
                       {displayCostPlan.toLocaleString('ru-RU')}
                     </span>
                   ) : (
@@ -568,7 +568,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                         handleCostPlanChange({ target: { value: val.toString() } } as any);
                       }}
                       onBlur={handleCostPlanBlur}
-                      className="w-16 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-mono"
+                      className="w-16 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-sans"
                       data-testid={`input-cost-plan-${work.id}`}
                     />
                   )}
@@ -599,7 +599,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                       handleCostActualChange({ target: { value: val.toString() } } as any);
                     }}
                     onBlur={handleCostActualBlur}
-                    className="w-16 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-mono"
+                    className="w-16 bg-transparent border-b border-border text-foreground text-xs px-0 py-0 focus:outline-none focus:border-primary font-sans"
                     data-testid={`input-cost-actual-${work.id}`}
                   />
                 </div>
@@ -747,17 +747,17 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
               <div className="flex flex-col items-center">
                 <div className="text-muted-foreground font-medium text-[10px] mb-0.5">Календ.</div>
                 <div className="text-[9px] text-muted-foreground">План</div>
-                <span className="font-mono text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).calendar}</span>
+                <span className="font-sans text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).calendar}</span>
                 <div className="text-[9px] text-muted-foreground mt-0.5">Факт</div>
-                <span className="font-mono text-foreground text-xs">{calculateDays(localActualStartDate, localActualEndDate).calendar}</span>
+                <span className="font-sans text-foreground text-xs">{calculateDays(localActualStartDate, localActualEndDate).calendar}</span>
               </div>
               
               <div className="flex flex-col items-center">
                 <div className="text-muted-foreground font-medium text-[10px] mb-0.5">Рабочие</div>
                 <div className="text-[9px] text-muted-foreground">План</div>
-                <span className="font-mono text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).working}</span>
+                <span className="font-sans text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).working}</span>
                 <div className="text-[9px] text-muted-foreground mt-0.5">Факт</div>
-                <span className="font-mono text-foreground text-xs flex items-center gap-0.5">
+                <span className="font-sans text-foreground text-xs flex items-center gap-0.5">
                   {calculateDays(localActualStartDate, localActualEndDate).working}
                   {(peopleSummary?.weekendHolidayWorkedDays ?? 0) > 0 && (
                     <span className="text-green-500">(+{peopleSummary?.weekendHolidayWorkedDays})</span>
@@ -768,9 +768,9 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
               <div className="flex flex-col items-center">
                 <div className="text-muted-foreground font-medium text-[10px] mb-0.5">Выходн.</div>
                 <div className="text-[9px] text-muted-foreground">План</div>
-                <span className="font-mono text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).weekend}</span>
+                <span className="font-sans text-foreground text-xs">{calculateDays(localPlanStartDate, localPlanEndDate).weekend}</span>
                 <div className="text-[9px] text-muted-foreground mt-0.5">Факт</div>
-                <span className="font-mono text-foreground text-xs flex items-center gap-0.5">
+                <span className="font-sans text-foreground text-xs flex items-center gap-0.5">
                   {calculateDays(localActualStartDate, localActualEndDate).weekend}
                   {(peopleSummary?.weekendHolidayWorkedDays ?? 0) > 0 && (
                     <span className="text-red-500">(-{peopleSummary?.weekendHolidayWorkedDays})</span>
@@ -785,18 +785,18 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                 <div className="text-muted-foreground font-medium text-[10px]">Сегодня</div>
                 <div className="flex items-center gap-1 mt-0.5">
                   <span className="text-[9px] text-muted-foreground">План</span>
-                  <span className="font-mono text-foreground text-xs">{work.plannedPeople || 0}</span>
+                  <span className="font-sans text-foreground text-xs">{work.plannedPeople || 0}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-[9px] text-muted-foreground">Факт</span>
-                  <span className={cn("font-mono text-xs", getPeopleColor(peopleSummary?.actualToday || 0, work.plannedPeople || 0))}>
+                  <span className={cn("font-sans text-xs", getPeopleColor(peopleSummary?.actualToday || 0, work.plannedPeople || 0))}>
                     {peopleSummary?.actualToday || 0}
                   </span>
                 </div>
               </div>
               <div className="flex flex-col items-center mt-1">
                 <div className="text-muted-foreground font-medium text-[10px]">Среднее</div>
-                <span className={cn("font-mono text-xs", getPeopleColor(peopleSummary?.averageActual || 0, work.plannedPeople || 0))}>
+                <span className={cn("font-sans text-xs", getPeopleColor(peopleSummary?.averageActual || 0, work.plannedPeople || 0))}>
                   {peopleSummary?.averageActual?.toFixed(1) || '0.0'}
                 </span>
               </div>
@@ -813,7 +813,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                     style={{ width: `${plannedProgress}%` }}
                   />
                 </div>
-                <span className="text-xs font-mono w-16 text-right">{plannedProgress}%</span>
+                <span className="text-xs font-sans w-16 text-right">{plannedProgress}%</span>
               </div>
 
               {/* Fact Progress - Slider for single section, read-only aggregate for multiple sections */}
@@ -827,7 +827,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                       style={{ width: `${aggregatedProgress}%` }}
                     />
                   </div>
-                  <span className="text-xs font-mono w-16 text-right" data-testid={`text-aggregated-progress-${work.id}`}>
+                  <span className="text-xs font-sans w-16 text-right" data-testid={`text-aggregated-progress-${work.id}`}>
                     {aggregatedProgress}%
                   </span>
                 </div>
@@ -860,7 +860,7 @@ export function WorkItemRow({ work, expandAll = true, holidayDates = new Set(), 
                     disabled={!canSetProgress}
                     readOnly={!canSetProgress}
                     className={cn(
-                      "w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-mono text-xs",
+                      "w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary text-foreground font-sans text-xs",
                       !canSetProgress && "cursor-not-allowed opacity-60"
                     )}
                     data-testid={`input-progress-${work.id}`}
@@ -1297,7 +1297,7 @@ function SectionRow({
       data-testid={`section-row-${workId}-${sectionNumber}`}
     >
       <div className="flex items-center gap-1">
-        <span className="font-mono text-muted-foreground">{sectionNumber}с</span>
+        <span className="font-sans text-muted-foreground">{sectionNumber}с</span>
         {(canSetProgress || isAdmin) && (
           <Button
             size="icon"
@@ -1312,8 +1312,8 @@ function SectionRow({
       </div>
       
       <div className="text-center">
-        <div className="font-mono text-muted-foreground text-[12px]">{sectionQuantity.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</div>
-        <div className={cn("font-mono font-semibold text-[12px]", volumeDevClass)}>
+        <div className="font-sans text-muted-foreground text-[12px]">{sectionQuantity.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</div>
+        <div className={cn("font-sans font-semibold text-[12px]", volumeDevClass)}>
           {actualVolume.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}
           <span className="text-muted-foreground text-[10px] ml-0.5">{displayUnit}</span>
         </div>
@@ -1321,8 +1321,8 @@ function SectionRow({
       
       {showCost && (
         <div className="text-center">
-          <div className="font-mono text-muted-foreground text-[12px]">{sectionCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}</div>
-          <div className={cn("font-mono font-semibold text-[12px]", costDevClass)}>
+          <div className="font-sans text-muted-foreground text-[12px]">{sectionCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}</div>
+          <div className={cn("font-sans font-semibold text-[12px]", costDevClass)}>
             {actualCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}
             <span className="text-muted-foreground text-[10px] ml-0.5">р</span>
           </div>
@@ -1330,17 +1330,17 @@ function SectionRow({
       )}
       
       <div className="text-center">
-        <div className="font-mono text-muted-foreground text-[12px]">
+        <div className="font-sans text-muted-foreground text-[12px]">
           {formatDateWithYear(planStartDate)} - {formatDateWithYear(planEndDate)}
         </div>
-        <div className="font-mono text-[12px] font-semibold">
+        <div className="font-sans text-[12px] font-semibold">
           {formatDateWithYear(actualStartDate)} - {formatDateWithYear(actualEndDate)}
         </div>
       </div>
       
       <div className="text-center">
-        <div className="font-mono text-muted-foreground text-[12px]">план: {plannedPeople}</div>
-        <div className="font-mono text-[12px]">
+        <div className="font-sans text-muted-foreground text-[12px]">план: {plannedPeople}</div>
+        <div className="font-sans text-[12px]">
           <span className="text-muted-foreground">факт: </span>
           <span className={cn(
             "font-semibold",
@@ -1351,13 +1351,13 @@ function SectionRow({
       
       <div className="text-center">
         <div className={cn(
-          "font-mono text-[12px] font-semibold",
+          "font-sans text-[12px] font-semibold",
           avgPeople < plannedPeople ? "text-red-500" : "text-green-500"
         )}>{avgPeople.toFixed(1)}</div>
       </div>
       
       <div className="text-center">
-        <div className="grid grid-cols-4 gap-0 font-mono text-[12px]">
+        <div className="grid grid-cols-4 gap-0 font-sans text-[12px]">
           <div className="text-left text-muted-foreground text-[9px]">план</div>
           <div className="text-center text-muted-foreground">{planCalendar}</div>
           <div className="text-center text-muted-foreground">{planWorking}</div>
@@ -1383,7 +1383,7 @@ function SectionRow({
             />
           </div>
           <span className={cn(
-            "font-mono text-[10px] w-8 text-right",
+            "font-sans text-[10px] w-8 text-right",
             volumeProgress > 100 ? "text-red-500" : "text-muted-foreground"
           )}>{volumeProgress}%</span>
         </div>
@@ -1401,7 +1401,7 @@ function SectionRow({
                   style={{ width: `${pendingPercent}%` }}
                 />
               </div>
-              <span className="font-mono text-[10px] w-8 text-right text-yellow-600">{pendingPercent}%</span>
+              <span className="font-sans text-[10px] w-8 text-right text-yellow-600">{pendingPercent}%</span>
               {isAdmin && (
                 <>
                   <Button
@@ -1449,7 +1449,7 @@ function SectionRow({
                 disabled={!canSetProgress}
                 readOnly={!canSetProgress}
                 className={cn(
-                  "w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary font-mono text-xs",
+                  "w-10 text-right bg-transparent border-b border-border focus:outline-none focus:border-primary font-sans text-xs",
                   !canSetProgress && "cursor-not-allowed opacity-60"
                 )}
                 data-testid={`input-section-progress-${workId}-${sectionNumber}`}
@@ -1731,7 +1731,7 @@ function VolumesMoneySpoiler({
         {variance !== 0 && (
           <div className="text-right">
             <span className={cn(
-              "text-[8px] font-mono",
+              "text-[8px] font-sans",
               variance > 0 ? "text-green-500" : "text-red-500"
             )} data-testid={`text-variance-${testIdPrefix}`}>
               {variance > 0 ? "+" : ""}{variance}%
@@ -1826,7 +1826,7 @@ function VolumesMoneySpoiler({
               data-testid={`volume-row-${row.key}`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-mono text-muted-foreground">{row.number}</span>
+                <span className="font-sans text-muted-foreground">{row.number}</span>
                 <Button 
                   size="icon" 
                   variant="ghost" 

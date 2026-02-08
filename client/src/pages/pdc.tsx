@@ -546,11 +546,11 @@ function PDCDocumentCard({
             <div className="flex items-center gap-4">
               <div className="text-right mr-[100px]">
                 <div className="text-sm text-muted-foreground">Итого без НДС</div>
-                <div className="font-mono font-semibold">{formatRubles(total)}</div>
+                <div className="font-sans font-semibold">{formatRubles(total)}</div>
               </div>
               <div className="text-right">
                 <div className="text-sm text-muted-foreground">Итого с НДС</div>
-                <div className="font-mono font-semibold">{formatRubles(totalWithVat)}</div>
+                <div className="font-sans font-semibold">{formatRubles(totalWithVat)}</div>
               </div>
               <Button 
                 variant="ghost" 
@@ -925,7 +925,7 @@ function PDCDocumentCard({
                   <div className="w-[100px] shrink-0 border-l border-border" />
                   <div className="w-[100px] shrink-0 border-l border-border" />
                   <div className="w-[130px] shrink-0 border-l border-border" />
-                  <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-mono text-sm">
+                  <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-sans text-sm">
                     {formatRubles(calculateBlockTotal(block))}
                   </div>
                 </div>
@@ -940,7 +940,7 @@ function PDCDocumentCard({
                 <div className="w-[100px] shrink-0 border-l border-border" />
                 <div className="w-[100px] shrink-0 border-l border-border" />
                 <div className="w-[130px] shrink-0 border-l border-border" />
-                <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-mono text-sm">
+                <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-sans text-sm">
                   {formatRubles(total)}
                 </div>
               </div>
@@ -954,7 +954,7 @@ function PDCDocumentCard({
                 <div className="w-[100px] shrink-0 border-l border-border" />
                 <div className="w-[100px] shrink-0 border-l border-border" />
                 <div className="w-[130px] shrink-0 border-l border-border" />
-                <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-mono text-sm">
+                <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-sans text-sm">
                   {formatRubles(totalWithVat)}
                 </div>
               </div>
@@ -992,7 +992,7 @@ function PDCDocumentCard({
                 <div className="w-[100px] shrink-0 border-l border-border" />
                 <div className="w-[100px] shrink-0 border-l border-border" />
                 <div className="w-[130px] shrink-0 border-l border-border" />
-                <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-mono text-sm">
+                <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-sans text-sm">
                   {formatRubles(vatAmount)}
                 </div>
               </div>
@@ -1286,7 +1286,7 @@ function PDCBlockRow({
         <div className="w-[100px] shrink-0 border-l border-border" />
         <div className="w-[100px] shrink-0 border-l border-border" />
         <div className="w-[130px] shrink-0 border-l border-border" />
-        <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-mono font-semibold">
+        <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-sans font-semibold">
           {formatRubles(blockTotal)}
         </div>
       </div>
@@ -1515,7 +1515,7 @@ function PDCSectionRow({
         <div className="w-[100px] shrink-0 border-l border-border" />
         <div className="w-[100px] shrink-0 border-l border-border" />
         <div className="w-[130px] shrink-0 border-l border-border" />
-        <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-mono">
+        <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-sans">
           {formatRubles(sectionTotal)}
         </div>
       </div>
@@ -1854,10 +1854,10 @@ function PDCGroupRow({
         >
           {formatRubles(smrPnr)}
         </div>
-        <div className="w-[130px] shrink-0 border-l border-border px-2 py-2 text-right text-xs font-mono">
+        <div className="w-[130px] shrink-0 border-l border-border px-2 py-2 text-right text-xs font-sans">
           {formatRubles(groupSmrTotal)}
         </div>
-        <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-mono text-xs">
+        <div className="w-[200px] shrink-0 border-l border-border px-2 py-2 text-right font-sans text-xs">
           {formatRubles(groupTotal)}
         </div>
       </div>
@@ -1991,15 +1991,15 @@ function PDCGroupRow({
                             data-testid={`input-section-quantity-group-${group.id}-section-${sectionNum}`}
                           />
                         ) : (
-                          <span className={`font-mono ${!isValid ? 'text-red-600' : ''}`}>
+                          <span className={`font-sans ${!isValid ? 'text-red-600' : ''}`}>
                             {isValid ? sectionQuantity.toFixed(2) : 'ошибка'}
                           </span>
                         )}
                       </td>
-                      <td className={`px-2 py-1.5 text-right font-mono ${!isManualMode && !isValid ? 'text-red-600' : ''}`}>
+                      <td className={`px-2 py-1.5 text-right font-sans ${!isManualMode && !isValid ? 'text-red-600' : ''}`}>
                         {(!isManualMode && !isValid) ? '-' : formatRubles(sectionSmrTotal)}
                       </td>
-                      <td className={`px-2 py-1.5 text-right font-mono ${!isManualMode && !isValid ? 'text-red-600' : ''}`}>
+                      <td className={`px-2 py-1.5 text-right font-sans ${!isManualMode && !isValid ? 'text-red-600' : ''}`}>
                         {(!isManualMode && !isValid) ? '-' : formatRubles(isNaN(sectionTotal) ? 0 : sectionTotal)}
                       </td>
                     </tr>
@@ -2291,7 +2291,7 @@ function PDCElementRow({
         {formatRubles(materialPrice)}
       </div>
       <div className="w-[100px] shrink-0 border-l border-border" />
-      <div className="w-[130px] shrink-0 border-l border-border px-2 py-2 text-right text-xs font-mono">
+      <div className="w-[130px] shrink-0 border-l border-border px-2 py-2 text-right text-xs font-sans">
         {formatRubles(elementTotal)}
       </div>
       <div className="w-[200px] shrink-0 border-l border-border" />
@@ -2429,12 +2429,12 @@ function PDCElementRow({
                           data-testid={`input-section-quantity-element-${element.id}-section-${sectionNum}`}
                         />
                       ) : (
-                        <span className={`font-mono ${!isValid ? 'text-red-600' : ''}`}>
+                        <span className={`font-sans ${!isValid ? 'text-red-600' : ''}`}>
                           {isValid ? sectionQuantityVal.toFixed(2) : 'ошибка'}
                         </span>
                       )}
                     </td>
-                    <td className={`px-2 py-1.5 text-right font-mono ${!isManualMode && !isValid ? 'text-red-600' : ''}`}>
+                    <td className={`px-2 py-1.5 text-right font-sans ${!isManualMode && !isValid ? 'text-red-600' : ''}`}>
                       {(!isManualMode && !isValid) ? '-' : formatRubles(sectionMaterialTotal)}
                     </td>
                   </tr>

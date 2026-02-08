@@ -113,7 +113,7 @@ export function PriceHistoryDialog({
               <tbody>
                 <tr className="border-b bg-muted/50">
                   <td className="px-3 py-2 font-medium">Начальная цена</td>
-                  <td className="px-3 py-2 text-right font-mono min-w-[100px]">{initialPrice.toFixed(2)} ₽</td>
+                  <td className="px-3 py-2 text-right font-sans min-w-[100px]">{initialPrice.toFixed(2)} ₽</td>
                   <td className="px-3 py-2"></td>
                   <td className="px-3 py-2"></td>
                 </tr>
@@ -125,7 +125,7 @@ export function PriceHistoryDialog({
                       <td className="px-3 py-2 text-muted-foreground">
                         {change.createdAt ? format(new Date(change.createdAt), "dd.MM.yy", { locale: ru }) : ""}
                       </td>
-                      <td className="px-3 py-2 text-right font-mono">{price.toFixed(2)} ₽</td>
+                      <td className="px-3 py-2 text-right font-sans">{price.toFixed(2)} ₽</td>
                       <td className="px-3 py-2">{formatPriceDiff(price)}</td>
                       <td className="px-3 py-2 text-muted-foreground text-xs">
                         {change.reason}
@@ -137,7 +137,7 @@ export function PriceHistoryDialog({
                 
                 <tr className="bg-muted/30">
                   <td className="px-3 py-2 font-medium">Текущая цена</td>
-                  <td className="px-3 py-2 text-right font-mono font-bold">{currentPrice.toFixed(2)} ₽</td>
+                  <td className="px-3 py-2 text-right font-sans font-bold">{currentPrice.toFixed(2)} ₽</td>
                   <td className="px-3 py-2">{formatPriceDiff(currentPrice)}</td>
                   <td className="px-3 py-2"></td>
                 </tr>
@@ -154,7 +154,7 @@ export function PriceHistoryDialog({
                   step="0.01"
                   value={newPrice}
                   onChange={(e) => setNewPrice(e.target.value)}
-                  className="font-mono"
+                  className="font-sans"
                   data-testid="input-new-price"
                 />
                 <span className="text-sm text-muted-foreground">₽</span>
