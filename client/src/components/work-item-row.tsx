@@ -1384,7 +1384,7 @@ function SectionRow({
           "flex items-center gap-2",
           isPending && "border border-dashed border-yellow-500 rounded px-1"
         )}>
-          <span className="text-[10px] text-muted-foreground w-8">Факт</span>
+          <span className="text-muted-foreground w-8 text-[12px]">Факт</span>
           {isPending ? (
             <>
               <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
