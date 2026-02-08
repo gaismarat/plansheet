@@ -1714,10 +1714,7 @@ function VolumesMoneySpoiler({
               style={{ width: `${Math.min(factPercent, 100)}%` }}
             />
           </div>
-          <span className={cn(
-            "text-[9px] w-8 text-right font-semibold",
-            factPercent >= planPercent ? "text-green-500" : "text-red-500"
-          )} data-testid={`text-fact-${testIdPrefix}`}>{factPercent}%</span>
+          <span className="w-8 text-right font-semibold text-red-500 text-[12px]" data-testid={`text-fact-${testIdPrefix}`}>{factPercent}%</span>
         </div>
         {variance !== 0 && (
           <div className="text-right">
