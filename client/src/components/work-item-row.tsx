@@ -1718,10 +1718,7 @@ function VolumesMoneySpoiler({
         </div>
         {variance !== 0 && (
           <div className="text-right">
-            <span className={cn(
-              "text-[8px] font-sans",
-              variance > 0 ? "text-green-500" : "text-red-500"
-            )} data-testid={`text-variance-${testIdPrefix}`}>
+            <span className="font-sans text-red-500 text-[12px]" data-testid={`text-variance-${testIdPrefix}`}>
               {variance > 0 ? "+" : ""}{variance}%
             </span>
           </div>
