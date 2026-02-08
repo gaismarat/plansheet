@@ -7,6 +7,34 @@ import { requireAuth, requireAdmin } from "./auth";
 import { db } from "./db";
 import { stages, executors, workMaterialProgressHistory, pdcGroups, pdcSections, pdcBlocks, pdcDocuments } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+const uploadsDir = path.join(process.cwd(), "uploads", "photos");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const photoUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsDir),
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      const ext = path.extname(file.originalname);
+      cb(null, uniqueSuffix + ext);
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Только изображения (JPEG, PNG, WebP, GIF)"));
+    }
+  },
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -2089,6 +2117,83 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Error restoring project:", err);
       res.status(500).json({ message: "Failed to restore project" });
+    }
+  });
+
+  // === Project Photos ===
+
+  app.use('/uploads/photos', (await import('express')).default.static(uploadsDir));
+
+  app.get('/api/projects/:projectId/photos', requireAuth, async (req, res) => {
+    try {
+      const projectId = Number(req.params.projectId);
+      const userId = (req.user as any).id;
+      const perm = await storage.getProjectPermission(userId, projectId);
+      if (!perm) {
+        return res.status(403).json({ message: "Нет доступа к проекту" });
+      }
+      const photos = await storage.getProjectPhotos(projectId);
+      res.json(photos);
+    } catch (err) {
+      console.error("Error getting project photos:", err);
+      res.status(500).json({ message: "Failed to get photos" });
+    }
+  });
+
+  app.post('/api/projects/:projectId/photos', requireAuth, photoUpload.single('photo'), async (req, res) => {
+    try {
+      const projectId = Number(req.params.projectId);
+      const userId = (req.user as any).id;
+
+      const isAdmin = await storage.isProjectAdmin(userId, projectId);
+      if (!isAdmin) {
+        if (req.file) fs.unlinkSync(req.file.path);
+        return res.status(403).json({ message: "Только администратор или владелец может загружать фото" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "Файл не загружен" });
+      }
+
+      const photo = await storage.createProjectPhoto({
+        projectId,
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+        uploadedBy: userId,
+      });
+
+      res.status(201).json(photo);
+    } catch (err) {
+      console.error("Error uploading photo:", err);
+      res.status(500).json({ message: "Failed to upload photo" });
+    }
+  });
+
+  app.delete('/api/projects/:projectId/photos/:photoId', requireAuth, async (req, res) => {
+    try {
+      const projectId = Number(req.params.projectId);
+      const photoId = Number(req.params.photoId);
+      const userId = (req.user as any).id;
+
+      const isAdmin = await storage.isProjectAdmin(userId, projectId);
+      if (!isAdmin) {
+        return res.status(403).json({ message: "Только администратор или владелец может удалять фото" });
+      }
+
+      const deleted = await storage.deleteProjectPhoto(photoId);
+      if (deleted) {
+        const filePath = path.join(uploadsDir, deleted.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+
+      res.status(204).send();
+    } catch (err) {
+      console.error("Error deleting photo:", err);
+      res.status(500).json({ message: "Failed to delete photo" });
     }
   });
 

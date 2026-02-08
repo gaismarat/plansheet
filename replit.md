@@ -37,6 +37,7 @@ Preferred communication style: Simple, everyday language.
   - `budget_columns`: Budget table columns with optional `stageId` to link with project stages
   - `budget_row_codes`: Many-to-many relationship linking budget rows with classifier codes for PDC integration
   - `stages`: Project stages for organizing PDC documents and budget columns
+  - `project_photos`: Project site photos uploaded by admins/owners, served from `/uploads/photos/`
 
 ### Budget-PDC Integration (January 2026)
 - **Budget columns** can be linked to project stages (`stageId` field)

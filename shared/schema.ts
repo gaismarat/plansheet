@@ -1047,3 +1047,20 @@ export const workDependenciesRelations = relations(workDependencies, ({ one }) =
 export const insertWorkDependencySchema = createInsertSchema(workDependencies).omit({ id: true, createdAt: true });
 export type WorkDependency = typeof workDependencies.$inferSelect;
 export type InsertWorkDependency = z.infer<typeof insertWorkDependencySchema>;
+
+// === PROJECT PHOTOS TABLE ===
+
+export const projectPhotos = pgTable("project_photos", {
+  id: serial("id").primaryKey(),
+  projectId: integer("project_id").notNull(),
+  filename: text("filename").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  uploadedBy: integer("uploaded_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertProjectPhotoSchema = createInsertSchema(projectPhotos).omit({ id: true, createdAt: true });
+export type ProjectPhoto = typeof projectPhotos.$inferSelect;
+export type InsertProjectPhoto = z.infer<typeof insertProjectPhotoSchema>;

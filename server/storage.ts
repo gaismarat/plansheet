@@ -110,7 +110,10 @@ import {
   type InsertWorkMaterialProgressHistory,
   workDependencies,
   type WorkDependency,
-  type InsertWorkDependency
+  type InsertWorkDependency,
+  projectPhotos,
+  type ProjectPhoto,
+  type InsertProjectPhoto,
 } from "@shared/schema";
 import { eq, and, isNull, asc, lt, sql, or, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -341,6 +344,11 @@ export interface IStorage {
   deleteWorkDependency(id: number): Promise<void>;
   hasCyclicDependency(workId: number, dependsOnWorkId: number): Promise<boolean>;
   cascadeUpdateDependentDates(predecessorWorkId: number): Promise<void>;
+
+  // Project Photos (Фото объекта)
+  getProjectPhotos(projectId: number): Promise<ProjectPhoto[]>;
+  createProjectPhoto(photo: InsertProjectPhoto): Promise<ProjectPhoto>;
+  deleteProjectPhoto(id: number): Promise<ProjectPhoto | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2801,6 +2809,24 @@ export class DatabaseStorage implements IStorage {
         }
       }
     }
+  }
+
+  // === PROJECT PHOTOS ===
+
+  async getProjectPhotos(projectId: number): Promise<ProjectPhoto[]> {
+    return await db.select().from(projectPhotos)
+      .where(eq(projectPhotos.projectId, projectId))
+      .orderBy(sql`${projectPhotos.createdAt} DESC`);
+  }
+
+  async createProjectPhoto(photo: InsertProjectPhoto): Promise<ProjectPhoto> {
+    const [created] = await db.insert(projectPhotos).values(photo).returning();
+    return created;
+  }
+
+  async deleteProjectPhoto(id: number): Promise<ProjectPhoto | undefined> {
+    const [deleted] = await db.delete(projectPhotos).where(eq(projectPhotos.id, id)).returning();
+    return deleted;
   }
 }
 
