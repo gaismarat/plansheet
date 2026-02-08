@@ -1298,7 +1298,7 @@ function SectionRow({
   
   const volumeDevClass = getDeviationClass(localVolumeActual, sectionQuantity, true);
   const costDevClass = getDeviationClass(actualCost, sectionCost, true);
-  const volumeProgress = sectionQuantity > 0 ? Math.round((localVolumeActual / sectionQuantity) * 100) : 0;
+  const volumeProgress = sectionQuantity > 0 ? Math.round((actualVolume / sectionQuantity) * 100) : 0;
   
   const gridCols = showCost 
     ? '40px 90px 90px 180px 70px 50px 120px 1fr'
