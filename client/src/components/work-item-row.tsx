@@ -1309,7 +1309,6 @@ function SectionRow({
           </Button>
         )}
       </div>
-      
       <div className="text-center">
         <div className="font-sans text-muted-foreground text-[12px]">{sectionQuantity.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</div>
         <div className={cn("font-sans font-semibold text-[12px]", volumeDevClass)}>
@@ -1317,7 +1316,6 @@ function SectionRow({
           <span className="text-muted-foreground text-[10px] ml-0.5">{displayUnit}</span>
         </div>
       </div>
-      
       {showCost && (
         <div className="text-center">
           <div className="font-sans text-muted-foreground text-[12px]">{sectionCost.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}</div>
@@ -1327,7 +1325,6 @@ function SectionRow({
           </div>
         </div>
       )}
-      
       <div className="text-center">
         <div className="font-sans text-muted-foreground text-[12px]">
           {formatDateWithYear(planStartDate)} - {formatDateWithYear(planEndDate)}
@@ -1336,7 +1333,6 @@ function SectionRow({
           {formatDateWithYear(actualStartDate)} - {formatDateWithYear(actualEndDate)}
         </div>
       </div>
-      
       <div className="text-center">
         <div className="font-sans text-muted-foreground text-[12px]">план: {plannedPeople}</div>
         <div className="font-sans text-[12px]">
@@ -1347,27 +1343,24 @@ function SectionRow({
           )}>{actualPeopleToday}</span>
         </div>
       </div>
-      
       <div className="text-center">
         <div className={cn(
           "font-sans text-[12px] font-semibold",
           avgPeople < plannedPeople ? "text-red-500" : "text-green-500"
         )}>{avgPeople.toFixed(1)}</div>
       </div>
-      
       <div className="text-center">
         <div className="grid grid-cols-4 gap-0 font-sans text-[12px]">
           <div className="text-left text-muted-foreground text-[9px]">план</div>
           <div className="text-center text-muted-foreground">{planCalendar}</div>
           <div className="text-center text-muted-foreground">{planWorking}</div>
           <div className="text-center text-muted-foreground">{planWeekend}</div>
-          <div className="text-left text-muted-foreground text-[9px]">факт</div>
+          <div className="text-left text-muted-foreground text-[12px]">факт</div>
           <div className={cn("text-center font-semibold", actualCalendar <= planCalendar ? "text-green-500" : "text-red-500")}>{actualCalendar}</div>
           <div className={cn("text-center font-semibold", actualWorking <= planWorking ? "text-green-500" : "text-red-500")}>{actualWorking}</div>
           <div className={cn("text-center font-semibold", actualWeekend <= planWeekend ? "text-green-500" : "text-red-500")}>{actualWeekend}</div>
         </div>
       </div>
-      
       <div className="flex flex-col gap-1">
         {/* План прогресс на основе объёма */}
         <div className="flex items-center gap-2">
@@ -1481,7 +1474,6 @@ function SectionRow({
           )}
         </div>
       </div>
-      
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
           <DialogHeader>
