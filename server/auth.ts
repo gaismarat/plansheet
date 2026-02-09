@@ -32,9 +32,10 @@ export function setupAuth(app: Express) {
       secret: process.env.SESSION_SECRET || "construction-tracker-secret",
       resave: false,
       saveUninitialized: false,
+      proxy: true,
       cookie: {
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "lax" : "lax",
+        secure: process.env.NODE_ENV === "production" || process.env.REPLIT_DEPLOYMENT === "1",
+        sameSite: "lax",
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
       },
